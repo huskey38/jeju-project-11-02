@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { Container, Nav, Navbar, Toast, ToastContainer } from 'react-bootstrap'
 import { NAV_ITEMS } from '../router'
 import { CitrusIcon } from '../components/JejuScene'
+import ChatWidget from '../components/ChatWidget'
 import { useAppStore } from '../store/useAppStore'
 
 export default function RootLayout() {
@@ -42,6 +43,9 @@ export default function RootLayout() {
           데이터 출처: 공공데이터포털 외
         </Container>
       </footer>
+
+      {/* 어느 페이지에서나 따라다니는 AI 가이드 원형 버튼 + 대화창 */}
+      <ChatWidget />
 
       {/* 스토어의 toast() 로 띄운 알림 */}
       <ToastContainer position="bottom-end" className="p-3 position-fixed">
