@@ -6,7 +6,8 @@ import { Empty, ErrorAlert, Loading } from '../components/Status'
 import { fetchPlaces } from '../api/client'
 import { useAppStore } from '../store/useAppStore'
 
-const TYPES = { 12: '관광지', 14: '문화시설', 15: '축제·행사' }
+const TYPES = { 12: '관광지', 14: '문화시설', 15: '축제·행사', 39: '음식점' }
+const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 
 export default function Places() {
   const addFavorite = useAppStore((s) => s.addFavorite)   // STEP 5에서 사용
@@ -14,14 +15,31 @@ export default function Places() {
   const [type, setType] = useState('12')
   const [places, setPlaces] = useState([])               // ① 데이터
   const [loading, setLoading] = useState(true)           // ② 로딩
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [moreLoading, setMoreLoading] = useState(false)
   const [error, setError] = useState('')                 // ③ 에러
 
   async function search(e) {
     e?.preventDefault()                                  // 폼 제출 시 새로고침 막기
-    setLoading(true); setError('')
-    try { setPlaces(await fetchPlaces(keyword, type)) }
+    setLoading(true); setError(''); setPage(1)
+    try {
+      const list = await fetchPlaces(keyword, type, 1, ROWS)
+      setPlaces(list); setHasMore(list.length === ROWS)
+    }
     catch (err) { setError(err.message) }
     finally { setLoading(false) }
+  }
+
+  async function loadMore() {                            // 다음 쪽을 뒤에 이어 붙이기
+    setMoreLoading(true); setError('')
+    try {
+      const list = await fetchPlaces(keyword, type, page + 1, ROWS)
+      setPlaces((prev) => [...prev, ...list.filter((n) => !prev.some((p) => p.id === n.id))])
+      setPage(page + 1); setHasMore(list.length === ROWS)
+    }
+    catch (err) { setError(err.message) }
+    finally { setMoreLoading(false) }
   }
   useEffect(() => { search() }, [])                      // 처음 한 번 자동 검색
 
@@ -31,6 +49,7 @@ export default function Places() {
       <Form onSubmit={search} className="mb-4">
         <InputGroup>
           <Form.Select value={type} onChange={(e) => setType(e.target.value)} style={{ maxWidth: 140 }}>
+            <option value="">전체</option>
             {Object.entries(TYPES).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </Form.Select>
           <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="검색어" />
@@ -48,6 +67,13 @@ export default function Places() {
             </Col>
           ))}
         </Row>
+      )}
+      {!loading && hasMore && (
+        <div className="text-center mt-4">
+          <Button variant="outline-primary" onClick={loadMore} disabled={moreLoading}>
+            {moreLoading ? '불러오는 중...' : '더 보기'}
+          </Button>
+        </div>
       )}
     </>
   )

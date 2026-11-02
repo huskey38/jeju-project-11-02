@@ -24,7 +24,7 @@ describe('api handlers', () => {
     const { default: h } = await import('../api/tour.js')
     const res = mkRes(); await h({ query: { keyword: '해녀', type: '14' } }, res)
     expect(res.code).toBe(200)
-    expect(res.body[0].args).toEqual({ keyword: '해녀', contentTypeId: '14' })
+    expect(res.body[0].args).toEqual({ keyword: '해녀', contentTypeId: '14', page: 1, rows: 10 })
   })
   it('weather', async () => {
     const { default: h } = await import('../api/weather.js')
@@ -42,5 +42,18 @@ describe('api handlers', () => {
     const { default: h } = await import('../api/tour.js')
     const res = mkRes(); await h({ query: {} }, res)
     expect(res.code).toBe(500); expect(res.body.error).toBe('boom')
+  })
+})
+
+describe('api/tour — page·rows', () => {
+  it('page·rows 전달(rows 상한 50), 잘못된 값은 기본값', async () => {
+    vi.resetModules()
+    const search = vi.fn(async () => [])
+    vi.doMock('../server/tour.js', () => ({ searchTour: search }))
+    const { default: h } = await import('../api/tour.js')
+    await h({ query: { keyword: '오름', type: '', page: '2', rows: '999' } }, mkRes())
+    expect(search).toHaveBeenLastCalledWith({ keyword: '오름', contentTypeId: '', page: 2, rows: 50 })
+    await h({ query: { page: 'x', rows: '' } }, mkRes())
+    expect(search).toHaveBeenLastCalledWith({ keyword: '', contentTypeId: '12', page: 1, rows: 10 })
   })
 })

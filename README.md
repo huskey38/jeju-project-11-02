@@ -51,7 +51,7 @@ tests/      vitest 테스트
 ### 공공데이터 API 3종 (`server/`)
 | 파일 | API | 설명 |
 |---|---|---|
-| `tour.js` | 한국관광공사 TourAPI | 키워드 있으면 `searchKeyword2`, 없으면 `areaBasedList2`, 제주(areaCode 39) |
+| `tour.js` | 한국관광공사 TourAPI | 키워드 있으면 `searchKeyword2`, 없으면 `areaBasedList2`. 제주 = 법정동 코드 `lDongRegnCd=50`(옛 `areaCode=39` 는 관광지 132건·축제 0건만 잡혀 교체: 관광지 557, 문화시설 97, 축제 27, 음식점 699건). `page`·`rows` 지원, 이미지 http→https |
 | `weather.js` | 기상청 단기예보 | 제주시·서귀포시 격자, 가장 가까운 발표시각 계산, 6개 시간대 기온/하늘/강수 |
 | `heritage.js` | 국가유산청 | 제주(ccbaCtcd 50) 국가유산 XML 검색 |
 
@@ -59,7 +59,7 @@ tests/      vitest 테스트
 | 주소 | 기능 |
 |---|---|
 | `GET /api/hello` | 상태 확인. 키 값은 숨기고 있는지만 반환 |
-| `GET /api/tour?keyword=&type=` | 관광·문화 검색 |
+| `GET /api/tour?keyword=&type=&page=&rows=` | 관광·문화 검색 (type 비우면 전체, rows 최대 50) |
 | `GET /api/weather?place=` | 날씨 |
 | `GET /api/heritage?keyword=` | 국가유산 검색 |
 | `POST /api/agent` | Claude 에이전트 루프(최대 5턴): 도구 3개(`search_tour_places`, `get_weather`, `search_heritage`) 호출 → 결과 전달 → 최종 답, 사용한 도구 기록(`steps`) 반환. 429 는 안내 메시지 |
@@ -68,7 +68,7 @@ tests/      vitest 테스트
 | 경로 | 기능 |
 |---|---|
 | `/` | 소개 + 3D + 동작 체크(React / Supabase / `/api`) + 닉네임(Zustand, localStorage 저장) |
-| `/places` | 관광지·문화시설·축제 검색, 카드, 즐겨찾기 |
+| `/places` | 관광지·문화시설·축제·음식점·전체 검색, 카드, 더 보기(12건씩), 즐겨찾기 |
 | `/heritage` | 국가유산 검색, 카드, 즐겨찾기 |
 | `/map3d` | 3D 지도 |
 | `/agent` | AI 가이드 채팅, 도구 사용 내역 표시, 대화는 store 에 유지 |

@@ -16,7 +16,7 @@ describe('server/tour', () => {
     expect(f.mock.calls[0][0]).toContain('searchKeyword2')
     await searchTour({})
     expect(f.mock.calls[1][0]).toContain('areaBasedList2')
-    expect(f.mock.calls[1][0]).toContain('areaCode=39')
+    expect(f.mock.calls[1][0]).toContain('lDongRegnCd=50')
   })
   it('결과를 정규화하고 단일 객체도 배열로', async () => {
     vi.stubGlobal('fetch', mockFetch({ response: { body: { items: { item } } } }))
@@ -66,5 +66,31 @@ describe('server/heritage', () => {
   it('결과 없음 → 빈 배열', async () => {
     vi.stubGlobal('fetch', mockFetch('<result></result>'))
     expect(await searchHeritage({})).toEqual([])
+  })
+})
+
+describe('server/tour — 페이지·이미지·지역코드', () => {
+  const item = { contentid: '1', title: 'x', addr1: 'a', firstimage: 'http://tong.visitkorea.or.kr/a.jpg', mapx: '126', mapy: '33', contenttypeid: '12' }
+  it('page·rows 를 pageNo·numOfRows 로 전달, 제주 법정동 코드 사용', async () => {
+    const f = mockFetch({ response: { body: { items: { item: [item] } } } })
+    vi.stubGlobal('fetch', f)
+    await searchTour({ keyword: '오름', page: 3, rows: 12 })
+    const url = f.mock.calls[0][0]
+    expect(url).toContain('pageNo=3')
+    expect(url).toContain('numOfRows=12')
+    expect(url).toContain('lDongRegnCd=50')
+    expect(url).not.toContain('areaCode=')
+  })
+  it('이미지 http → https', async () => {
+    vi.stubGlobal('fetch', mockFetch({ response: { body: { items: { item: [item, { ...item, contentid: '2', firstimage: '' }] } } } }))
+    const r = await searchTour({})
+    expect(r[0].image).toBe('https://tong.visitkorea.or.kr/a.jpg')
+    expect(r[1].image).toBe('')
+  })
+  it('contentTypeId 를 비우면 전체 유형', async () => {
+    const f = mockFetch({ response: { body: { items: '' } } })
+    vi.stubGlobal('fetch', f)
+    await searchTour({ keyword: '해녀', contentTypeId: '' })
+    expect(f.mock.calls[0][0]).not.toContain('contentTypeId')
   })
 })
