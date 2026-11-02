@@ -32,11 +32,18 @@ export const fetchPlaces = (keyword = '', type = '12', page = 1, rows = 10, lcls
 export const fetchNearby = ({ lat, lng, radius = 3000, type = '', lcls = '', xlcls = '', page = 1, rows = 12 }) =>
   get(`/api/tour?mode=near&lat=${lat}&lng=${lng}&radius=${radius}&type=${type}&lcls=${lcls}&xlcls=${xlcls}&page=${page}&rows=${rows}`)
 // 축제 기간 검색: from(YYYY-MM-DD, 기본 오늘) 이후 진행 중이거나 시작하는 행사
-export const fetchFestivals = ({ from = '', to = '', keyword = '', page = 1, rows = 12 }) =>
-  get(`/api/tour?mode=festival&from=${from}&to=${to}&keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+export const fetchFestivals = ({ from = '', to = '', keyword = '', tags = [], page = 1, rows = 12 }) =>
+  get(`/api/tour?mode=festival&from=${from}&to=${to}&keyword=${encodeURIComponent(keyword)}&tags=${tags.join(',')}&page=${page}&rows=${rows}`)
+// 테마 태그 검색 (소개글에서 뽑은 태그, 색인에서 조회): tab = spot|culture|food|cafe, tags 는 모두 가진 곳만
+export const fetchTagged = ({ tab, tags = [], lcls = '', keyword = '', page = 1, rows = 12 }) =>
+  get(`/api/tour?mode=tagged&tab=${tab}&tags=${tags.join(',')}&lcls=${lcls}&keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
 // 공연장 (제주도내 공연장 현황 — 파일 데이터를 서버에서 조회)
 export const fetchVenues = (keyword = '', page = 1, rows = 12) =>
   get(`/api/venue?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+// 일반음식점 (행정안전부 인허가 데이터): 목록(keyword 는 가게 이름, biz 는 업태) / 상세(관리번호)
+export const fetchRestaurants = (keyword = '', biz = '', page = 1, rows = 12) =>
+  get(`/api/restaurant?keyword=${encodeURIComponent(keyword)}&biz=${encodeURIComponent(biz)}&page=${page}&rows=${rows}`)
+export const fetchRestaurantDetail = (id) => get(`/api/restaurant?id=${encodeURIComponent(id)}`)
 export const fetchVenueDetail = (id) => get(`/api/venue?id=${encodeURIComponent(id)}`)
 // 장소(좌표)·날짜별 예보: dates = ['YYYY-MM-DD', ...] → [{ date, kind: 'short'|'mid'|'none', tmin, tmax, sky, precip, pop }]
 export const fetchForecast = ({ lat, lng, dates }) =>

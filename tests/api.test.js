@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../server/tour.js', () => ({ searchTour: vi.fn(async (a) => [{ id: '1', title: 'T', args: a }]) }))
+vi.mock('../server/tags.js', () => ({ searchTagged: vi.fn((a) => [a]), filterByTags: vi.fn((l) => l.slice(0, 1)) }))
+vi.mock('../server/restaurants.js', () => ({ searchRestaurants: vi.fn(async (a) => [a]), getRestaurant: vi.fn(async (a) => ({ got: a.id })) }))
 vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async (a) => [{ place: a.place }]), getForecast: vi.fn(async (a) => a.dates.map((date) => ({ date, kind: 'short' }))) }))
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async (a) => [{ name: 'H', args: a }]) }))
 
@@ -40,6 +42,13 @@ describe('api handlers', () => {
     expect(far.code).toBe(400)
     const bad = mkRes(); await h({ query: { lat: '33.5', lng: '126.5', dates: 'x' } }, bad)
     expect(bad.code).toBe(400)
+  })
+  it('restaurant: 목록(검색어·업태·쪽, rows 는 100 까지) / 상세(id)', async () => {
+    const { default: h } = await import('../api/restaurant.js')
+    const list = mkRes(); await h({ query: { keyword: '흑돼지', biz: '횟집', page: '2', rows: '500' } }, list)
+    expect(list.body[0]).toEqual({ keyword: '흑돼지', biz: '횟집', page: 2, rows: 100 })
+    const one = mkRes(); await h({ query: { id: '6510000-1' } }, one)
+    expect(one.body).toEqual({ got: '6510000-1' })
   })
   it('heritage', async () => {
     const { default: h } = await import('../api/heritage.js')
@@ -135,6 +144,28 @@ describe('api/tour — 주변·축제 모드', () => {
     const { default: h } = await import('../api/tour.js')
     await h({ query: { mode: 'festival', from: '2026-11-01', to: '2026-11-30', keyword: '축제', page: '1', rows: '12' } }, mkRes())
     expect(fest).toHaveBeenLastCalledWith({ from: '2026-11-01', to: '2026-11-30', keyword: '축제', page: 1, rows: 12 })
+  })
+  it('mode=tagged: 탭·태그·분류·검색어·쪽 전달, 잘못된 탭은 400, 태그는 소문자만', async () => {
+    vi.resetModules()
+    vi.doMock('../server/tour.js', () => ({ searchNearby: vi.fn(), searchFestivals: vi.fn(), searchTour: vi.fn(), getTourDetail: vi.fn() }))
+    const tagsMod = { searchTagged: vi.fn(() => []), filterByTags: vi.fn((l) => l) }
+    vi.doMock('../server/tags.js', () => tagsMod)
+    const { default: h } = await import('../api/tour.js')
+    const ok = mkRes(); await h({ query: { mode: 'tagged', tab: 'food', tags: 'seafood,BAD,noodle', lcls: 'FD020200', keyword: '회', page: '2', rows: '12' } }, ok)
+    expect(ok.code).toBe(200)
+    expect(tagsMod.searchTagged).toHaveBeenLastCalledWith({ tab: 'food', tags: ['seafood', 'noodle'], lcls: 'FD020200', keyword: '회', page: 2, rows: 12 })
+    const bad = mkRes(); await h({ query: { mode: 'tagged', tab: 'hack' } }, bad)
+    expect(bad.code).toBe(400)
+  })
+  it('mode=festival + tags: 기간 안 행사를 한 번에 받아 태그로 거른 뒤 쪽으로 자름', async () => {
+    vi.resetModules()
+    const fest = vi.fn(async () => Array.from({ length: 30 }, (_, i) => ({ id: String(i) })))
+    vi.doMock('../server/tour.js', () => ({ searchNearby: vi.fn(), searchFestivals: fest, searchTour: vi.fn(), getTourDetail: vi.fn() }))
+    vi.doMock('../server/tags.js', () => ({ searchTagged: vi.fn(), filterByTags: vi.fn((l) => l) }))
+    const { default: h } = await import('../api/tour.js')
+    const res = mkRes(); await h({ query: { mode: 'festival', tags: 'music', page: '2', rows: '12' } }, res)
+    expect(fest).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, rows: 100 }))
+    expect(res.body.map((x) => x.id)).toEqual(Array.from({ length: 12 }, (_, i) => String(12 + i)))
   })
   it('주변 검색 에러(제주 밖 좌표 등)는 500 + 메시지', async () => {
     vi.resetModules()

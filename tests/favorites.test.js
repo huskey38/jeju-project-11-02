@@ -52,7 +52,7 @@ describe('즐겨찾기 담기·빼기', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ nickname: '테스터', source: 'tour', item_id: '130857', title: '제주해녀박물관' })
     expect(S().favorites.map((f) => f.item_id)).toEqual(['130857'])
-    expect(lastToast().message).toBe('가볼만한 곳에 담았어요')
+    expect(lastToast()).toMatchObject({ message: '가볼만한 곳에 담았어요', variant: 'citrus' })
   })
 
   it('removeFavorite: 지우고 목록에서 빼고 알림', async () => {
@@ -60,7 +60,7 @@ describe('즐겨찾기 담기·빼기', () => {
     await S().removeFavorite(S().favorites[0])
     expect(rows).toHaveLength(0)
     expect(S().favorites).toEqual([])
-    expect(lastToast()).toMatchObject({ message: '가볼만한 곳에서 뺐어요', variant: 'success' })
+    expect(lastToast()).toMatchObject({ message: '가볼만한 곳에서 뺐어요', variant: 'citrus' })
   })
 
   it('removeFavorite: delete 권한(RLS 정책)이 없어 0건 지워지면 원인을 알리고 목록은 그대로', async () => {

@@ -5,18 +5,20 @@ import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { CitrusMark } from '../components/JejuScene'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
-import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchVenueDetail, fetchVenues } from '../api/client'
-import { CATEGORIES, MENU_WORDS, NEAR_CATS, RADII, advance, badgeOf, festivalStatus, parseSub, recommendModeOf, sourcesFor, subKeys, subsOf, toggleSub, subtitleOf, todayKst, withoutOreum } from '../lib/placeCategories'
+import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchRestaurantDetail, fetchRestaurants, fetchTagged, fetchVenueDetail, fetchVenues } from '../api/client'
+import { TAG_RULES } from '../lib/placeTags'
+import { CATEGORIES, MENU_WORDS, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, festivalStatus, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf, todayKst } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import { useAppStore } from '../store/useAppStore'
 
 const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 const CITY_HALL = { lat: 33.4996, lng: 126.5312 }   // 위치를 못 얻을 때 기준 (제주시청)
 // 가볼만한 곳(저장된 행)에 붙이는 종류 배지
-const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', venue: '공연장' }
+const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', venue: '공연장', rest: '일반음식점' }
 // 목록 항목 → 즐겨찾기 키 (favorites 테이블의 source·item_id 와 같은 규칙)
 const favOf = (it) => it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
   : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
+  : it.kind === 'rest' ? { source: 'rest', id: it.id, title: it.title }
   : { source: 'tour', id: it.id, title: it.title }
 const valid = (list, v, fallback) => (list?.some((x) => x.key === v) ? v : fallback)
 
@@ -27,15 +29,23 @@ async function fetchPage(src, ctx, page) {
     const list = await fetchHeritage(ctx.keyword, page, ROWS)
     return list.map((h) => ({ ...h, kind: 'heritage', key: `h-${h.asno}`, kindName: h.kind }))
   }
+  if (src.api === 'rest') {
+    const list = await fetchRestaurants(ctx.keyword, src.biz, page, ROWS)
+    return list.map((r) => ({ ...r, kind: 'rest', key: `r-${r.id}` }))
+  }
   if (src.api === 'venue') {
     const list = await fetchVenues(ctx.keyword, page, ROWS)
     return list.map((v) => ({ ...v, kind: 'venue', key: `v-${v.id}` }))
   }
   let list
+  if (src.api === 'tagged') {
+    const list = await fetchTagged({ tab: src.tab, tags: src.tags, lcls: src.lcls, keyword: ctx.keyword, page, rows: ROWS })
+    return list.map((p) => ({ ...p, kind: 'tour', key: `t-${p.id}` }))
+  }
   if (src.api === 'near') {
     list = await fetchNearby({ ...ctx.coords, radius: ctx.radiusKm * 1000, type: src.type, lcls: src.lcls, xlcls: src.xlcls, page, rows: ROWS })
   } else if (src.api === 'festival') {
-    list = await fetchFestivals({ from: ctx.from, to: ctx.to, keyword: ctx.keyword, page, rows: ROWS })
+    list = await fetchFestivals({ from: ctx.from, to: ctx.to, keyword: ctx.keyword, tags: src.tags ?? [], page, rows: ROWS })
   } else {
     list = await fetchPlaces(ctx.keyword, src.type, page, ROWS, src.lcls)
   }
@@ -47,17 +57,16 @@ export default function Places() {
   const favorites = useAppStore((s) => s.favorites)
   const favLoading = useAppStore((s) => s.favLoading)
   const removeFavorite = useAppStore((s) => s.removeFavorite)
-  const nickname = useAppStore((s) => s.nickname)
-  const setNickname = useAppStore((s) => s.setNickname)
   const toast = useAppStore((s) => s.toast)
   const isSaved = (it) => { const f = favOf(it); return favorites.some((x) => x.source === f.source && x.item_id === String(f.id)) }
   const [params, setParams] = useSearchParams()          // 선택한 분류를 주소(?cat=&sub=&r=)에 남김 → 새로고침·링크 공유 시 유지
   const cat = valid(CATEGORIES, params.get('cat'), 'all')
   const subs = subsOf(cat)
-  const sub = parseSub(cat, params.get('sub'))   // 관광지는 여러 개('general,no-oreum'), 내 주변은 하나
+  const sub = parseSub(cat, params.get('sub'))   // 음식점 종류(하나)
   const canNear = NEAR_CATS.includes(cat)
   const radiusKm = canNear && RADII.includes(Number(params.get('r'))) ? Number(params.get('r')) : 0   // 0 = 내 주변을 안 씀(제주 전체)
   const nearOn = radiusKm > 0
+  const tags = nearOn ? [] : parseTags(cat, params.get('t'))   // 테마 태그 (내 주변과는 함께 쓰지 않음)
 
   const [keyword, setKeyword] = useState('')
   const savedItems = favorites.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 가볼만한 곳: 검색어가 있으면 제목으로 거름
@@ -96,7 +105,7 @@ export default function Places() {
   async function load(reset, kw = keyword) {
     if (cat === 'saved') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
     if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
-    const sources = sourcesFor(cat, sub, nearOn)
+    const sources = sourcesFor(cat, sub, nearOn, tags)
     const ctx = { keyword: kw, coords, radiusKm, from, to }
     const id = reset ? ++reqId.current : reqId.current
     let cur = reset ? { i: 0, page: 1 } : cursor.current
@@ -107,7 +116,7 @@ export default function Places() {
       // 한 소스가 끝나면 다음 소스로 넘어가며, 한 번에 보여줄 개수(ROWS)가 찰 때까지 읽음
       while (cur.i < sources.length && got.length < ROWS) {
         const list = await fetchPage(sources[cur.i], ctx, cur.page)
-        got = [...got, ...(cat === 'spot' && subKeys(sub).includes('no-oreum') ? withoutOreum(list) : list)]   // 쪽 계산(advance)은 거르기 전 개수로
+        got = [...got, ...list.filter((x) => !x.dup)]   // 관광공사 음식점과 같은 가게(일반음식점 쪽 중복)는 뺌. 쪽 계산(advance)은 거르기 전 개수로
         cur = advance(cur, list.length, ROWS)
       }
       if (id !== reqId.current) return
@@ -121,7 +130,7 @@ export default function Places() {
     }
   }
   // 분류·하위 선택·반경·기준 위치·축제 기간이 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
-  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, from, to])
+  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, from, to, tags.join(',')])
 
   // 인기 메뉴 바로가기: 누르면 그 단어로 바로 검색, 다시 누르면 해제
   function pickWord(w) {
@@ -134,12 +143,13 @@ export default function Places() {
     load(true)
   }
   // 주소(?cat=&sub=&r=) 만들기: 반경(r)은 분류를 옮겨도 유지됨
-  const urlOf = ({ c = cat, sb = sub, r = radiusKm }) => ({ ...(c !== 'all' && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }) })
-  const subOn = (key) => (key === 'all' ? sub === 'all' : subKeys(sub).includes(key))   // 관광지는 여러 버튼이 동시에 켜짐
+  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags }) => ({ ...(c !== 'all' && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
+  const subOn = (key) => sub === key
   function pickCat(key) {
     if (Object.values(MENU_WORDS).flat().includes(keyword)) setKeyword('')   // 인기 메뉴로 넣은 검색어는 다른 분류로 가져가지 않음
-    setParams(urlOf({ c: key, sb: 'all' }))
+    setParams(urlOf({ c: key, sb: 'all', tg: [] }))
   }
+  function pickTag(key) { setParams(urlOf({ tg: toggleTag(tags, key) })) }
   function pickSub(key) { setParams(urlOf({ sb: toggleSub(cat, sub, key) })) }
   function pickRadius(km) { setParams(urlOf({ r: km === radiusKm ? 0 : km })) }   // 켜진 반경을 다시 누르면 해제
 
@@ -154,6 +164,7 @@ export default function Places() {
     try {
       const data = it.kind === 'heritage' ? await fetchHeritageDetail(it)
         : it.kind === 'venue' ? await fetchVenueDetail(it.id)
+        : it.kind === 'rest' ? await fetchRestaurantDetail(it.id)
         : await fetchPlaceDetail(it.id)
       if (id === detailReq.current) setDetail({ base: it, data })
     } catch (err) { if (id === detailReq.current) setDetail({ base: it, error: err.message }) }
@@ -169,6 +180,7 @@ export default function Places() {
       } catch (err) { return toast(err.message, 'danger') }
     }
     if (f.source === 'venue') return openDetail({ id: f.item_id, title: f.title, addr: '', kind: 'venue', key: `v-${f.item_id}` })
+    if (f.source === 'rest') return openDetail({ id: f.item_id, title: f.title, addr: '', kind: 'rest', key: `r-${f.item_id}` })
     return openDetail({ id: f.item_id, title: f.title, kind: 'tour', key: `t-${f.item_id}` })
   }
   function closeDetail() { detailReq.current++; setDetail(null); setTrail([]) }
@@ -197,6 +209,11 @@ export default function Places() {
         title={d?.name ?? b.name} subtitle={d?.hanja} badge={d ? badgeOf({ ...b, kindName: d.kind }) : common.badge}
         images={d?.image ? [d.image] : []}
         rows={d?.info ?? [{ label: '지역', value: b.city }]} text={d?.content}
+        lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
+        saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
+    ) : b.kind === 'rest' ? (
+      <DetailModal {...common} badge={badgeOf({ ...b, biz: d?.biz ?? b.biz })}
+        title={d?.title ?? b.title} subtitle={d?.addr ?? b.addr} rows={d?.info}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
         saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     ) : b.kind === 'venue' ? (
@@ -247,11 +264,23 @@ export default function Places() {
         </div>
       )}
       {subs && (
-        <div className="d-flex flex-wrap gap-2 mb-2 ps-1" role="group" aria-label={cat === 'food' ? '음식 종류' : '관광지 세부 분류'}>
+        <div className="d-flex flex-wrap gap-2 mb-2 ps-1" role="group" aria-label="음식 종류">
           {subs.map((s) => (
             <Button key={s.key} size="sm" className="rounded-pill px-3" variant={subOn(s.key) ? 'info' : 'outline-info'}
               aria-pressed={subOn(s.key)} onClick={() => pickSub(s.key)}>{s.label}</Button>
           ))}
+        </div>
+      )}
+
+      {TAG_RULES[cat] && !nearOn && (
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="테마" data-testid="tag-bar">
+          <span className="text-muted"><i className="bi bi-tags me-1" />테마</span>
+          {TAG_RULES[cat].map((t) => (
+            <Button key={t.key} size="sm" className="rounded-pill px-2" variant={tags.includes(t.key) ? 'info' : 'outline-info'}
+              aria-pressed={tags.includes(t.key)} onClick={() => pickTag(t.key)}>{t.label}</Button>
+          ))}
+          {tags.length > 0 && <Button size="sm" variant="link" className="p-0" onClick={() => setParams(urlOf({ tg: [] }))}>테마 해제</Button>}
+          {cat === 'spot' && tags.length > 0 && <span className="text-muted">· 국가유산은 테마 분류에서 빠져요</span>}
         </div>
       )}
 
@@ -270,9 +299,7 @@ export default function Places() {
 
       {cat === 'saved' && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
-          <span className="text-muted">닉네임</span>
-          <Form.Control size="sm" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="익명" aria-label="닉네임" style={{ width: 150 }} />
-          <span className="text-muted">의 가볼만한 곳 {favorites.length}곳 · 카드의 감귤을 누르면 빠져요</span>
+          <span className="text-muted">가볼만한 곳 {favorites.length}곳 · 카드의 감귤을 누르면 빠져요</span>   {/* 닉네임 입력칸은 숨김(저장된 닉네임은 그대로 사용) */}
         </div>
       )}
 

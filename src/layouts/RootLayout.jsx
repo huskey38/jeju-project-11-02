@@ -39,8 +39,8 @@ export default function RootLayout() {
       {/* 스토어의 toast() 로 띄운 알림 */}
       <ToastContainer position="bottom-end" className="p-3 position-fixed">
         {toasts.map((t) => (
-          <Toast key={t.id} bg={t.variant}>
-            <Toast.Body className="text-white">{t.message}</Toast.Body>
+          <Toast key={t.id} bg={t.variant === 'citrus' ? undefined : t.variant} className={t.variant === 'citrus' ? 'toast-citrus' : undefined}>
+            <Toast.Body className={t.variant === 'citrus' ? 'fw-bold' : 'text-white'}>{t.message}</Toast.Body>
           </Toast>
         ))}
       </ToastContainer>

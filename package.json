@@ -18,6 +18,7 @@
     "bootswatch": "^5.3.8",
     "fast-xml-parser": "^5.11.2",
     "leaflet": "^1.9.4",
+    "proj4": "^2.22.0",
     "react": "^19.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.3.1",

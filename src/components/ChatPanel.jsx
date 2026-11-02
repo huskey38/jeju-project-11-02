@@ -48,12 +48,7 @@ export default function ChatPanel({ autoFocus = false, height }) {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
-            {m.steps?.length > 0 && (
-              <div className="msg-tools" title="에이전트가 호출한 도구">
-                <i className="bi bi-tools me-1" />
-                {m.steps.map((s) => `${s.tool}(${JSON.stringify(s.args)}) → ${s.count}건`).join(' · ')}
-              </div>
-            )}
+            {/* 에이전트가 부른 도구 목록(m.steps)은 데이터에는 남기되 화면에는 보이지 않게 함 */}
             <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
           </div>
         ))}

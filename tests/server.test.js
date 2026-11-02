@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { searchTour } from '../server/tour.js'
+import { getTourDetail, searchTour } from '../server/tour.js'
 import { getForecast, getWeather, midBase, midDay, summarizeShort, toGrid } from '../server/weather.js'
 import { searchHeritage } from '../server/heritage.js'
 
@@ -30,6 +30,16 @@ describe('server/tour', () => {
   it('결과를 정규화하고 단일 객체도 배열로', async () => {
     vi.stubGlobal('fetch', mockFetch({ response: { body: { items: { item } } } }))
     expect(await searchTour({})).toEqual([{ id: '1', title: '성산일출봉', addr: '서귀포', image: '', lng: '126.94', lat: '33.46', type: '12' }])
+  })
+  it('한도 초과·키 오류 응답은 빈 결과가 아니라 알아볼 수 있는 오류로 (상세는 "찾을 수 없어요"로 보이지 않게)', async () => {
+    const quota = { OpenAPI_ServiceResponse: { cmmMsgHeader: { errMsg: 'LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR' } } }
+    vi.stubGlobal('fetch', mockFetch(quota))
+    await expect(getTourDetail({ id: '1' })).rejects.toThrow('하루 호출 한도')
+    await expect(searchTour({})).rejects.toThrow('하루 호출 한도')
+    vi.stubGlobal('fetch', mockFetch({ OpenAPI_ServiceResponse: { cmmMsgHeader: { errMsg: 'LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_SECOND_EXCEEDS_ERROR' } } }))
+    await expect(searchTour({})).rejects.toThrow('너무 몰렸어요')
+    vi.stubGlobal('fetch', mockFetch({ OpenAPI_ServiceResponse: { cmmMsgHeader: { errMsg: 'SERVICE_KEY_IS_NOT_REGISTERED_ERROR' } } }))
+    await expect(searchTour({})).rejects.toThrow('TourAPI 오류')
   })
   it('결과 없음 → 빈 배열', async () => {
     vi.stubGlobal('fetch', mockFetch({ response: { body: { items: '' } } }))

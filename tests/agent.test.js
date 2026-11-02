@@ -4,9 +4,11 @@ const create = vi.fn()
 vi.mock('@anthropic-ai/sdk', () => ({ default: class { messages = { create } } }))
 vi.mock('../server/tour.js', () => ({
   searchTour: vi.fn(async () => [{ title: '해녀박물관' }, { title: '두번째' }]),
+  getTourDetail: vi.fn(async ({ id }) => ({ id, title: '화조원', type: '12', addr: '애월', overview: '체험형 조류 동물원이다. ' + 'a'.repeat(600), info: [1, 2, 3, 4, 5].map((n) => ({ label: `l${n}`, value: 'v' })) })),
   searchNearby: vi.fn(async () => [{ id: '1', title: '라토커피제주', type: '39', lcls: 'FD05', addr: 'a', dist: 286, lat: '33.5', lng: '126.5', image: 'x.jpg' }]),
   searchFestivals: vi.fn(async () => [{ id: '2', title: '벚꽃축제', start: '2026-04-04', end: '2026-04-05', image: 'x.jpg' }]),
 }))
+vi.mock('../server/restaurants.js', () => ({ BIZ_TYPES: ['한식', '횟집'], searchRestaurants: vi.fn(async () => [{ id: 'r1', title: '성산막회', biz: '횟집', addr: 'a', tel: '064', lat: '33.4', lng: '126.9', dup: true, extra: 'x' }]) }))
 vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async () => []) }))
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async () => []) }))
 
@@ -107,5 +109,75 @@ describe('api/agent — 위치 기반·축제 기간 도구', () => {
     expect(res.code).toBe(200)
     expect(JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)).toEqual({ error: '제주 안의 위도·경도(lat, lng)가 필요해요' })
     expect(res.body.steps[0].count).toBe(0)
+  })
+})
+
+describe('api/agent — 분류 검색·상세 확인 (동물원 → 화조원)', () => {
+  const toolUse = (id, name, input) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id, name, input }] })
+  const done = { stop_reason: 'end_turn', content: [{ type: 'text', text: '답' }] }
+  const run = async () => {
+    const { default: h } = await import('../api/agent.js')
+    const res = mkRes(); await h({ method: 'POST', body: { message: '동물원 알려줘' } }, res)
+    return res
+  }
+
+  it('도구 목록에 get_place_detail 과 lcls 가 있고, 지침에 분류로 재시도하라는 말이 있음', async () => {
+    create.mockClear(); create.mockResolvedValueOnce(done)
+    await run()
+    const call = create.mock.calls[0][0]
+    expect(call.tools.map((t) => t.name)).toContain('get_place_detail')
+    expect(call.tools.find((t) => t.name === 'search_tour_places').input_schema.properties).toHaveProperty('lcls')
+    expect(call.system).toContain('VE02')
+  })
+  it('lcls 로 검색하면 유형 제한을 풀고 30곳까지, 잘못된 코드·숙박(AC)은 무시', async () => {
+    const tour = await import('../server/tour.js')
+    create.mockClear()
+    create.mockResolvedValueOnce(toolUse('a', 'search_tour_places', { keyword: '', lcls: 'VE02' })).mockResolvedValueOnce(done)
+    await run()
+    expect(tour.searchTour).toHaveBeenLastCalledWith({ keyword: '', contentTypeId: '', lclsSystm2: 'VE02', rows: 30 })
+    create.mockResolvedValueOnce(toolUse('b', 'search_tour_places', { keyword: '해녀', lcls: 'AC01' })).mockResolvedValueOnce(done)
+    await run()
+    expect(tour.searchTour).toHaveBeenLastCalledWith({ keyword: '해녀', contentTypeId: '12', lclsSystm2: '', rows: 10 })
+    create.mockResolvedValueOnce(toolUse('c', 'search_tour_places', { lcls: 'bad&x' })).mockResolvedValueOnce(done)
+    await run()
+    expect(tour.searchTour).toHaveBeenLastCalledWith(expect.objectContaining({ lclsSystm2: '' }))
+  })
+  it('get_place_detail: 소개글은 400자까지, 이용정보는 4개까지만 모델에게 전달', async () => {
+    create.mockClear()
+    create.mockResolvedValueOnce(toolUse('d', 'get_place_detail', { id: '2606209' })).mockResolvedValueOnce(done)
+    const res = await run()
+    expect(res.body.steps[0]).toMatchObject({ tool: 'get_place_detail', count: 0 })
+    const sent = JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)
+    expect(sent.title).toBe('화조원')
+    expect(sent.overview).toHaveLength(400)
+    expect(sent.overview).toContain('조류 동물원')
+    expect(sent.info).toHaveLength(4)
+  })
+  it('도구가 던져도(없는 장소 등) 에이전트는 계속 진행', async () => {
+    const tour = await import('../server/tour.js')
+    tour.getTourDetail.mockRejectedValueOnce(new Error('장소를 찾을 수 없어요'))
+    create.mockClear()
+    create.mockResolvedValueOnce(toolUse('e', 'get_place_detail', { id: 'x' })).mockResolvedValueOnce(done)
+    const res = await run()
+    expect(res.code).toBe(200)
+    expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toContain('장소를 찾을 수 없어요')
+  })
+})
+
+describe('api/agent — 일반음식점 도구', () => {
+  const toolUse = (id, name, input) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id, name, input }] })
+  const done = { stop_reason: 'end_turn', content: [{ type: 'text', text: '답' }] }
+  it('search_restaurants: 업태 목록을 도구에 알리고, 필요한 필드만 전달', async () => {
+    const rest = await import('../server/restaurants.js')
+    create.mockClear()
+    create.mockResolvedValueOnce(toolUse('r', 'search_restaurants', { keyword: '막회', biz: '횟집' })).mockResolvedValueOnce(done)
+    const { default: h } = await import('../api/agent.js')
+    const res = mkRes(); await h({ method: 'POST', body: { message: '횟집' } }, res)
+    const tool = create.mock.calls[0][0].tools.find((t) => t.name === 'search_restaurants')
+    expect(tool.input_schema.properties.biz.enum).toEqual(['한식', '횟집'])
+    expect(rest.searchRestaurants).toHaveBeenLastCalledWith({ keyword: '막회', biz: '횟집', rows: 15 })
+    const sent = JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)
+    expect(sent[0]).toEqual({ id: 'r1', title: '성산막회', biz: '횟집', addr: 'a', tel: '064', lat: '33.4', lng: '126.9', dup: true })
+    expect(res.body.steps[0]).toMatchObject({ tool: 'search_restaurants', count: 1 })
   })
 })

@@ -7,7 +7,10 @@ import Places from './Places'
 import { HallaScene } from '../components/JejuScene'
 
 // 홈 = 기획 소개 + "동작 체크" 대시보드
-// STEP 0~1 에서 이 화면의 체크가 모두 초록색이 되어야 다음 단계로 넘어갑니다.
+// 동작 체크(React·Supabase·/api)는 모두 정상이라 화면에서 숨겼습니다. 다시 보려면 SHOW_CHECKS 를 true 로 바꾸세요 (숨기면 확인 호출도 하지 않음).
+const SHOW_CHECKS = false
+const SHOW_NICKNAME = false   // 닉네임 입력칸도 숨김 (저장된 닉네임은 가볼만한 곳의 주인 이름으로 계속 쓰임, 비어 있으면 '익명')
+
 export default function Home() {
   const nickname = useAppStore((s) => s.nickname)
   const setNickname = useAppStore((s) => s.setNickname)
@@ -17,6 +20,7 @@ export default function Home() {
   const [api, setApi] = useState({ state: 'wait', msg: '확인 중...' })
 
   useEffect(() => {
+    if (!SHOW_CHECKS) return
     // ① Supabase 연결 확인
     if (isSupabaseReady) supabase.from('favorites').select('id').limit(1).then(({ error }) =>
       setDb(error ? { state: 'fail', msg: error.message } : { state: 'ok', msg: '연결 OK' }))
@@ -39,21 +43,25 @@ export default function Home() {
       {/* 관광·문화를 홈에서 바로 둘러봄 (분류 버튼·검색·내 주변·축제·상세·감귤 즐겨찾기 모두 이 화면에서 동작) */}
       <section className="mb-5" data-testid="home-places"><Places /></section>
 
-      <h5 className="fw-bold mb-3"><i className="bi bi-clipboard-check me-2" />동작 체크</h5>
-      <Row xs={1} md={3} className="g-3">
-        <Col><Check title="React · 라우터" state="ok" msg="이 화면이 보이면 OK" /></Col>
-        <Col><Check title="Supabase" {...db} /></Col>
-        <Col><Check title="서버 함수 /api" {...api} /></Col>
-      </Row>
+      {SHOW_CHECKS && (
+        <>
+          <h5 className="fw-bold mb-3"><i className="bi bi-clipboard-check me-2" />동작 체크</h5>
+          <Row xs={1} md={3} className="g-3">
+            <Col><Check title="React · 라우터" state="ok" msg="이 화면이 보이면 OK" /></Col>
+            <Col><Check title="Supabase" {...db} /></Col>
+            <Col><Check title="서버 함수 /api" {...api} /></Col>
+          </Row>
+        </>
+      )}
 
-      <Card className="mt-4">
+      {SHOW_NICKNAME && <Card className={SHOW_CHECKS ? 'mt-4' : ''}>
         <Card.Body>
           <Card.Title className="fs-6 fw-bold"><i className="bi bi-database me-2" />Store(Zustand) 확인</Card.Title>
           <Form.Control placeholder="닉네임을 입력하세요" value={nickname}
             onChange={(e) => setNickname(e.target.value)} style={{ maxWidth: 320 }} />
           <Form.Text>입력하면 오른쪽 위 메뉴에도 바로 보이고, 새로고침해도 남아 있습니다.</Form.Text>
         </Card.Body>
-      </Card>
+      </Card>}
     </>
   )
 }

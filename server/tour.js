@@ -6,6 +6,15 @@ const BASE = 'https://apis.data.go.kr/B551011/KorService2';
 // 숙박은 서비스 대상이 아니므로 모든 결과에서 뺍니다 (유형 32 / 분류체계 대분류 AC)
 export const isLodging = (p) => String(p.contenttypeid) === '32' || p.lclsSystm1 === 'AC';
 
+// 공공데이터포털이 주는 오류(키·한도)를 사람이 읽을 말로: 한도 초과 때 빈 목록이나 "찾을 수 없어요"로 보이지 않게 함
+function apiError(data) {
+  const msg = data?.OpenAPI_ServiceResponse?.cmmMsgHeader?.errMsg;
+  if (!msg) return null;
+  if (/PER_SECOND/.test(msg)) return new Error('관광공사 API 호출이 너무 몰렸어요. 잠시 뒤 다시 시도해 주세요');
+  if (/LIMITED_NUMBER/.test(msg)) return new Error('관광공사 API 하루 호출 한도를 넘었어요. 내일(자정 이후) 다시 시도해 주세요');
+  return new Error('TourAPI 오류: ' + msg);
+}
+
 // 목록 API 공통 호출: 원본 항목 배열을 돌려줌 (region=false 면 지역 제한 없이 — 위치 기반은 좌표가 범위를 정함)
 async function callList(op, extra, { region = true } = {}) {
   const params = new URLSearchParams({
@@ -21,6 +30,8 @@ async function callList(op, extra, { region = true } = {}) {
   let data;
   try { data = JSON.parse(text); }
   catch { throw new Error('TourAPI 응답이 JSON이 아님: ' + text.slice(0, 120)); }
+  const failed = apiError(data);
+  if (failed) throw failed;
   const item = data?.response?.body?.items?.item;
   return !item ? [] : Array.isArray(item) ? item : [item];
 }
@@ -97,6 +108,8 @@ async function callDetail(op, extra) {
   let data;
   try { data = JSON.parse(text); }
   catch { throw new Error('TourAPI 응답이 JSON이 아님: ' + text.slice(0, 120)); }
+  const failed = apiError(data);
+  if (failed) throw failed;
   const item = data?.response?.body?.items?.item;
   return !item ? [] : Array.isArray(item) ? item : [item];
 }

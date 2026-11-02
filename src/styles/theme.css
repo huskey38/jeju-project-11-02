@@ -205,7 +205,6 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
   border-radius: var(--r-pill); padding: .4rem .9rem; font-size: .84rem; font-weight: 500; transition: background .15s, border-color .15s;
 }
 .chat-example:hover:not(:disabled) { background: var(--accent-soft); border-color: #dccfae; color: var(--ink); }
-.msg-tools { font-size: .74rem; color: var(--ink-3); margin-bottom: .3rem; word-break: break-all; }
 
 /* ── 플로팅 AI 가이드: 오른쪽 아래 원형 버튼 + 대화창 ── */
 .chat-fab {
@@ -236,6 +235,8 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
   .chat-fab { right: 16px; bottom: 16px; }
   .chat-widget { right: 16px; left: 16px; width: auto; bottom: 84px; height: min(70vh, calc(100vh - 110px)); }
 }
+/* 가볼만한 곳 담기·빼기 알림: 감귤색 바탕 + 짙은 갈색 글자(읽기 쉬운 대비) */
+.toast.toast-citrus { background: var(--citrus); border: 1px solid #c4700f; color: #3b2205; box-shadow: 0 10px 24px -10px rgba(154, 84, 16, .55); }
 /* 알림(토스트)이 원형 버튼을 가리지 않도록 위로 올림 */
 .toast-container { bottom: 76px !important; }
 @media (prefers-reduced-motion: reduce) { .chat-widget { animation: none; } .chat-fab { transition: none; } }
