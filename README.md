@@ -42,8 +42,9 @@ tests/      vitest 테스트
 ### 3D (three.js / @react-three/fiber)
 | 파일 | 기능 |
 |---|---|
-| `src/components/Jeju3D.jsx` | 3D 장면. 한라산 지형(정점 높이 + 높이별 색: 초록/갈색/회색), 일렁이는 바다, 클릭·호버 가능한 핀(관광=주황, 유산=노랑), 마우스 회전·확대(OrbitControls), 선택 핀 강조·이름표. props: `items`, `selected`, `onSelect`, `height`, `autoRotate` |
-| `src/lib/geo.js` | `toXZ` 위경도→3D 좌표, `isJejuCoord` 제주 범위 좌표 판별(빈 값·0 제외), `heightAt` 한라산 높이 함수 |
+| `src/components/Jeju3D.jsx` | 3D 장면. **실제 지형**: DEM 높이맵(`public/terrain/height.png`)으로 정점을 올리고 **Sentinel-2 위성사진**(`satellite.jpg`)을 입힘(높이 약 4배 과장). 하늘(drei `Sky`), 바다 평면, 클릭·호버 가능한 핀(관광=주황, 유산=노랑), 마우스 회전·확대(OrbitControls). 높이맵을 못 불러오면 단색 대체 섬을 표시. props: `items`, `selected`, `onSelect`, `height`, `autoRotate` |
+| `src/lib/geo.js` | `toXZ` 위경도→3D 좌표, `isJejuCoord` 제주 범위 좌표 판별, `heightAt` 지면 높이(높이맵 등록 전에는 종 모양 근사), `setHeightField` 높이맵 등록, `TERRAIN` 지형 크기·배율 |
+| `scripts/build-terrain.mjs` | 일회성 스크립트(`node scripts/build-terrain.mjs`). AWS Terrain Tiles(Terrarium)와 EOX Sentinel-2 cloudless 2020 타일(z11)을 받아 위경도 선형 격자로 재투영해 `public/terrain/` 에 저장 (`sharp` 사용) |
 | `src/pages/Map3D.jsx` (`/map3d`) | TourAPI + 국가유산청 결과를 한 3D 지도에 표시. 검색, 핀/목록 클릭 시 상세 카드, 즐겨찾기 저장. 한쪽 API가 실패해도 다른 쪽 핀은 표시하고 경고 표시 |
 | `src/pages/Home.jsx` | 히어로 영역에 자동 회전하는 3D 제주 |
 
@@ -91,10 +92,20 @@ tests/      vitest 테스트
 - ✅ `/my`: Supabase 미설정 시 빈 목록 표시
 - ✅ `/agent`: 키가 없으면 서버 오류가 토스트로 표시, GET 은 405
 - ✅ 404 페이지
+- ✅ 버전 2: 실제 제주 해안선·한라산 입체 지형과 위성 텍스처 렌더, 핀이 지형 높이 위에 놓임
 - ✅ `npm run build` 성공
 
 ### 아직 확인하지 못한 것 (키 필요)
 - 실제 공공데이터 응답(`DATA_GO_KR_KEY`), Supabase 즐겨찾기 저장·조회, 실제 Claude 에이전트 응답, Vercel 배포
+
+## 데이터 출처 (3D 지형)
+- 높이: AWS Terrain Tiles (Mapzen 등 오픈 DEM 모음, https://registry.opendata.aws/terrain-tiles/)
+- 위성: Sentinel-2 cloudless 2020 © EOX IT Services GmbH, contains modified Copernicus Sentinel data 2020 (CC BY 4.0, https://s2maps.eu)
+
+## 버전
+- `v1` 태그 / `main`: 단색 지형 3D 지도
+- `v2` 브랜치: 실제 지형(DEM) + 위성 텍스처
+- 버전 1로 돌아가기: `git switch main` (또는 `git switch --detach v1`), 다시 버전 2: `git switch v2`
 
 ## 배포 (Vercel)
 `vercel.json` 이 `/api` 를 제외한 모든 경로를 `index.html` 로 보내(SPA) 라우팅이 동작한다. Vercel 프로젝트 환경변수에 위 4개 값을 등록한다.
