@@ -1,13 +1,24 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Container, Nav, Navbar, Toast, ToastContainer } from 'react-bootstrap'
 import { NAV_ITEMS } from '../router'
 import { CitrusIcon } from '../components/JejuScene'
 import ChatWidget from '../components/ChatWidget'
 import { useAppStore } from '../store/useAppStore'
+import { isSupabaseReady } from '../lib/supabase'
 
 export default function RootLayout() {
   const toasts = useAppStore((s) => s.toasts)
   const nickname = useAppStore((s) => s.nickname)
+  const loadFavorites = useAppStore((s) => s.loadFavorites)
+
+  // 어느 화면에서나 감귤 아이콘이 "담김" 상태를 알 수 있도록, 시작할 때와 닉네임이 바뀔 때 즐겨찾기를 불러옴
+  // (닉네임을 입력하는 동안 키 입력마다 조회하지 않도록 잠깐 기다림)
+  useEffect(() => {
+    if (!isSupabaseReady) return
+    const t = setTimeout(() => loadFavorites(), 400)
+    return () => clearTimeout(t)
+  }, [nickname, loadFavorites])
 
   return (
     <div className="d-flex flex-column min-vh-100">

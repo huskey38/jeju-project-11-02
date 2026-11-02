@@ -19,6 +19,19 @@ export function CitrusIcon({ size = 26, className = '' }) {
   )
 }
 
+// 즐겨찾기 표시용 감귤 아이콘: 담겼으면(filled) 주황 열매, 아니면 윤곽선만
+export function CitrusMark({ filled = false, size = 22, className = '' }) {
+  const orange = '#e8892b'
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <circle cx="16" cy="18" r="11" fill={filled ? orange : 'none'} stroke={orange} strokeWidth={filled ? 0 : 2} />
+      {filled && <ellipse cx="12.5" cy="14" rx="3.2" ry="2" fill="#fff" opacity=".3" transform="rotate(-30 12.5 14)" />}
+      <path d="M16 7.4c0-2.8 2.2-4.6 5.4-4.6-.2 3-2.4 4.8-5.4 4.6z" fill={filled ? '#2f6b52' : 'none'} stroke="#2f6b52" strokeWidth={filled ? 0 : 1.6} strokeLinejoin="round" />
+      <rect x="15.2" y="5.6" width="1.6" height="3" rx=".8" fill="#2f6b52" />
+    </svg>
+  )
+}
+
 // 돌하르방 캐릭터: 벙거지 모자 · 크고 둥근 눈 · 넓적한 코 · 미소 · 현무암 구멍 무늬 (AI 가이드의 얼굴)
 export function DolHareubang({ size = 40, className = '' }) {
   const stone = '#9b968e', stoneDark = '#77726b', stoneLight = '#aaa59c', ink = '#3b3733'

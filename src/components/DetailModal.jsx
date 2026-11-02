@@ -1,11 +1,12 @@
 import { Badge, Button, Carousel, ListGroup, Modal } from 'react-bootstrap'
 import PlaceMap from './PlaceMap'
+import { CitrusMark } from './JejuScene'
 import { ErrorAlert, Loading } from './Status'
 import { isJejuCoord } from '../lib/geo'
 
 // 상세 정보 팝업 — 사진 · 이용정보 · 소개 · 지도 (관광지·국가유산 페이지가 함께 사용)
 // rows: [{ label, value }]   images: [url]   homepage: 주소(선택)
-export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, onSave }) {
+export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, saved = false, onSave }) {
   return (
     <Modal show={show} onHide={onHide} size="lg" centered scrollable>
       <Modal.Header closeButton>
@@ -53,7 +54,9 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
       </Modal.Body>
       {onSave && (
         <Modal.Footer>
-          <Button variant="outline-primary" onClick={onSave}><i className="bi bi-star me-1" />즐겨찾기</Button>
+          <Button variant={saved ? 'outline-secondary' : 'outline-primary'} onClick={onSave} aria-pressed={saved} data-testid="modal-fav">
+            <CitrusMark filled={saved} size={20} className="citrus-inline" />{saved ? '즐겨찾기에서 빼기' : '즐겨찾기에 담기'}
+          </Button>
         </Modal.Footer>
       )}
     </Modal>

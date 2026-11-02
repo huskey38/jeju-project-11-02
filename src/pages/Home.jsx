@@ -3,7 +3,9 @@ import { Badge, Card, Col, Form, Row } from 'react-bootstrap'
 import { ping } from '../api/client'
 import { isSupabaseReady, supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
+import { Link } from 'react-router-dom'
 import Jeju3D from '../components/Jeju3D'
+import Places from './Places'
 import { HallaScene } from '../components/JejuScene'
 import WeatherBadge from '../components/WeatherBadge'
 
@@ -36,7 +38,18 @@ export default function Home() {
         <h1 className="fw-bold">관광 가이드</h1>
         <p className="lead">공공데이터와 AI 가이드로 만나는 입체 제주 — 3D 지도에서 관광지와 국가유산을 탐험하세요.</p>
         <WeatherBadge place="서귀포시" />
-        <div className="rounded-3 overflow-hidden mt-4" data-testid="home-3d"><Jeju3D autoRotate height={280} /></div>
+      </section>
+
+      {/* 3D 지도가 있던 자리: 관광·문화를 홈에서 바로 둘러봄 (분류 버튼·검색·내 주변·축제·상세·감귤 즐겨찾기 모두 이 화면에서 동작) */}
+      <section className="mb-5" data-testid="home-places"><Places /></section>
+
+      {/* 기존 3D 지도는 관광·문화 아래로 */}
+      <section className="mb-5" data-testid="home-3d-section">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <h5 className="fw-bold mb-0"><i className="bi bi-globe-asia-australia me-2 text-primary" />3D 제주 지도</h5>
+          <Link to="/map3d" className="small fw-bold">핀과 함께 크게 보기 <i className="bi bi-arrow-right" /></Link>
+        </div>
+        <div className="rounded-4 overflow-hidden border" data-testid="home-3d"><Jeju3D autoRotate height={320} /></div>
       </section>
 
       <h5 className="fw-bold mb-3"><i className="bi bi-clipboard-check me-2" />동작 체크</h5>

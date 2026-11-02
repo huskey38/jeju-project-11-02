@@ -12,6 +12,10 @@ import { useAppStore } from '../store/useAppStore'
 
 const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 const CITY_HALL = { lat: 33.4996, lng: 126.5312 }   // 위치를 못 얻을 때 기준 (제주시청)
+// 목록 항목 → 즐겨찾기 키 (favorites 테이블의 source·item_id 와 같은 규칙)
+const favOf = (it) => it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
+  : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
+  : { source: 'tour', id: it.id, title: it.title }
 const valid = (list, v, fallback) => (list?.some((x) => x.key === v) ? v : fallback)
 
 // 소스 하나(TourAPI·국가유산·주변·축제)의 한 쪽을 받아 화면용 항목으로 맞춤 — API 별 모양 차이는 여기서 흡수
@@ -37,7 +41,9 @@ async function fetchPage(src, ctx, page) {
 }
 
 export default function Places() {
-  const addFavorite = useAppStore((s) => s.addFavorite)   // STEP 5에서 사용
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite)   // 감귤 아이콘: 즐겨찾기 담기 ↔ 빼기
+  const favorites = useAppStore((s) => s.favorites)
+  const isSaved = (it) => { const f = favOf(it); return favorites.some((x) => x.source === f.source && x.item_id === String(f.id)) }
   const [params, setParams] = useSearchParams()          // 선택한 분류를 주소(?cat=&sub=&r=)에 남김 → 새로고침·링크 공유 시 유지
   const cat = valid(CATEGORIES, params.get('cat'), 'all')
   const subs = subsOf(cat)
@@ -131,19 +137,19 @@ export default function Places() {
         images={d?.image ? [d.image] : []}
         rows={d?.info ?? [{ label: '지역', value: b.city }]} text={d?.content}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
-        onSave={() => addFavorite({ source: 'heritage', id: b.name, title: b.name })} />
+        saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     ) : b.kind === 'venue' ? (
       <DetailModal {...common}
         title={d?.title ?? b.title} subtitle={b.addr} rows={d?.info}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
-        onSave={() => addFavorite({ source: 'venue', id: b.id, title: b.title })} />
+        saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     ) : (
       <DetailModal {...common}
         title={d?.title ?? b.title} subtitle={d?.addr ?? b.addr}
         images={d?.images?.length ? d.images : b.image ? [b.image] : []}
         rows={d?.info} homepage={d?.homepage} text={d?.overview}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
-        onSave={() => addFavorite({ source: 'tour', id: b.id, title: b.title })} />
+        saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     )
   })()
 
@@ -219,9 +225,7 @@ export default function Places() {
                 image={it.image} badge={badgeOf(it)}
                 status={festivalStatus(it.start, it.end)}
                 onClick={() => openDetail(it)}
-                onSave={() => addFavorite(it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
-                  : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
-                  : { source: 'tour', id: it.id, title: it.title })} />
+                saved={isSaved(it)} onSave={() => toggleFavorite(favOf(it))} />
             </Col>
           ))}
         </Row>

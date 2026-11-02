@@ -252,3 +252,19 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
   display: flex; align-items: flex-end; justify-content: center; background: var(--surface); border: 1.5px solid var(--accent);
 }
 @media (prefers-reduced-motion: reduce) { .chat-fab-icon { transition: none; } .chat-fab:not(.is-open):hover .chat-fab-icon { transform: none; } }
+
+/* ── 즐겨찾기 감귤 버튼: 카드 이미지 오른쪽 위에 떠 있는 동그란 버튼 ── */
+.fav-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 2; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: rgba(255, 253, 248, .94); border: 1px solid var(--line); box-shadow: 0 4px 12px -4px rgba(42, 32, 10, .35);
+  transition: transform .15s, border-color .15s, background .15s;
+}
+.fav-btn:hover { transform: scale(1.1); border-color: var(--citrus); }
+.fav-btn:active { transform: scale(.94); }
+.fav-btn:focus-visible { outline: 3px solid rgba(232, 137, 43, .4); outline-offset: 2px; }
+.fav-btn.is-saved { background: var(--citrus-soft); border-color: #f6d9b6; animation: fav-pop .28s ease-out; }
+@keyframes fav-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+/* 상세 모달·3D 카드의 텍스트 버튼 안 감귤 */
+.btn .citrus-inline { vertical-align: -5px; margin-right: .35rem; }
+@media (prefers-reduced-motion: reduce) { .fav-btn, .fav-btn.is-saved { animation: none; transition: none; } }

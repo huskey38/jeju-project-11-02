@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Badge, Button, Card, Col, Form, InputGroup, ListGroup, Row } from 'react-bootstrap'
 import PageHeader from '../components/PageHeader'
 import Jeju3D from '../components/Jeju3D'
+import { CitrusMark } from '../components/JejuScene'
 import { Loading } from '../components/Status'
 import { fetchHeritage, fetchPlaces } from '../api/client'
 import { isJejuCoord } from '../lib/geo'
@@ -11,7 +12,8 @@ const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산' }
 
 // 3D 제주 지도: TourAPI + 국가유산청 결과를 한 지도에 핀으로 보여줍니다.
 export default function Map3D() {
-  const addFavorite = useAppStore((s) => s.addFavorite)
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite)   // 감귤 아이콘: 즐겨찾기 담기 ↔ 빼기
+  const favorites = useAppStore((s) => s.favorites)
   const [keyword, setKeyword] = useState('')
   const [items, setItems] = useState([])
   const [selected, setSelected] = useState(null)
@@ -35,6 +37,7 @@ export default function Map3D() {
   useEffect(() => { search() }, [])
 
   const mappable = items.filter((i) => isJejuCoord(i.lat, i.lng))
+  const saved = !!selected && favorites.some((f) => f.source === selected.source && f.item_id === String(selected.id))
 
   return (
     <>
@@ -64,8 +67,9 @@ export default function Map3D() {
                 <Badge bg="secondary" className="mb-2">{SOURCE_LABEL[selected.source]}</Badge>
                 <Card.Title className="fs-6 fw-bold">{selected.name}</Card.Title>
                 {selected.addr && <Card.Text className="small text-muted">{selected.addr}</Card.Text>}
-                <Button size="sm" variant="outline-primary" onClick={() => addFavorite({ source: selected.source, id: selected.id, title: selected.name })}>
-                  <i className="bi bi-star me-1" />즐겨찾기
+                <Button size="sm" variant={saved ? 'outline-secondary' : 'outline-primary'} aria-pressed={saved} data-testid="map-fav"
+                  onClick={() => toggleFavorite({ source: selected.source, id: selected.id, title: selected.name })}>
+                  <CitrusMark filled={saved} size={18} className="citrus-inline" />{saved ? '즐겨찾기에서 빼기' : '즐겨찾기에 담기'}
                 </Button>
               </Card.Body>
             </Card>
