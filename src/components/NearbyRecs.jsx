@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Spinner } from 'react-bootstrap'
 import { fetchNearby } from '../api/client'
 import { RECOMMEND_GROUPS, RECOMMEND_RADII, fmtDist } from '../lib/placeCategories'
@@ -6,15 +6,19 @@ import { RECOMMEND_GROUPS, RECOMMEND_RADII, fmtDist } from '../lib/placeCategori
 // 상세 모달 아래의 "근처 추천": 지금 보는 곳 좌표 주변을 가까운 순으로
 //   mode 'spot' → 근처 음식점 · 카페 / mode 'food' → 근처 관광지
 // onPick(item) 을 누르면 그 곳의 상세로 넘어감 (호출하는 쪽이 처리)
-export default function NearbyRecs({ lat, lng, mode, excludeId, onPick }) {
+// onData(markers, radiusKm): 불러온 추천을 지도 핀으로 그릴 수 있게 부모에게 넘김 (카카오 지도에 핀·반경 원으로 표시)
+export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }) {
   const groups = RECOMMEND_GROUPS[mode] ?? []
   const [radius, setRadius] = useState(RECOMMEND_RADII[0])
   const [state, setState] = useState({ loading: true, lists: {}, errors: {} })
+  const dataCb = useRef(onData)
+  dataCb.current = onData
 
   // 좌표(=보는 곳)·반경이 바뀌면 다시 불러옴. 늦게 온 이전 응답은 버림
   useEffect(() => {
     let alive = true
     setState({ loading: true, lists: {}, errors: {} })
+    dataCb.current?.([], null)   // 반경을 바꾸거나 다른 곳으로 넘어가면 이전 핀을 먼저 치움
     Promise.allSettled(groups.map((g) =>
       // 자기 자신이 거리 0 으로 끼어 있을 수 있어 한 건 더 받아 걸러냄
       fetchNearby({ lat, lng, radius: radius * 1000, ...g.query, rows: g.count + 1 }),
@@ -27,6 +31,7 @@ export default function NearbyRecs({ lat, lng, mode, excludeId, onPick }) {
         else errors[g.key] = r.reason?.message ?? '불러오지 못했어요'
       })
       setState({ loading: false, lists, errors })
+      dataCb.current?.(groups.flatMap((g) => (lists[g.key] ?? []).map((p) => ({ id: p.id, title: p.title, lat: p.lat, lng: p.lng, group: g.key, item: p }))), radius)
     })
     return () => { alive = false }
   }, [lat, lng, radius, mode, excludeId])

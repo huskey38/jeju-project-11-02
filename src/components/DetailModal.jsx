@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Badge, Button, Carousel, ListGroup, Modal } from 'react-bootstrap'
 import PlaceMap from './PlaceMap'
 import NearbyRecs from './NearbyRecs'
 import { CitrusMark } from './JejuScene'
 import { ErrorAlert, Loading } from './Status'
 import { isJejuCoord } from '../lib/geo'
+import { kakaoLinks } from '../lib/kakao'
 
 // 상세 정보 팝업 — 사진 · 이용정보 · 소개 · 지도 (관광지·국가유산 페이지가 함께 사용)
 // rows: [{ label, value }]   images: [url]   homepage: 주소(선택)
@@ -12,8 +13,11 @@ import { isJejuCoord } from '../lib/geo'
 // onBack / backLabel: 추천에서 넘어온 경우 이전 장소로 돌아가는 버튼
 export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, saved = false, onSave, recommend, onBack, backLabel }) {
   const bodyRef = useRef(null)
-  // 다른 장소로 넘어가면 본문을 맨 위로
+  const [pins, setPins] = useState({ markers: [], radiusKm: null })   // 근처 추천을 지도 위 핀으로 (NearbyRecs 가 채움)
+  const links = kakaoLinks({ name: title, lat, lng })                  // 카카오맵 보기·길찾기·로드뷰 링크 (좌표가 있을 때)
+  // 다른 장소로 넘어가면 본문을 맨 위로, 이전 장소의 핀은 치움
   useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0 }, [title])
+  useEffect(() => { setPins({ markers: [], radiusKm: null }) }, [lat, lng])
   return (
     <Modal show={show} onHide={onHide} size="lg" centered scrollable>
       <Modal.Header closeButton>
@@ -61,11 +65,26 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
         {text && <p className="mb-3" style={{ whiteSpace: 'pre-wrap' }}>{text}</p>}
 
         {isJejuCoord(lat, lng)
-          ? <PlaceMap key={`${lat},${lng}`} lat={lat} lng={lng} name={title} />   /* 다른 장소로 넘어가면 지도도 새로 그림 (Leaflet 중심은 처음 한 번만 정해짐) */
+          ? (
+            <>
+              {/* 다른 장소로 넘어가면 지도도 새로 그림 (지도 중심은 처음 한 번만 정해지므로 좌표로 key). 근처 추천은 같은 지도에 핀·반경 원으로 함께 표시 */}
+              <PlaceMap key={`${lat},${lng}`} lat={lat} lng={lng} name={title}
+                markers={pins.markers} radiusM={pins.radiusKm ? pins.radiusKm * 1000 : undefined}
+                onPickMarker={(m) => recommend?.onPick?.(m.item)} />
+              {links && (
+                <div className="map-links d-flex flex-wrap gap-2 mt-2" data-testid="map-links">
+                  <a className="btn btn-sm btn-outline-primary rounded-pill" href={links.map} target="_blank" rel="noreferrer noopener"><i className="bi bi-map me-1" />카카오맵으로 보기</a>
+                  <a className="btn btn-sm btn-outline-primary rounded-pill" href={links.to} target="_blank" rel="noreferrer noopener"><i className="bi bi-signpost-split me-1" />길찾기</a>
+                  <a className="btn btn-sm btn-outline-primary rounded-pill" href={links.roadview} target="_blank" rel="noreferrer noopener"><i className="bi bi-binoculars me-1" />로드뷰</a>
+                </div>
+              )}
+            </>
+          )
           : !loading && <div className="small text-muted"><i className="bi bi-geo-alt me-1" />위치 좌표가 없어 지도를 표시할 수 없어요</div>}
 
         {recommend && isJejuCoord(lat, lng) && (
-          <NearbyRecs key={`${recommend.mode}:${lat},${lng}`} lat={lat} lng={lng} mode={recommend.mode} excludeId={recommend.excludeId} onPick={recommend.onPick} />
+          <NearbyRecs key={`${recommend.mode}:${lat},${lng}`} lat={lat} lng={lng} mode={recommend.mode} excludeId={recommend.excludeId} onPick={recommend.onPick}
+            onData={(markers, radiusKm) => setPins({ markers, radiusKm })} />
         )}
       </Modal.Body>
       {onSave && (

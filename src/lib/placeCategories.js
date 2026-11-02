@@ -123,6 +123,7 @@ export function festivalStatus(start, end, today = todayKst()) {
 export function recommendModeOf(item) {
   if (!item) return null
   if (item.kind === 'heritage') return 'spot'
+  if (item.kind === 'venue') return Number(item.lat) > 0 && Number(item.lng) > 0 ? 'spot' : null   // 공연장은 좌표가 채워진 뒤부터
   if (item.kind !== 'tour') return null
   const type = String(item.type)
   if (type === '39') return 'food'

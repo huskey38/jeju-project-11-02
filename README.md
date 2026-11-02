@@ -21,6 +21,8 @@ npm run build                  # 배포용 빌드
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase 연결 | 브라우저 |
 | `DATA_GO_KR_KEY` | 공공데이터포털 키 (Decoding 키) | 서버 전용 |
 | `ANTHROPIC_API_KEY` | AI 에이전트 | 서버 전용 |
+| `VITE_KAKAO_JS_KEY` | 카카오 지도(JavaScript 키). 카카오 개발자 콘솔의 **JavaScript SDK 도메인**에 `http://localhost:5173`·`http://localhost:5174`·배포 주소를 등록해야 동작(등록 안 된 주소는 `domain mismatched`). 배포 시 Vercel 환경변수에 넣고 **재배포** | 브라우저(공개되는 키, 도메인 등록이 보호 장치) |
+| `KAKAO_REST_KEY` | 공연장 주소→좌표 변환 스크립트. 카카오 앱에서 **카카오맵(OPEN_MAP_AND_LOCAL) 서비스 사용 설정**이 켜져 있어야 함 | 스크립트 전용 (`VITE_` 금지) |
 
 Supabase 에는 `favorites` 테이블(`id`, `nickname`, `source`, `item_id`, `title`, `created_at`)이 필요하다.
 가볼만한 곳(즐겨찾기) **빼기**(감귤 아이콘)를 쓰려면 anon 에 delete 권한 정책도 필요하다. 없으면 오류 없이 0건만 지워지므로 앱이 "delete 정책이 필요해요" 알림을 띄운다.
@@ -53,8 +55,10 @@ tests/      vitest 테스트
 | `scripts/geocode-venues.mjs` | 일회성: 공연장 주소 → 좌표 (`node --env-file=.env scripts/geocode-venues.mjs`). `.env` 의 `KAKAO_REST_KEY`(카카오 REST API 키) 필요. 주소 검색 → 실패하면 장소 검색, 이미 좌표가 있으면 건너뜀 |
 | `scripts/build-terrain.mjs` | 일회성 스크립트(`node scripts/build-terrain.mjs`). AWS Terrain Tiles(Terrarium)와 EOX Sentinel-2 cloudless 2020 타일(z11)을 받아 위경도 선형 격자로 재투영해 `public/terrain/` 에 저장 (`sharp` 사용) |
 | `src/lib/placeCategories.js` | 분류별 데이터 소스 규칙: 음식점 = 한식(FD01)→양식(FD02)→일식·기타(FD03) (카페 FD05 제외), 카페 = FD05, 관광지 = 일반(12)→국가유산, 축제 = 기간 검색, 내 주변 = 위치 기반(유형별 조건), 전체 = **숙박(32)을 뺀** TourAPI 유형들(12·14·15·28·38·39)→국가유산. `advance` 가 다음 쪽/소스 위치를 계산, `subtitleOf`·`fmtDist` 가 카드 부제목(거리·기간·주소) 구성 |
-| `src/components/NearbyRecs.jsx` | 상세 모달 아래 **"이 근처 추천"**: 보는 곳 좌표 주변을 가까운 순으로(반경 3km, 비어 있으면 "10km로 넓히기"). 관광·문화 계열(관광지·국가유산·문화시설·축제·레포츠) → 근처 **음식점(카페 제외) 4곳 + 카페 4곳**, 음식점·카페 → 근처 **관광지 6곳**. 추천 카드(사진·이름·거리)를 누르면 그 곳의 상세로 이동하고 "○○(으)로 돌아가기"로 되돌아옴. 규칙은 `placeCategories.js` 의 `recommendModeOf`·`RECOMMEND_GROUPS`. 공연장은 좌표가 없어 추천 없음 |
-| `src/components/DetailModal.jsx`, `PlaceMap.jsx` | 상세 팝업(사진 캐러셀·이용정보·소개·지도)과 Leaflet 2D 지도(OpenStreetMap 타일, 핀 1개). 관광·국가유산 페이지가 공유. 좌표가 없으면 지도 대신 안내 문구 |
+| `src/components/NearbyRecs.jsx` | 상세 모달 아래 **"이 근처 추천"**: 보는 곳 좌표 주변을 가까운 순으로(반경 3km, 비어 있으면 "10km로 넓히기"). 관광·문화 계열(관광지·국가유산·문화시설·축제·레포츠) → 근처 **음식점(카페 제외) 4곳 + 카페 4곳**, 음식점·카페 → 근처 **관광지 6곳**. 추천 카드(사진·이름·거리)를 누르면 그 곳의 상세로 이동하고 "○○(으)로 돌아가기"로 되돌아옴. 규칙은 `placeCategories.js` 의 `recommendModeOf`·`RECOMMEND_GROUPS`. 공연장도 좌표가 채워져 추천을 받음(`recommendModeOf`) |
+| `src/components/DetailModal.jsx` | 상세 팝업(사진 캐러셀·이용정보·소개·지도·**카카오맵 링크**·근처 추천). 관광·국가유산·공연장이 공유. 좌표가 없으면 지도 대신 안내 문구 |
+| `src/components/PlaceMap.jsx` → `KakaoMap.jsx` / `LeafletMap.jsx` | **카카오 지도가 기본**(`VITE_KAKAO_JS_KEY` 가 있을 때): 이 곳 핀 + 줌 컨트롤 + 일반/스카이뷰 전환, **근처 추천을 같은 지도에 핀으로**(음식점 감귤·카페 갈색·관광지 초록 점, 마우스를 올리면 이름 표시, 핀을 누르면 그 곳 상세로 이동) + **반경 원**(점선)과 영역 자동 맞춤. 키가 없거나 SDK 를 못 불러오면(도메인 미등록·광고 차단 등) 자동으로 Leaflet(OpenStreetMap) 지도로 대신함 |
+| `src/lib/kakao.js` | 카카오 SDK 로더(`loadKakao`: 스크립트를 한 번만 붙이고 `autoload=false` → `kakao.maps.load` 로 준비 대기, 실패 시 재시도 가능), `kakaoLinks`(카카오맵 **보기·길찾기·로드뷰** 바로가기 URL — 키 없이 동작), `radiusEdges`(반경 원 영역 계산) |
 | `src/pages/Map3D.jsx` (`/map3d`) | TourAPI + 국가유산청 결과를 한 3D 지도에 표시. 검색, 핀/목록 클릭 시 상세 카드, 즐겨찾기 저장. 한쪽 API가 실패해도 다른 쪽 핀은 표시하고 경고 표시 |
 | `src/pages/Home.jsx` | 히어로 영역에 자동 회전하는 3D 제주 |
 
@@ -65,7 +69,7 @@ tests/      vitest 테스트
 | `weather.js` | 기상청 단기예보 | 제주시·서귀포시 격자, 가장 가까운 발표시각 계산, 6개 시간대 기온/하늘/강수 |
 | `text.js` | 응답 HTML 정리 도구: `htmlToText`(태그 제거, XSS 방지), `extractUrl`(홈페이지 주소만, http/https 만 허용), `fmtDate`, `https` | |
 | `heritage.js` | 국가유산청 | 제주(ccbaCtcd 50) 국가유산 XML 검색 |
-| `venues.js` + `data/venues.js` | 제주도내 공연장 현황 (**파일 데이터**, 공공데이터포털 15096065, 기준일 2021-11-30, 이용허락범위 제한 없음) | API 호출 없이 변환해 둔 34건을 조회 (이름·주소 검색, 쪽 나누기, 상세). 좌표·전화번호가 없어 지도는 지오코딩 후 표시 |
+| `venues.js` + `data/venues.js` | 제주도내 공연장 현황 (**파일 데이터**, 공공데이터포털 15096065, 기준일 2021-11-30, 이용허락범위 제한 없음) | API 호출 없이 변환해 둔 34건을 조회 (이름·주소 검색, 쪽 나누기, 상세). 원본에는 좌표·전화번호가 없어 `scripts/geocode-venues.mjs` 로 카카오 주소 검색을 돌려 **34곳 모두 좌표를 채워 둠**(지도·근처 추천 표시) |
 
 ### 서버 함수 (`api/`)
 | 주소 | 기능 |
@@ -116,10 +120,20 @@ tests/      vitest 테스트
 - ✅ 버전 2: 실제 제주 해안선·한라산 입체 지형과 위성 텍스처 렌더, 핀이 지형 높이 위에 놓임
 - ✅ `npm run build` 성공
 
+### 카카오 지도 연동
+- ✅ 자동 테스트 `tests/kakao.test.js`: 로더(키 없음·주소 조립·중복 로드 방지·실패 후 재시도), 링크, 반경 끝점
+- ✅ 브라우저(가짜 SDK 주입): 카카오 지도 경로로 지도·컨트롤 2개·메인 핀·반경 3km 점선 원·영역 맞춤, 추천 핀(음식점 감귤/카페 갈색/관광지 초록), 반경 10km 로 넓히면 원·핀 갱신, 핀 클릭 → 해당 장소 상세로 이동·돌아가기, 카카오맵 링크 3개
+- ✅ 카카오 SDK 가 거절되면(도메인 미등록) Leaflet 지도로 자동 대체되어 화면이 깨지지 않음
+- ✅ **카카오맵 서비스 사용 설정 후 REST(주소→좌표) 정상**: `제주시 동광로 69` → (126.5352, 33.5044). 공연장 34곳 좌표 변환 34/34 성공, 전부 제주 범위 안(시·군과 위치 일치, 같은 주소끼리 같은 좌표)
+- ✅ 공연장 상세: 지도·카카오맵 링크 3개·근처 추천(음식점·카페)이 나옴 (`recommendModeOf`: 공연장은 좌표가 있을 때 추천)
+- ✅ **실제 카카오 지도 확인**(JavaScript SDK 도메인 등록 후 `localhost:5173`·`5174` 허용, 미등록 `3000` 은 `domain mismatched` 로 거절): 국가유산·공연장 상세에서 SDK 로드, 카카오 타일, 3km 점선 원, 근처 추천 핀(음식점 감귤·카페 갈색), 줌 컨트롤, **지도/스카이뷰 전환**, 핀 클릭 → 해당 장소 이동·돌아가기, 링크 3개, 콘솔 오류 없음
+- 핀은 평소 **색 점만** 보이고(시내처럼 추천이 몰려도 이름이 겹치지 않음) 마우스를 올리거나 포커스하면 이름이 펼쳐지며 맨 위로 올라옴
+- 배포 시: 배포 주소(`https://….vercel.app`)를 JavaScript SDK 도메인에 등록하고 Vercel 에 `VITE_KAKAO_JS_KEY` 를 넣어 **재배포**해야 지도가 뜸 (안 되면 자동으로 Leaflet 지도로 대체됨)
+
 ### 공연장·맛집 파일 데이터
 - ✅ 공연장 CSV 34건 변환(깨진 글자 0), 문화시설 97 + 공연장 34 = 131건 끝까지 더 보기, 검색('예술의전당' → 문화시설 1 + 공연장 2), 상세 모달. 자동 테스트 `tests/venues.test.js`
 - ⚠ **한국국토정보공사_랜다아이_공사맛집리스트는 반영하지 않음**: 전국 2,013건 중 제주는 3건(전부 카페)이고 메뉴·영업시간·주차·제안수·댓글수 칸이 모두 비어 있어 쓸 정보가 상호·주소뿐 (TourAPI 음식점·카페가 훨씬 풍부)
-- ⏳ 공연장 지도: `.env` 에 `KAKAO_REST_KEY` 를 넣고 `node --env-file=.env scripts/geocode-venues.mjs` 실행 후 좌표가 채워지면 상세 모달에 지도가 나옴 (키 없이는 미확인, 스크립트 로직은 모의 응답으로 테스트)
+- ✅ 공연장 지도: `node --env-file=.env scripts/geocode-venues.mjs` 로 좌표를 채워 상세 모달에 지도가 나옴 (이미 채워져 있어 다시 돌릴 필요 없음 — 이미 좌표가 있는 곳은 건너뜀)
 
 ### 아직 확인하지 못한 것 (키 필요)
 - 실제 공공데이터 응답(`DATA_GO_KR_KEY`), Supabase 즐겨찾기 저장·조회, 실제 Claude 에이전트 응답, Vercel 배포

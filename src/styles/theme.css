@@ -289,3 +289,18 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
   display: inline-block; margin-left: .4rem; min-width: 1.35rem; padding: 0 .4rem; border-radius: var(--r-pill);
   background: var(--citrus-soft); color: var(--citrus-ink); font-size: .72rem; font-weight: 700; line-height: 1.35rem; text-align: center;
 }
+
+/* ── 카카오 지도: 상세 모달 지도 + 근처 추천 핀 ── */
+.kmap { width: 100%; border-radius: 1rem; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
+.kmap-pin {
+  display: inline-flex; align-items: center; max-width: 11rem; padding: .2rem; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 3px 10px -3px rgba(42, 32, 10, .5);
+  font: 600 .74rem/1.2 'Pretendard', system-ui, sans-serif; color: var(--ink); cursor: pointer; transform: translateY(-2px);
+  transition: padding .15s;
+}
+/* 평소에는 색 점만 — 추천이 몰린 곳에서도 이름이 겹치지 않음. 마우스를 올리거나 키보드로 포커스하면 이름이 펼쳐짐 */
+.kmap-pin i { flex: 0 0 auto; width: .8rem; height: .8rem; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(42, 32, 10, .18); }
+.kmap-pin span { max-width: 0; opacity: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: max-width .18s, opacity .18s, margin .18s; }
+.kmap-pin:hover, .kmap-pin:focus-visible { padding: .2rem .65rem .2rem .2rem; border-color: var(--accent); outline: none; }
+.kmap-pin:hover span, .kmap-pin:focus-visible span { max-width: 10rem; opacity: 1; margin-left: .4rem; }
+.map-links .btn { font-size: .8rem; }

@@ -55,12 +55,25 @@ describe('생성된 데이터 (server/data/venues.js)', () => {
 })
 
 describe('server/venues', () => {
-  it('목록: 기본 항목 모양(문화시설 14, 사진 없음, 좌표는 빈 값), 쪽 나누기', () => {
+  it('목록: 기본 항목 모양(문화시설 14, 사진 없음, 좌표는 제주 안의 숫자), 쪽 나누기', () => {
     const p1 = searchVenues({ rows: 12, page: 1 }), p3 = searchVenues({ rows: 12, page: 3 })
     expect(p1).toHaveLength(12)
     expect(p3).toHaveLength(10)                                  // 34 = 12 + 12 + 10
     expect(searchVenues({ rows: 12, page: 4 })).toEqual([])
-    expect(p1[0]).toMatchObject({ id: 'v1', title: '제주도문예회관 대극장', type: '14', image: '', lat: '', lng: '', kindName: '공공' })
+    expect(p1[0]).toMatchObject({ id: 'v1', title: '제주도문예회관 대극장', type: '14', image: '', kindName: '공공' })
+    expect(p1[0].lat).toBeCloseTo(33.5044, 3)                    // 카카오 주소 검색으로 채운 좌표
+    expect(p1[0].lng).toBeCloseTo(126.5352, 3)
+  })
+  it('좌표: 34곳 모두 제주 범위 안, 서귀포시 공연장은 제주시 공연장보다 대체로 남쪽, 상세에도 좌표가 실림', () => {
+    for (const v of venues) {
+      expect(v.lat).toBeGreaterThan(33.0); expect(v.lat).toBeLessThan(33.7)
+      expect(v.lng).toBeGreaterThan(126.0); expect(v.lng).toBeLessThan(127.1)
+    }
+    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length
+    const jeju = venues.filter((v) => v.addr.startsWith('제주시')).map((v) => v.lat)
+    const seogwipo = venues.filter((v) => v.addr.startsWith('서귀포시')).map((v) => v.lat)
+    expect(avg(seogwipo)).toBeLessThan(avg(jeju))
+    expect(getVenueDetail({ id: 'v25' })).toMatchObject({ lat: expect.any(Number), lng: expect.any(Number) })
   })
   it('검색어는 이름·주소에 포함 여부 (대소문자 무시)', () => {
     expect(searchVenues({ keyword: '서귀포예술의전당' }).map((v) => v.title)).toEqual(['서귀포예술의전당 대극장', '서귀포예술의전당 소극장'])
