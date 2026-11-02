@@ -1,4 +1,4 @@
-# 제주 IP 3D
+# 관광 가이드
 
 제주 콘텐츠·문화 IP를 **three.js 3차원 지도**와 **공공데이터 API 3종**, 그리고 이 API들을 도구로 쓰는 **AI 에이전트**로 보여주는 웹앱.
 Vite + React + React Router + Zustand + Bootstrap + Supabase 기반이며 `jeju-ip-sample-solution` 구조를 따른다.

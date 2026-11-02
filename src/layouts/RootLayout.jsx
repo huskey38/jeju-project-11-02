@@ -12,7 +12,7 @@ export default function RootLayout() {
       <Navbar expand="md" bg="primary" data-bs-theme="dark" collapseOnSelect sticky="top">
         <Container>
           <Navbar.Brand as={NavLink} to="/">
-            <i className="bi bi-flower1 me-2" />제주 IP 3D
+            <i className="bi bi-flower1 me-2" />관광 가이드
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">

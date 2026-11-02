@@ -31,7 +31,7 @@ export default function Home() {
     <>
       <section className="hero rounded-4 p-4 p-md-5 mb-4">
         <Badge bg="light" text="dark" className="mb-3">제주 콘텐츠·문화 IP</Badge>
-        <h1 className="fw-bold">제주 IP 3D</h1>
+        <h1 className="fw-bold">관광 가이드</h1>
         <p className="lead">공공데이터와 AI 가이드로 만나는 입체 제주 — 3D 지도에서 관광지와 국가유산을 탐험하세요.</p>
         <WeatherBadge place="서귀포시" />
         <div className="rounded-3 overflow-hidden mt-4" data-testid="home-3d"><Jeju3D autoRotate height={280} /></div>

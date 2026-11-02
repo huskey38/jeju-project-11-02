@@ -87,7 +87,7 @@ function Sea() {
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[80, 60]} />
-      <meshPhysicalMaterial color="#123f60" transparent opacity={0.92} roughness={0.15} metalness={0.1} />
+      <meshPhysicalMaterial color="#6cc0cf" transparent opacity={0.96} roughness={0.15} metalness={0.1} />
     </mesh>
   )
 }
