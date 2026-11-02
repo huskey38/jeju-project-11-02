@@ -13,6 +13,7 @@ export const CATEGORIES = [
   { key: 'food', label: '음식점' },
   { key: 'cafe', label: '카페' },
   { key: 'near', label: '내 주변' },
+  { key: 'saved', label: '가볼만한 곳' },   // 감귤로 담아 둔 곳 (예전 '내 즐겨찾기') — API 가 아니라 저장된 목록을 보여줌
 ]
 // '관광지' 안의 하위 선택
 export const SUBS = [
@@ -20,8 +21,8 @@ export const SUBS = [
   { key: 'general', label: '일반' },
   { key: 'heritage', label: '국가유산' },
 ]
-// '내 주변' 안의 유형 선택 (분류 버튼과 같은 이름, '내 주변'만 제외)
-export const NEAR_TYPES = CATEGORIES.filter((c) => c.key !== 'near')
+// '내 주변' 안의 유형 선택 (분류 버튼과 같은 이름, '내 주변'·'가볼만한 곳'은 제외)
+export const NEAR_TYPES = CATEGORIES.filter((c) => c.key !== 'near' && c.key !== 'saved')
 // '내 주변' 반경(km)
 export const RADII = [1, 3, 5, 10]
 export const DEFAULT_RADIUS = 3
@@ -60,6 +61,7 @@ export function sourcesFor(cat, sub = 'all') {
     case 'festival': return [{ api: 'festival' }]            // 기간 검색 (searchFestival2)
     case 'food': return FOOD_LCLS.map((lcls) => ({ api: 'tour', type: '39', lcls }))
     case 'cafe': return [{ api: 'tour', type: '39', lcls: 'FD05' }]
+    case 'saved': return []                                  // 저장된 목록은 소스(API)가 없음
     case 'near': return [{ api: 'near', ...(NEAR_FILTER[sub] ?? NEAR_FILTER.all) }]   // 가까운 순 (locationBasedList2)
     default: return [...ALL_TOUR_TYPES.map((type) => ({ api: 'tour', type })), HERITAGE, VENUE]
   }
@@ -114,3 +116,27 @@ export function festivalStatus(start, end, today = todayKst()) {
     label: left === 0 ? '오늘 종료' : `진행 중 · D-${left} 종료`, tone: left <= 2 ? 'citrus' : 'good',
   }
 }
+
+// ── 근처 추천 (상세 모달) ─────────────────────────────────────
+// 관광·문화 계열(관광지·국가유산·문화시설·축제·레포츠)을 보면 근처 음식점·카페를,
+// 음식점·카페를 보면 근처 관광지를 추천합니다. 공연장은 좌표가 없어 추천이 없음.
+export function recommendModeOf(item) {
+  if (!item) return null
+  if (item.kind === 'heritage') return 'spot'
+  if (item.kind !== 'tour') return null
+  const type = String(item.type)
+  if (type === '39') return 'food'
+  return ['12', '14', '15', '28'].includes(type) ? 'spot' : null
+}
+
+// 모드별로 어떤 곳을 몇 개씩 보여줄지. query 는 fetchNearby 인자 (xlcls = 이 분류는 제외)
+export const RECOMMEND_GROUPS = {
+  spot: [
+    { key: 'food', title: '근처 음식점', icon: 'egg-fried', query: { type: '39', xlcls: 'FD05' }, count: 4 },
+    { key: 'cafe', title: '근처 카페', icon: 'cup-hot', query: { type: '39', lcls: 'FD05' }, count: 4 },
+  ],
+  food: [
+    { key: 'spot', title: '근처 관광지', icon: 'geo-alt', query: { type: '12' }, count: 6 },
+  ],
+}
+export const RECOMMEND_RADII = [3, 10]   // km — 기본 3km, 비어 있으면 10km 로 넓힐 수 있음

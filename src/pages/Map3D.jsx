@@ -12,7 +12,7 @@ const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산' }
 
 // 3D 제주 지도: TourAPI + 국가유산청 결과를 한 지도에 핀으로 보여줍니다.
 export default function Map3D() {
-  const toggleFavorite = useAppStore((s) => s.toggleFavorite)   // 감귤 아이콘: 즐겨찾기 담기 ↔ 빼기
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite)   // 감귤 아이콘: 가볼만한 곳 담기 ↔ 빼기
   const favorites = useAppStore((s) => s.favorites)
   const [keyword, setKeyword] = useState('')
   const [items, setItems] = useState([])
@@ -69,7 +69,7 @@ export default function Map3D() {
                 {selected.addr && <Card.Text className="small text-muted">{selected.addr}</Card.Text>}
                 <Button size="sm" variant={saved ? 'outline-secondary' : 'outline-primary'} aria-pressed={saved} data-testid="map-fav"
                   onClick={() => toggleFavorite({ source: selected.source, id: selected.id, title: selected.name })}>
-                  <CitrusMark filled={saved} size={18} className="citrus-inline" />{saved ? '즐겨찾기에서 빼기' : '즐겨찾기에 담기'}
+                  <CitrusMark filled={saved} size={18} className="citrus-inline" />{saved ? '가볼만한 곳에서 빼기' : '가볼만한 곳에 담기'}
                 </Button>
               </Card.Body>
             </Card>

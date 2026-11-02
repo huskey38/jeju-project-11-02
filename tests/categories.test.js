@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, NEAR_TYPES, RADII, SUBS, advance, badgeOf, festivalStatus, fmtDist, sourcesFor, subsOf, subtitleOf, todayKst } from '../src/lib/placeCategories.js'
+import { CATEGORIES, NEAR_TYPES, RADII, RECOMMEND_GROUPS, RECOMMEND_RADII, SUBS, advance, badgeOf, festivalStatus, fmtDist, recommendModeOf, sourcesFor, subsOf, subtitleOf, todayKst } from '../src/lib/placeCategories.js'
 
 describe('분류 버튼', () => {
-  it('요청한 6개 분류 + 내 주변, 관광지 하위 선택 3개', () => {
-    expect(CATEGORIES.map((c) => c.label)).toEqual(['전체', '관광지', '문화시설', '축제·행사', '음식점', '카페', '내 주변'])
+  it('요청한 6개 분류 + 내 주변 + 가볼만한 곳, 관광지 하위 선택 3개', () => {
+    expect(CATEGORIES.map((c) => c.label)).toEqual(['전체', '관광지', '문화시설', '축제·행사', '음식점', '카페', '내 주변', '가볼만한 곳'])
     expect(SUBS.map((s) => s.label)).toEqual(['전체', '일반', '국가유산'])
   })
   it('하위 선택: 관광지 = 국가유산 등, 내 주변 = 유형(내 주변 자신은 제외), 그 외는 없음', () => {
@@ -133,5 +133,48 @@ describe('festivalStatus — 축제 진행률·상태 칩', () => {
     expect(todayKst()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     const t = todayKst()
     expect(festivalStatus(t, t)).toMatchObject({ state: 'ongoing', label: '오늘 종료' })
+  })
+})
+
+describe('근처 추천 규칙 (recommendModeOf · RECOMMEND_GROUPS)', () => {
+  it('관광지·문화시설·축제·레포츠·국가유산 → spot (근처 음식점·카페 추천)', () => {
+    for (const type of ['12', '14', '15', '28', 12]) expect(recommendModeOf({ kind: 'tour', type })).toBe('spot')
+    expect(recommendModeOf({ kind: 'heritage' })).toBe('spot')
+  })
+  it('음식점·카페(유형 39, FD05 포함) → food (근처 관광지 추천)', () => {
+    expect(recommendModeOf({ kind: 'tour', type: '39', lcls: 'FD01' })).toBe('food')
+    expect(recommendModeOf({ kind: 'tour', type: '39', lcls: 'FD05' })).toBe('food')
+    expect(recommendModeOf({ kind: 'tour', type: 39 })).toBe('food')
+  })
+  it('공연장(좌표 없음)·숙박·쇼핑·알 수 없는 항목은 추천 없음', () => {
+    expect(recommendModeOf({ kind: 'venue' })).toBeNull()
+    expect(recommendModeOf({ kind: 'tour', type: '32' })).toBeNull()
+    expect(recommendModeOf({ kind: 'tour', type: '38' })).toBeNull()
+    expect(recommendModeOf({ kind: 'tour' })).toBeNull()
+    expect(recommendModeOf(null)).toBeNull()
+    expect(recommendModeOf(undefined)).toBeNull()
+  })
+  it('spot 은 음식점(카페 제외)과 카페 두 묶음, food 는 관광지 한 묶음', () => {
+    expect(RECOMMEND_GROUPS.spot.map((g) => g.key)).toEqual(['food', 'cafe'])
+    expect(RECOMMEND_GROUPS.spot[0].query).toEqual({ type: '39', xlcls: 'FD05' })   // 음식점에서 카페는 빼서 두 묶음이 겹치지 않음
+    expect(RECOMMEND_GROUPS.spot[1].query).toEqual({ type: '39', lcls: 'FD05' })
+    expect(RECOMMEND_GROUPS.food.map((g) => g.key)).toEqual(['spot'])
+    expect(RECOMMEND_GROUPS.food[0].query).toEqual({ type: '12' })
+  })
+  it('추천 묶음에 숙박(32)이 없고, 반경은 3km → 10km', () => {
+    const all = [...RECOMMEND_GROUPS.spot, ...RECOMMEND_GROUPS.food]
+    expect(all.some((g) => g.query.type === '32')).toBe(false)
+    expect(all.every((g) => g.count > 0 && g.title && g.icon)).toBe(true)
+    expect(RECOMMEND_RADII).toEqual([3, 10])
+  })
+})
+
+describe('가볼만한 곳 (저장된 목록)', () => {
+  it('분류 버튼 맨 끝에 있고, API 소스가 없으며 내 주변 유형·하위 선택에는 나오지 않음', () => {
+    expect(CATEGORIES.at(-1)).toEqual({ key: 'saved', label: '가볼만한 곳' })
+    expect(sourcesFor('saved')).toEqual([])
+    expect(sourcesFor('saved', 'heritage')).toEqual([])
+    expect(subsOf('saved')).toBeNull()
+    expect(NEAR_TYPES.some((t) => t.key === 'saved' || t.key === 'near')).toBe(false)
   })
 })
