@@ -238,3 +238,17 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 /* 알림(토스트)이 원형 버튼을 가리지 않도록 위로 올림 */
 .toast-container { bottom: 76px !important; }
 @media (prefers-reduced-motion: reduce) { .chat-widget { animation: none; } .chat-fab { transition: none; } }
+
+/* ── 돌하르방 AI 가이드: 크림 원 위에 현무암빛 캐릭터가 도드라지도록 ── */
+.chat-fab:not(.is-open) {
+  background: var(--surface); color: var(--ink); border: 2px solid var(--accent);
+  box-shadow: 0 10px 24px -10px rgba(42, 32, 10, .4), inset 0 -3px 0 rgba(47, 107, 82, .08);
+}
+.chat-fab:not(.is-open):hover { border-color: var(--accent-hi); }
+.chat-fab-icon { margin-top: 3px; transition: transform .25s; transform-origin: 50% 90%; }
+.chat-fab:not(.is-open):hover .chat-fab-icon { transform: rotate(-6deg) scale(1.06); }   /* 인사하듯 살짝 기울임 */
+.chat-avatar {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: flex-end; justify-content: center; background: var(--surface); border: 1.5px solid var(--accent);
+}
+@media (prefers-reduced-motion: reduce) { .chat-fab-icon { transition: none; } .chat-fab:not(.is-open):hover .chat-fab-icon { transform: none; } }

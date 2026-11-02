@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import ChatPanel from './ChatPanel'
-import { CitrusIcon } from './JejuScene'
+import { DolHareubang } from './JejuScene'
 
 // 모든 화면 오른쪽 아래에 떠 있는 원형 AI 가이드 버튼 + 눌렀을 때 열리는 대화창
 // RootLayout 안(페이지가 바뀌어도 유지되는 자리)에 있어서 어느 페이지에서나 따라다닙니다.
@@ -25,7 +25,7 @@ export default function ChatWidget() {
       {open && (
         <section className="chat-widget" role="dialog" aria-label="AI 가이드 대화" data-testid="chat-widget">
           <header className="chat-widget-head">
-            <CitrusIcon size={28} />
+            <span className="chat-avatar"><DolHareubang size={36} /></span>
             <div className="flex-grow-1">
               <div className="fw-bold">AI 가이드</div>
               <div className="small text-muted">공공데이터를 도구로 쓰는 제주 도우미</div>
@@ -40,7 +40,7 @@ export default function ChatWidget() {
         aria-label={open ? 'AI 가이드 닫기' : 'AI 가이드 열기'} aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <i className={`bi ${open ? 'bi-x-lg' : 'bi-stars'}`} />
+        {open ? <i className="bi bi-x-lg" /> : <DolHareubang size={46} className="chat-fab-icon" />}
       </button>
     </>
   )
