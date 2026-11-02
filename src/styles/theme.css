@@ -354,3 +354,52 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .form-tag-round { background: #4f8f5a; }
 .form-tag-horseshoe { background: #3b7fb0; }
 .form-tag-mixed { background: #8a6bb5; }
+
+/* 오름 등급표 (등급 배지에 마우스를 올렸을 때) */
+.tier-popover { --bs-popover-max-width: 320px; border-radius: 16px; border: 1px solid var(--line); box-shadow: var(--sh-card, 0 6px 20px rgba(0,0,0,.12)); overflow: hidden; }
+.tier-pop-head { background: #fdf3df; font-weight: 700; font-size: .9rem; border-bottom: 1px solid var(--line); padding: .6rem .9rem; }
+.tier-pop-body { padding: .4rem .5rem .55rem; min-width: 290px; }
+.tier-row { display: grid; grid-template-columns: 26px 1fr 54px 64px; align-items: center; gap: .4rem; padding: .32rem .45rem; border-radius: 10px; font-size: .84rem; }
+.tier-row + .tier-row { margin-top: 2px; }
+.tier-row-head { font-size: .72rem; color: var(--bs-secondary-color, #777); padding-top: .1rem; padding-bottom: .15rem; }
+.tier-row-head span:nth-child(n+3), .tier-num { text-align: right; font-variant-numeric: tabular-nums; }
+.tier-step { width: 22px; height: 22px; border-radius: 50%; background: #efe6d3; color: #8a7a58; font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.tier-row.is-passed .tier-step { background: #e8892b; color: #fff; }
+.tier-name { font-weight: 600; }
+.tier-name em { font-style: normal; margin-left: .4rem; padding: .05rem .4rem; border-radius: 999px; background: #2f7d4f; color: #fff; font-size: .68rem; font-weight: 700; vertical-align: 1px; }
+.tier-row.is-now { background: #eef6e8; box-shadow: inset 0 0 0 1px #bcd9b2; }
+.tier-row:not(.is-passed):not(.tier-row-head) { color: #8c8c8c; }
+
+/* 등급별 꾸밈: 현무암(회색) → 감귤(주황) → 금빛 */
+.oreum-progress { --tier-bg: #dfe1e5; --tier-fg: #3f4147; --tier-bar-a: #8b8e96; --tier-bar-b: #b9bcc3; }
+.oreum-progress.tier-1 { --tier-bg: #dbe9d4; --tier-fg: #2f6a2f; --tier-bar-a: #6aa86a; --tier-bar-b: #a5cf9a; }
+.oreum-progress.tier-2 { --tier-bg: #fde7c9; --tier-fg: #9a5208; --tier-bar-a: #f0a24a; --tier-bar-b: #f7cf8f; }
+.oreum-progress.tier-3 { --tier-bg: #fdd9ae; --tier-fg: #a24a05; --tier-bar-a: #f08a24; --tier-bar-b: #f6b25c; }
+.oreum-progress.tier-4 { --tier-bg: #f9c37a; --tier-fg: #7d3503; --tier-bar-a: #e8731a; --tier-bar-b: #f6a742; }
+.oreum-progress.tier-5 { --tier-bg: linear-gradient(135deg, #fbe28a, #f2b630); --tier-fg: #6b4300; --tier-bar-a: #e6a817; --tier-bar-b: #f9dc7a; border-color: #e6c35a; box-shadow: 0 0 0 2px #fbeaa8 inset, var(--sh-card); }
+.tier-badge { background: var(--tier-bg); color: var(--tier-fg); font-weight: 700; padding: .4em .8em; }
+.oreum-progress .oreum-bar .progress-bar { background: linear-gradient(90deg, var(--tier-bar-a), var(--tier-bar-b)); }
+.oreum-progress.tier-5 .oreum-bar .progress-bar { background-size: 200% 100%; background-image: linear-gradient(90deg, #e6a817, #fbe28a, #e6a817); animation: tier-shine 2.4s linear infinite; }
+@keyframes tier-shine { to { background-position: -200% 0; } }
+.tier-emblem { flex-shrink: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.18)); }
+.tier-row .tier-step { width: auto; height: auto; background: none; border-radius: 0; }
+.tier-row.is-passed .tier-step { background: none; }
+.tier-row:not(.is-passed):not(.tier-row-head) .tier-emblem { filter: grayscale(1) opacity(.45); }
+.tier-row { grid-template-columns: 34px 1fr 54px 64px; }
+@media (prefers-reduced-motion: reduce) { .oreum-progress.tier-5 .oreum-bar .progress-bar { animation: none; } }
+
+
+/* 3D 지도 방향 표기 */
+.map-compass { position: absolute; top: 12px; right: 12px; width: 76px; height: 76px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 1px 6px rgba(0,0,0,.3); pointer-events: none; }
+.map-compass-rose { position: absolute; inset: 0; }
+.map-compass-rose span { position: absolute; font-size: .72rem; font-weight: 700; color: #555; transform: translate(-50%, -50%); }
+.map-compass-rose .mc-n { left: 50%; top: 11px; color: #e8892b; font-size: .85rem; }
+.map-compass-rose .mc-s { left: 50%; top: 65px; }
+.map-compass-rose .mc-e { left: 65px; top: 50%; }
+.map-compass-rose .mc-w { left: 11px; top: 50%; }
+.mc-needle { position: absolute; left: 50%; top: 22px; width: 0; height: 0; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 18px solid #e8892b; }
+.mc-needle::after { content: ''; position: absolute; left: -5px; top: 18px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 18px solid #8b8e96; }
+
+.map-hud { position: absolute; left: 12px; bottom: 12px; padding: .25rem .75rem; border-radius: 999px; background: rgba(255,255,255,.88); box-shadow: 0 1px 6px rgba(0,0,0,.25); font-size: .9rem; pointer-events: none; }
+.map-hud strong { color: #e8892b; font-size: 1.05rem; }
+.map-hud span { color: #777; font-size: .78rem; }

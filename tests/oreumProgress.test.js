@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TIERS, oreumProgress, tierOf } from '../src/lib/oreumProgress.js'
 import { TERRAIN, TERRAIN_BBOX, heightAt, isJejuCoord, setHeightField, toXZ } from '../src/lib/geo.js'
-import { buildNormalMap } from '../src/lib/terrainNormal.js'
 
 // 관광공사에 등록된 오름은 tourId 가 있고(기록은 source 'tour'), 나머지는 공식 연번(기록은 source 'oreum')
 const oreums = Array.from({ length: 10 }, (_, i) => ({ id: String(100 + i), ...(i < 5 && { tourId: String(9000 + i) }), title: `오름${i}`, lat: '33.4', lng: '126.5' }))
@@ -30,7 +29,7 @@ describe('oreumProgress — 오름 등반률', () => {
   it('id 가 숫자여도 문자열로 비교, 전부 가면 100% 와 done', () => {
     const p = oreumProgress(oreums.map((o) => visit(Number(o.id))), oreums)
     expect(p).toMatchObject({ count: 10, percent: 100, remaining: 0, done: true })
-    expect(p.tier.title).toBe('제주 오름 정복자')
+    expect(p.tier.title).toBe('오름 달인')
   })
   it('등록된 오름이 없으면 0% (0 으로 나누지 않음), 99.x% 는 100% 로 올리지 않음', () => {
     expect(oreumProgress([visit(1)], [])).toMatchObject({ total: 0, count: 0, percent: 0, done: false })
@@ -42,11 +41,13 @@ describe('oreumProgress — 오름 등반률', () => {
   it('칭호: 등반률 구간별', () => {
     expect(tierOf(0).title).toBe('오름 탐방 준비 중')
     expect(tierOf(1).title).toBe('오름 새내기')
-    expect(tierOf(10).title).toBe('오름 산책가')
-    expect(tierOf(25).title).toBe('오름 탐험가')
-    expect(tierOf(50).title).toBe('오름 마스터')
-    expect(tierOf(90).title).toBe('제주 오름 정복자')
-    expect(TIERS.map((t) => t.min)).toEqual([0, 1, 10, 25, 50, 90])
+    expect(tierOf(4).title).toBe('오름 새내기')
+    expect(tierOf(5).title).toBe('오름 산책가')
+    expect(tierOf(15).title).toBe('오름 탐험가')
+    expect(tierOf(35).title).toBe('오름 지킴이')
+    expect(tierOf(60).title).toBe('오름 달인')
+    expect(tierOf(100).title).toBe('오름 달인')
+    expect(TIERS.map((t) => t.min)).toEqual([0, 1, 5, 15, 35, 60])
   })
 })
 
@@ -79,23 +80,5 @@ describe('geo — 3D 제주 좌표', () => {
     expect(heightAt(x, z)).toBeCloseTo(100 * TERRAIN.metersToUnit)
     expect(heightAt(999, 999)).toBe(0)     // 범위 밖은 0
     setHeightField(null)
-  })
-})
-
-describe('buildNormalMap — 높이맵 → 법선 지도', () => {
-  const opts = { width: 10, depth: 10, metersToUnit: 0.001, strength: 1 }
-  it('평지는 모두 위쪽(0.5, 0.5, 1.0 → 128,128,255)', () => {
-    const { data, w, h } = buildNormalMap({ data: new Float32Array(16).fill(50), w: 4, h: 4 }, opts)
-    expect([w, h]).toEqual([4, 4])
-    expect([...data.slice(0, 4)]).toEqual([128, 128, 255, 255])
-  })
-  it('동쪽으로 높아지는 비탈은 법선이 서쪽(R 감소)으로 기욺', () => {
-    const w = 5, h = 5
-    const d = new Float32Array(w * h)
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) d[j * w + i] = i * 1000
-    const { data } = buildNormalMap({ data: d, w, h }, opts)
-    const mid = ((2 * w) + 2) * 4
-    expect(data[mid]).toBeLessThan(128)
-    expect(data[mid + 2]).toBeLessThan(255)
   })
 })

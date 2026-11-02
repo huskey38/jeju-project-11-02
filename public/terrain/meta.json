@@ -9,12 +9,7 @@
     2048,
     1471
   ],
-  "satelliteSize": [
-    4096,
-    2942
-  ],
   "zoom": {
-    "height": 12,
-    "satellite": 13
+    "height": 12
   }
 }

@@ -1,9 +1,8 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, OrbitControls, Sky, useTexture } from '@react-three/drei'
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { TERRAIN, getHeightField, heightAt, isJejuCoord, setHeightField, toXZ } from '../lib/geo'
-import { buildNormalMap } from '../lib/terrainNormal'
+import { TERRAIN, heightAt, isJejuCoord, setHeightField, toXZ } from '../lib/geo'
 
 const SEA_FLOOR = -0.08 // 바다 밑 지형 높이(3D 단위)
 
@@ -32,44 +31,35 @@ function useHeightField() {
   return state
 }
 
-// 실제 지형: DEM 높이로 정점을 올리고, 위성사진(색)과 법선 지도(입체 음영)를 입힘
+// 높이(미터)별 색: 바닷가 연초록 → 들판 연두 → 중산간 노랑·갈색 → 한라산 회색 → 정상 흰색 (사진 대신 단순한 색 지도)
+const STOPS = [[0, '#a8d98a'], [150, '#8fcf73'], [400, '#cdd079'], [800, '#c39a62'], [1300, '#9a948c'], [1700, '#d9d6d0'], [1950, '#ffffff']].map(([m, c]) => [m, new THREE.Color(c)])
+const SHALLOW = new THREE.Color('#5db7cf')   // 바다 밑 지형 색 = 바다 판 색 (경계 사각형이 보이지 않게)
+function colorAt(meters, out) {
+  if (meters <= 0) return out.copy(SHALLOW)
+  for (let k = 1; k < STOPS.length; k++) {
+    if (meters <= STOPS[k][0]) return out.lerpColors(STOPS[k - 1][1], STOPS[k][1], (meters - STOPS[k - 1][0]) / (STOPS[k][0] - STOPS[k - 1][0]))
+  }
+  return out.copy(STOPS.at(-1)[1])
+}
+
+// 단순한 지형: DEM 높이로 정점을 올리고, 높이에 따라 정점 색을 입힘 (질감·법선 지도 없음 → 가볍고 깃발이 잘 보임)
 function Terrain() {
-  const gl = useThree((s) => s.gl)
-  const maxAniso = Math.min(16, gl.capabilities.getMaxAnisotropy())   // 비스듬히 볼 때도 텍스처가 덜 흐려지게
-
-  const map = useTexture('/terrain/satellite.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace })
-  useEffect(() => { map.anisotropy = maxAniso; map.needsUpdate = true }, [map, maxAniso])
-
   const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, 480, 288)
+    const g = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, 220, 132)
     g.rotateX(-Math.PI / 2)
     g.translate(TERRAIN.x0, 0, TERRAIN.z0)            // 지형 이미지 범위의 중심으로 옮김
-    const pos = g.attributes.position
+    const pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color()
     for (let i = 0; i < pos.count; i++) {
       const h = heightAt(pos.getX(i), pos.getZ(i))
       pos.setY(i, h <= 0 ? SEA_FLOOR : h)
+      colorAt(h / TERRAIN.metersToUnit, c)
+      col.set([c.r, c.g, c.b], i * 3)
     }
-    // 정점 법선은 모두 위쪽으로 두고, 경사는 법선 지도가 전부 담당 (둘 다 쓰면 같은 경사가 두 번 반영되어 과하게 어두워짐)
-    const n = g.attributes.normal
-    for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0)
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+    g.computeVertexNormals()
     return g
   }, [])
-
-  const normalMap = useMemo(() => {
-    const field = getHeightField()
-    if (!field) return null
-    const { data, w, h } = buildNormalMap(field, { ...TERRAIN, strength: 1.6 })
-    const t = new THREE.DataTexture(data, w, h, THREE.RGBAFormat)
-    t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter
-    t.generateMipmaps = true; t.anisotropy = maxAniso; t.needsUpdate = true
-    return t
-  }, [maxAniso])
-
-  return (
-    <mesh geometry={geo}>
-      <meshStandardMaterial map={map} normalMap={normalMap ?? undefined} roughness={1} />
-    </mesh>
-  )
+  return <mesh geometry={geo}><meshLambertMaterial vertexColors /></mesh>
 }
 
 // 높이맵을 못 불러왔을 때의 대체 지형 (단색 섬)
@@ -106,89 +96,234 @@ function Sea() {
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[400, 400]} />
-      <meshPhysicalMaterial color="#6cc0cf" transparent opacity={0.96} roughness={0.15} metalness={0.1} />
+      <meshLambertMaterial color="#5db7cf" />
     </mesh>
   )
 }
 
-// 오름 마크 하나. 가본 오름은 감귤색 깃발(꽂히는 애니메이션), 아직 안 간 오름은 작은 흰 점.
-//   delay: 처음 열릴 때 하나씩 순서대로 꽂히도록 주는 지연(초)
-function Mark({ oreum, visited, delay, hovered, onHover }) {
-  const [x, z] = toXZ(oreum.lat, oreum.lng)
-  const y = Math.max(0, heightAt(x, z))
-  const ref = useRef()
-  const born = useRef(null)
-  useFrame(({ clock }) => {
-    const g = ref.current
-    if (!g || !visited) return
-    if (born.current === null) born.current = clock.elapsedTime
-    const t = Math.min(1, Math.max(0, clock.elapsedTime - born.current - delay) / 0.7)   // 0 → 1 (0.7초)
-    const ease = t === 0 ? 0 : 1 - Math.pow(1 - t, 3) + Math.sin(t * Math.PI) * 0.18       // 살짝 튀어 오르며 꽂힘
-    g.scale.setScalar(ease)
-    g.position.y = y + 0.05 + (1 - Math.min(t, 1)) * 0.8                                    // 위에서 떨어짐
-  })
-  const active = hovered === oreum.id
+// 오름 좌표 근처(약 600m)에서 가장 높은 곳으로 옮김 — 공식 좌표가 기슭일 수 있어 '정상'에 마크가 서도록
+function peakOf(x, z) {
+  let bx = x, bz = z, by = Math.max(0, heightAt(x, z))
+  for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+    if (i * i + j * j > 16) continue
+    const px = x + i * 0.03, pz = z + j * 0.03, h = heightAt(px, pz)
+    if (h > by) { bx = px; bz = pz; by = h }
+  }
+  return [bx, bz, by]
+}
 
+// 아직 안 간 오름 = 빈 깃대: 가는 막대 + 끝의 흰 공을 한 번에(InstancedMesh) 그려 돌릴 때 가볍게. 깃발을 꽂으면 이 자리가 채워짐
+const POLE_H = 0.26
+function Dots({ pts, onHover }) {
+  const poles = useRef(), tips = useRef()
+  useLayoutEffect(() => {
+    const d = new THREE.Object3D()
+    pts.forEach((p, i) => {
+      d.position.set(p.x, p.y + POLE_H / 2, p.z); d.updateMatrix(); poles.current?.setMatrixAt(i, d.matrix)
+      d.position.set(p.x, p.y + POLE_H, p.z); d.updateMatrix(); tips.current?.setMatrixAt(i, d.matrix)
+    })
+    for (const m of [poles.current, tips.current]) if (m) { m.count = pts.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere() }
+  }, [pts])
+  if (!pts.length) return null
   return (
-    <group ref={ref} position={[x, visited ? y + 0.85 : y + 0.03, z]} scale={visited ? 0 : 1}>
-      {visited ? (
-        <group
-          onPointerOver={(e) => { e.stopPropagation(); onHover(oreum.id); document.body.style.cursor = 'pointer' }}
-          onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}
-        >
-          <mesh position={[0, 0.3, 0]}>
-            <cylinderGeometry args={[0.012, 0.012, 0.6, 6]} />
-            <meshStandardMaterial color="#5b4a2f" />
-          </mesh>
-          <mesh position={[0.11, 0.52, 0]}>
-            <coneGeometry args={[0.09, 0.22, 3]} />
-            <meshStandardMaterial color="#e8892b" emissive="#e8892b" emissiveIntensity={0.55} />
-          </mesh>
-          <mesh position={[0, 0.62, 0]}><sphereGeometry args={[0.035, 10, 10]} /><meshStandardMaterial color="#fff3d6" emissive="#ffd9a0" emissiveIntensity={0.8} /></mesh>
-        </group>
-      ) : (
-        <mesh
-          onPointerOver={(e) => { e.stopPropagation(); onHover(oreum.id); document.body.style.cursor = 'pointer' }}
-          onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}
-        >
-          <sphereGeometry args={[0.04, 10, 10]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.35} transparent opacity={0.85} />
-        </mesh>
-      )}
-      {active && (
-        <Html distanceFactor={9} position={[0, visited ? 0.85 : 0.2, 0]} center style={{ pointerEvents: 'none' }}>
-          <div className={`badge ${visited ? 'text-bg-warning' : 'text-bg-dark'}`}>{visited ? '✓ ' : ''}{oreum.title}</div>
-        </Html>
-      )}
+    <>
+      <instancedMesh ref={poles} args={[undefined, undefined, pts.length]} raycast={() => null}>
+        <cylinderGeometry args={[0.006, 0.006, POLE_H, 5]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+      </instancedMesh>
+      <instancedMesh ref={tips} args={[undefined, undefined, pts.length]}
+        onPointerMove={(e) => { e.stopPropagation(); onHover(pts[e.instanceId] ?? null); document.body.style.cursor = 'pointer' }}
+        onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}>
+        <sphereGeometry args={[0.04, 8, 8]} />
+        <meshBasicMaterial color="#ffffff" />
+      </instancedMesh>
+    </>
+  )
+}
+
+// 가본 오름: 정상에 현무암 돌탑을 쌓고 감귤색 깃발을 꽂음(바람에 살랑). 처음엔 위에서 떨어져 꽂히고, 발밑엔 금빛 고리가 퍼짐
+function Summit({ p, delay, onHover }) {
+  const g = useRef(), flag = useRef(), ring = useRef(), born = useRef(null)
+  useFrame(({ clock }) => {
+    if (born.current === null) born.current = clock.elapsedTime
+    const t = Math.min(1, Math.max(0, clock.elapsedTime - born.current - delay) / 0.7)
+    const ease = t === 0 ? 0 : 1 - Math.pow(1 - t, 3) + Math.sin(t * Math.PI) * 0.18
+    g.current.scale.setScalar(ease * 1.4)   // 단순한 지도에서도 깃발이 눈에 띄게 크게
+    g.current.position.y = p.y + (1 - t) * 0.8
+    if (flag.current) flag.current.rotation.y = Math.sin(clock.elapsedTime * 2.2 + p.x * 3) * 0.25   // 깃발이 바람에 흔들림
+    if (ring.current) { const k = (clock.elapsedTime * 0.5 + p.z) % 1; ring.current.scale.setScalar(0.6 + k); ring.current.material.opacity = 0.6 * (1 - k) * (t >= 1 ? 1 : 0) }
+  })
+  const over = (e) => { e.stopPropagation(); onHover(p); document.body.style.cursor = 'pointer' }
+  const out = () => { onHover(null); document.body.style.cursor = '' }
+  return (
+    <group position={[p.x, p.y + 0.8, p.z]} scale={0} ref={g} onPointerOver={over} onPointerOut={out}>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <ringGeometry args={[0.1, 0.13, 24]} /><meshBasicMaterial color="#ffd36a" transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {/* 현무암 돌탑 */}
+      <mesh position={[0, 0.025, 0]}><dodecahedronGeometry args={[0.07, 0]} /><meshStandardMaterial color="#3f4147" flatShading /></mesh>
+      <mesh position={[0.06, 0.02, 0.03]}><dodecahedronGeometry args={[0.045, 0]} /><meshStandardMaterial color="#55585f" flatShading /></mesh>
+      <mesh position={[-0.05, 0.02, -0.03]}><dodecahedronGeometry args={[0.04, 0]} /><meshStandardMaterial color="#4a4d54" flatShading /></mesh>
+      <mesh position={[0, 0.09, 0]}><dodecahedronGeometry args={[0.04, 0]} /><meshStandardMaterial color="#3f4147" flatShading /></mesh>
+      {/* 깃대 + 깃발 */}
+      <mesh position={[0, 0.36, 0]}><cylinderGeometry args={[0.01, 0.012, 0.52, 6]} /><meshStandardMaterial color="#5b4a2f" /></mesh>
+      <group ref={flag} position={[0, 0.56, 0]}>
+        <mesh position={[0.1, -0.02, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.075, 0.2, 3]} /><meshStandardMaterial color="#f08a24" emissive="#f08a24" emissiveIntensity={0.5} /></mesh>
+      </group>
+      <mesh position={[0, 0.63, 0]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#fff3d6" emissive="#ffd9a0" emissiveIntensity={0.8} /></mesh>
     </group>
   )
+}
+
+// 섬 둘레의 방향 글자 (북·동·남·서)
+const DIRS = [['북', 0, -4.4], ['남', 0, 4.4], ['동', 8.8, 0], ['서', -8.8, 0]]
+// 글자 스프라이트(캔버스 그림): 지도를 돌려도 항상 정면으로 보이고, 지형 위에도 가려지지 않음
+function DirSprite({ text, north, position }) {
+  const tex = useMemo(() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128
+    const g = c.getContext('2d')
+    g.beginPath(); g.arc(64, 64, 52, 0, Math.PI * 2); g.fillStyle = north ? '#e8892b' : 'rgba(255,255,255,0.88)'; g.fill()
+    g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,0.25)'; g.stroke()
+    g.font = '700 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = north ? '#fff' : '#3f4147'; g.fillText(text, 64, 68)
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
+  }, [text, north])
+  return <sprite position={position} scale={[0.9, 0.9, 1]} renderOrder={5}><spriteMaterial map={tex} transparent depthTest={false} /></sprite>
+}
+function DirectionLabels() {
+  return DIRS.map(([t, x, z]) => <DirSprite key={t} text={t} north={t === '북'} position={[x, 0.5, z]} />)
+}
+
+// 제주를 알아볼 수 있는 랜드마크: 이름표 + 성산일출봉(분화구 있는 응회구와 떠오르는 해)
+const LANDMARKS = [
+  { name: '한라산 1,947m', lat: 33.3617, lng: 126.5292, snap: true, lift: 0.75 },
+  { name: '우도', lat: 33.5, lng: 126.952, lift: 0.5, small: true },
+  { name: '마라도', lat: 33.114, lng: 126.267, lift: 0.5, small: true },
+]
+const ILCHUL = { lat: 33.458, lng: 126.9425 }   // 성산일출봉
+
+function NameSprite({ text, position, small }) {
+  const { tex, ratio } = useMemo(() => {
+    const c = document.createElement('canvas'), g = c.getContext('2d'), fs = 44
+    g.font = `700 ${fs}px sans-serif`
+    const w = Math.ceil(g.measureText(text).width) + 44
+    c.width = w; c.height = 76
+    g.font = `700 ${fs}px sans-serif`
+    g.beginPath(); g.roundRect(2, 2, w - 4, 72, 36); g.fillStyle = 'rgba(255,255,255,0.92)'; g.fill()
+    g.lineWidth = 4; g.strokeStyle = '#e8892b'; g.stroke()
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#3f4147'; g.fillText(text, w / 2, 40)
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
+    return { tex: t, ratio: w / 76 }
+  }, [text])
+  const h = small ? 0.34 : 0.42
+  return <sprite position={position} scale={[h * ratio, h, 1]} renderOrder={6}><spriteMaterial map={tex} transparent depthTest={false} /></sprite>
+}
+
+// 떠오르는 해: 주황 원 + 은은한 빛무리 (항상 정면)
+const SunSprite = forwardRef(function SunSprite({ position }, ref) {
+  const tex = useMemo(() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128
+    const g = c.getContext('2d'), grad = g.createRadialGradient(64, 64, 8, 64, 64, 62)
+    grad.addColorStop(0, 'rgba(255,200,90,1)'); grad.addColorStop(0.45, 'rgba(255,170,60,1)'); grad.addColorStop(0.5, 'rgba(255,190,90,0.55)'); grad.addColorStop(1, 'rgba(255,200,120,0)')
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 128)
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
+  }, [])
+  return <sprite ref={ref} position={position} scale={[0.5, 0.5, 1]} renderOrder={4}><spriteMaterial map={tex} transparent depthTest={false} /></sprite>
+})
+
+// 성산일출봉: 초록 기슭 + 회색 절벽 + 움푹한 분화구, 바다 쪽(동쪽)에 떠오르는 해
+function Ilchulbong({ pos }) {
+  const sun = useRef()
+  useFrame(({ clock }) => { if (sun.current) sun.current.scale.setScalar(0.5 * (1 + Math.sin(clock.elapsedTime * 1.5) * 0.07)) })
+  const [x, y, z] = pos
+  return (
+    <group position={[x, y, z]} scale={1.9}>   {/* 실제보다 크게: 한눈에 알아보도록 */}
+      <mesh position={[0, 0.11, 0]}><cylinderGeometry args={[0.14, 0.24, 0.22, 20]} /><meshLambertMaterial color="#6fae5c" flatShading /></mesh>
+      <mesh position={[0, 0.3, 0]}><cylinderGeometry args={[0.2, 0.14, 0.16, 20]} /><meshLambertMaterial color="#8a8d86" flatShading /></mesh>
+      <mesh position={[0, 0.385, 0]}><cylinderGeometry args={[0.14, 0.2, 0.012, 20]} /><meshLambertMaterial color="#9fcf86" /></mesh>
+      <mesh position={[0, 0.39, 0]}><cylinderGeometry args={[0.09, 0.09, 0.012, 20]} /><meshLambertMaterial color="#4f8f4a" /></mesh>
+      <SunSprite ref={sun} position={[0.6, 0.5, 0]} />
+      <NameSprite text="성산일출봉" position={[0, 0.82, 0]} />
+    </group>
+  )
+}
+
+function Landmarks() {
+  const items = useMemo(() => LANDMARKS.map((l) => {
+    const [x, z] = toXZ(l.lat, l.lng)
+    const [px, pz, py] = l.snap ? peakOf(x, z) : [x, z, Math.max(0, heightAt(x, z))]
+    return { ...l, pos: [px, py + l.lift, pz] }
+  }), [])
+  const [ix, iz] = toXZ(ILCHUL.lat, ILCHUL.lng)
+  return (
+    <>
+      {items.map((l) => <NameSprite key={l.name} text={l.name} position={l.pos} small={l.small} />)}
+      <Ilchulbong pos={[ix, Math.max(0, heightAt(ix, iz)), iz]} />
+    </>
+  )
+}
+
+// 화면 모서리 나침반: 지도를 돌리면 북쪽 표시가 따라 돎 (카메라 방위각을 읽어 DOM 만 직접 돌려 렌더링 비용이 없음)
+function CompassSync({ roseRef }) {
+  useFrame(({ camera, controls }) => {
+    if (!roseRef.current) return
+    const t = controls?.target ?? { x: 0, z: 0 }
+    const az = Math.atan2(camera.position.x - t.x, camera.position.z - t.z)   // 남쪽에서 북쪽을 볼 때 0
+    roseRef.current.style.transform = `rotate(${(az * 180) / Math.PI}deg)`
+  })
+  return null
 }
 
 // 3D 제주 전도 + 오름 마크: oreums 는 오름 목록, visitedIds 는 가본 오름 id 집합 (문자열)
 export default function OreumJeju3D({ oreums = [], visitedIds = new Set(), height = 420 }) {
   const terrain = useHeightField()
-  const [hovered, setHovered] = useState(null)
+  const [hover, setHover] = useState(null)
+  const roseRef = useRef(null)
   const list = useMemo(() => oreums.filter((o) => isJejuCoord(o.lat, o.lng)), [oreums])
+  // 오름마다 정상 위치를 한 번만 계산 (지형 높이맵이 준비된 뒤)
+  const pts = useMemo(() => {
+    if (terrain === 'loading') return []
+    return list.map((o) => { const [x, z] = toXZ(o.lat, o.lng); const [px, pz, py] = peakOf(x, z); return { o, x: px, y: py, z: pz } })
+  }, [list, terrain])
+  const visited = useMemo(() => pts.filter((p) => visitedIds.has(String(p.o.id))), [pts, visitedIds])
+  const todo = useMemo(() => pts.filter((p) => !visitedIds.has(String(p.o.id))), [pts, visitedIds])
   // 가본 오름은 서쪽부터 차례로 꽂히게 지연을 줌
   const order = useMemo(() => {
     const m = new Map()
-    list.filter((o) => visitedIds.has(String(o.id))).sort((a, b) => Number(a.lng) - Number(b.lng)).forEach((o, i) => m.set(o.id, i * 0.07))
+    ;[...visited].sort((a, b) => Number(a.o.lng) - Number(b.o.lng)).forEach((p, i) => m.set(p.o.id, i * 0.07))
     return m
-  }, [list, visitedIds])
+  }, [visited])
+  const isVisited = hover && visitedIds.has(String(hover.o.id))
 
   return (
-    <Canvas camera={{ position: [0, 6.8, 8.6], fov: 50 }} style={{ height }} data-testid="oreum-canvas">
-      <Sky sunPosition={[100, 30, 60]} turbidity={6} rayleigh={1.5} />
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[-8, 6, 4]} intensity={1.4} />
-      <Sea />
-      {terrain === 'ready' && <Suspense fallback={null}><Terrain /></Suspense>}
-      {terrain === 'failed' && <FallbackIsland />}
-      {terrain !== 'loading' && list.map((o) => (
-        <Mark key={`${o.id}-${visitedIds.has(String(o.id))}`} oreum={o} visited={visitedIds.has(String(o.id))} delay={order.get(o.id) ?? 0}
-          hovered={hovered} onHover={setHovered} />
-      ))}
-      <OrbitControls maxPolarAngle={Math.PI / 2.1} minDistance={4} maxDistance={24} />
-    </Canvas>
+    <div style={{ position: 'relative', height }}>
+      <Canvas camera={{ position: [0, 6.8, 8.6], fov: 50 }} style={{ height }} data-testid="oreum-canvas" dpr={[1, 1.5]}>
+        <color attach="background" args={['#d8eef4']} />
+        <ambientLight intensity={1.2} />
+        <directionalLight position={[-8, 6, 4]} intensity={1.4} />
+        <Sea />
+        {terrain === 'ready' && <Terrain />}
+        {terrain === 'failed' && <FallbackIsland />}
+        <DirectionLabels />
+        {terrain !== 'loading' && <Landmarks />}
+        <Dots pts={todo} onHover={setHover} />
+        {visited.map((p) => <Summit key={p.o.id} p={p} delay={order.get(p.o.id) ?? 0} onHover={setHover} />)}
+        {hover && (
+          <Html position={[hover.x, hover.y + (isVisited ? 0.95 : POLE_H + 0.12), hover.z]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
+            <div className={`badge ${isVisited ? 'text-bg-warning' : 'text-bg-dark'}`}>
+              {isVisited ? '⛰ 정상 도착 · ' : ''}{hover.o.title}{hover.o.elev ? ` · ${hover.o.elev}m` : ''}
+            </div>
+          </Html>
+        )}
+        <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.1} minDistance={4} maxDistance={24} />
+        <CompassSync roseRef={roseRef} />
+      </Canvas>
+      <div className="map-hud" data-testid="map-hud">🚩 <strong>{visited.length}</strong> / {pts.length}<span> · 빈 깃대 {todo.length}</span></div>
+      <div className="map-compass" aria-label="나침반: 북쪽 표시" data-testid="map-compass">
+        <div className="map-compass-rose" ref={roseRef}>
+          <span className="mc-n">북</span><span className="mc-e">동</span><span className="mc-s">남</span><span className="mc-w">서</span>
+          <i className="mc-needle" />
+        </div>
+      </div>
+    </div>
   )
 }

@@ -1,6 +1,5 @@
-// 제주 높이맵·위성 텍스처 생성 (일회성): node scripts/build-terrain.mjs
+// 제주 높이맵 생성 (일회성): node scripts/build-terrain.mjs — 3D 지도는 이 높이로 지형 모양과 높이별 색을 만듭니다(위성 사진은 쓰지 않음)
 //   높이: AWS Terrain Tiles (Terrarium, z12)  https://registry.opendata.aws/terrain-tiles/
-//   위성: EOX Sentinel-2 cloudless 2020 (z13)  (c) EOX IT Services GmbH, contains modified Copernicus Sentinel data 2020, CC BY 4.0
 // 타일은 웹 메르카토르라서, src/lib/geo.js 의 선형 위경도 좌표와 맞도록 재투영해 저장합니다.
 // 범위(bbox)는 src/lib/geo.js 의 TERRAIN_BBOX 를 그대로 씁니다 — 한 곳에서만 정해서 화면 코드와 어긋나지 않게 함.
 import sharp from 'sharp'
@@ -9,9 +8,7 @@ import { TERRAIN_BBOX } from '../src/lib/geo.js'
 
 const BBOX = { w: TERRAIN_BBOX.west, e: TERRAIN_BBOX.east, s: TERRAIN_BBOX.south, n: TERRAIN_BBOX.north }
 const Z_DEM = 12          // 높이: 약 32m/픽셀 (원본 DEM 의 해상도와 비슷해 더 올려도 의미가 적음)
-const Z_SAT = 13          // 위성: 약 16m/픽셀 (Sentinel-2 원본은 10m)
 const OUT_DEM_W = 2048    // 높이맵 가로 픽셀
-const OUT_SAT_W = 4096    // 위성 가로 픽셀 (GPU 텍스처 한계 4096 에 맞춤 → 약 20m/픽셀)
 const CONCURRENCY = 8
 
 const tileX = (lon, z) => ((lon + 180) / 360) * 2 ** z
@@ -49,25 +46,6 @@ async function mosaic(z, urlOf) {
   return { buf, W, H, x0, y0, z }
 }
 
-// 선형 위경도 격자(outW x outH)의 각 점에서 메르카토르 모자이크를 이중선형 샘플링
-function resample(m, outW, outH, write) {
-  const { buf, W, H, x0, y0, z } = m
-  const at = (x, y, c) => buf[(Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))) * 3 + c]
-  for (let j = 0; j < outH; j++) {
-    const lat = BBOX.n - ((BBOX.n - BBOX.s) * (j + 0.5)) / outH
-    const py = (tileY(lat, z) - y0) * 256 - 0.5
-    const iy = Math.floor(py), fy = py - iy
-    for (let i = 0; i < outW; i++) {
-      const lon = BBOX.w + ((BBOX.e - BBOX.w) * (i + 0.5)) / outW
-      const px = (tileX(lon, z) - x0) * 256 - 0.5
-      const ix = Math.floor(px), fx = px - ix
-      write(j * outW + i, (c) =>
-        at(ix, iy, c) * (1 - fx) * (1 - fy) + at(ix + 1, iy, c) * fx * (1 - fy) +
-        at(ix, iy + 1, c) * (1 - fx) * fy + at(ix + 1, iy + 1, c) * fx * fy)
-    }
-  }
-}
-
 await mkdir('public/terrain', { recursive: true })
 // 이미지 비율: 3D 에서 위도·경도 1도를 같은 길이(20단위)로 그리므로, 픽셀은 실제 거리 비율(경도는 cos(위도) 보정)로 맞춤
 const aspect = (BBOX.n - BBOX.s) / ((BBOX.e - BBOX.w) * Math.cos(((BBOX.n + BBOX.s) / 2 * Math.PI) / 180))
@@ -97,13 +75,5 @@ const enc = Buffer.alloc(hw * hh * 3)
 }
 await sharp(enc, { raw: { width: hw, height: hh, channels: 3 } }).png({ compressionLevel: 9 }).toFile('public/terrain/height.png')
 
-// 2) 위성 텍스처 (JPEG)
-console.log('위성 타일(Sentinel-2) 받는 중...')
-const sat = await mosaic(Z_SAT, (x, y) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/${Z_SAT}/${y}/${x}.jpg`)
-const sw = OUT_SAT_W, sh = Math.round(sw * aspect)
-const out = Buffer.alloc(sw * sh * 3)
-resample(sat, sw, sh, (idx, f) => { out[idx * 3] = f(0); out[idx * 3 + 1] = f(1); out[idx * 3 + 2] = f(2) })
-await sharp(out, { raw: { width: sw, height: sh, channels: 3 } }).jpeg({ quality: 86, mozjpeg: true }).toFile('public/terrain/satellite.jpg')
-
-await writeFile('public/terrain/meta.json', JSON.stringify({ bbox: BBOX, heightSize: [hw, hh], satelliteSize: [sw, sh], zoom: { height: Z_DEM, satellite: Z_SAT } }, null, 2))
-console.log(`완료: 높이 ${hw}x${hh}, 위성 ${sw}x${sh}`)
+await writeFile('public/terrain/meta.json', JSON.stringify({ bbox: BBOX, heightSize: [hw, hh], zoom: { height: Z_DEM } }, null, 2))
+console.log(`완료: 높이 ${hw}x${hh}`)

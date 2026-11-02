@@ -13,7 +13,7 @@ export function toXZ(lat, lng) {
   return [(Number(lng) - CENTER_LNG) * SCALE, (CENTER_LAT - Number(lat)) * SCALE]
 }
 
-// 지형 이미지(public/terrain/height.png · satellite.jpg)가 덮는 위경도 범위. 제주 본섬과 부속 섬(우도·가파도·마라도·비양도)만 담도록 바다를 줄였음.
+// 지형 이미지(public/terrain/height.png)가 덮는 위경도 범위. 제주 본섬과 부속 섬(우도·가파도·마라도·비양도)만 담도록 바다를 줄였음.
 // scripts/build-terrain.mjs 가 이 값을 그대로 읽어 이미지를 만들므로, 범위를 바꾸면 스크립트를 다시 돌려야 합니다.
 export const TERRAIN_BBOX = { west: 126.10, east: 127.00, south: 33.08, north: 33.62 }
 
