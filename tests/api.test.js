@@ -24,7 +24,7 @@ describe('api handlers', () => {
     const { default: h } = await import('../api/tour.js')
     const res = mkRes(); await h({ query: { keyword: '해녀', type: '14' } }, res)
     expect(res.code).toBe(200)
-    expect(res.body[0].args).toEqual({ keyword: '해녀', contentTypeId: '14', page: 1, rows: 10 })
+    expect(res.body[0].args).toEqual({ keyword: '해녀', contentTypeId: '14', lclsSystm2: '', page: 1, rows: 10 })
   })
   it('weather', async () => {
     const { default: h } = await import('../api/weather.js')
@@ -34,7 +34,7 @@ describe('api handlers', () => {
   it('heritage', async () => {
     const { default: h } = await import('../api/heritage.js')
     const res = mkRes(); await h({ query: { keyword: 'x' } }, res)
-    expect(res.body[0].args).toEqual({ keyword: 'x' })
+    expect(res.body[0].args).toEqual({ keyword: 'x', page: 1, rows: 10 })
   })
   it('내부 함수가 던지면 500 + error', async () => {
     const tour = await import('../server/tour.js')
@@ -52,8 +52,84 @@ describe('api/tour — page·rows', () => {
     vi.doMock('../server/tour.js', () => ({ searchTour: search }))
     const { default: h } = await import('../api/tour.js')
     await h({ query: { keyword: '오름', type: '', page: '2', rows: '999' } }, mkRes())
-    expect(search).toHaveBeenLastCalledWith({ keyword: '오름', contentTypeId: '', page: 2, rows: 50 })
+    expect(search).toHaveBeenLastCalledWith({ keyword: '오름', contentTypeId: '', lclsSystm2: '', page: 2, rows: 50 })
     await h({ query: { page: 'x', rows: '' } }, mkRes())
-    expect(search).toHaveBeenLastCalledWith({ keyword: '', contentTypeId: '12', page: 1, rows: 10 })
+    expect(search).toHaveBeenLastCalledWith({ keyword: '', contentTypeId: '12', lclsSystm2: '', page: 1, rows: 10 })
+  })
+})
+
+describe('api 상세 분기', () => {
+  it('tour: id 가 있으면 상세, heritage: asno 가 있으면 상세', async () => {
+    vi.resetModules()
+    vi.doMock('../server/tour.js', () => ({ searchTour: vi.fn(async () => ['list']), getTourDetail: vi.fn(async (a) => ({ detail: a })) }))
+    vi.doMock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async () => ['list']), getHeritageDetail: vi.fn(async (a) => ({ detail: a })) }))
+    const tour = (await import('../api/tour.js')).default
+    const heritage = (await import('../api/heritage.js')).default
+    let res = mkRes(); await tour({ query: { id: '7' } }, res)
+    expect(res.body).toEqual({ detail: { id: '7' } })
+    res = mkRes(); await tour({ query: { keyword: 'x' } }, res)
+    expect(res.body).toEqual(['list'])
+    res = mkRes(); await heritage({ query: { kdcd: '12', asno: '0003', ctcd: '50' } }, res)
+    expect(res.body).toEqual({ detail: { kdcd: '12', asno: '0003', ctcd: '50' } })
+    res = mkRes(); await heritage({ query: { keyword: 'x' } }, res)
+    expect(res.body).toEqual(['list'])
+  })
+  it('상세 조회 에러는 500', async () => {
+    vi.resetModules()
+    vi.doMock('../server/tour.js', () => ({ searchTour: vi.fn(), getTourDetail: vi.fn(async () => { throw new Error('없음') }) }))
+    const tour = (await import('../api/tour.js')).default
+    const res = mkRes(); await tour({ query: { id: '1' } }, res)
+    expect(res.code).toBe(500)
+    expect(res.body.error).toBe('없음')
+  })
+})
+
+describe('api — 분류(lcls)·국가유산 페이지', () => {
+  it('tour: lcls 는 분류체계 중분류 형식(FD05)만 전달, 이상한 값은 버림', async () => {
+    vi.resetModules()
+    const search = vi.fn(async () => [])
+    vi.doMock('../server/tour.js', () => ({ searchTour: search, getTourDetail: vi.fn() }))
+    const { default: h } = await import('../api/tour.js')
+    await h({ query: { type: '39', lcls: 'FD05' } }, mkRes())
+    expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ contentTypeId: '39', lclsSystm2: 'FD05' }))
+    await h({ query: { type: '39', lcls: 'FD05&x=1' } }, mkRes())
+    expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ lclsSystm2: '' }))
+  })
+  it('heritage: page·rows 전달(상한 50)', async () => {
+    vi.resetModules()
+    const search = vi.fn(async () => [])
+    vi.doMock('../server/heritage.js', () => ({ searchHeritage: search, getHeritageDetail: vi.fn() }))
+    const { default: h } = await import('../api/heritage.js')
+    await h({ query: { keyword: '관덕정', page: '3', rows: '999' } }, mkRes())
+    expect(search).toHaveBeenLastCalledWith({ keyword: '관덕정', page: 3, rows: 50 })
+  })
+})
+
+describe('api/tour — 주변·축제 모드', () => {
+  it('mode=near: 좌표·반경·유형·제외 분류 전달, 유형을 비우면 전체, 이상한 분류는 버림', async () => {
+    vi.resetModules()
+    const near = vi.fn(async () => [])
+    vi.doMock('../server/tour.js', () => ({ searchNearby: near, searchFestivals: vi.fn(), searchTour: vi.fn(), getTourDetail: vi.fn() }))
+    const { default: h } = await import('../api/tour.js')
+    await h({ query: { mode: 'near', lat: '33.5', lng: '126.5', radius: '5000', type: '39', xlcls: 'FD05', page: '2', rows: '12' } }, mkRes())
+    expect(near).toHaveBeenLastCalledWith({ lat: '33.5', lng: '126.5', radius: 5000, contentTypeId: '39', lclsSystm2: '', lclsExclude: 'FD05', page: 2, rows: 12 })
+    await h({ query: { mode: 'near', lat: '33.5', lng: '126.5', lcls: 'bad&x' } }, mkRes())
+    expect(near).toHaveBeenLastCalledWith(expect.objectContaining({ contentTypeId: '', lclsSystm2: '', radius: 3000 }))
+  })
+  it('mode=festival: 기간·검색어·쪽 전달', async () => {
+    vi.resetModules()
+    const fest = vi.fn(async () => [])
+    vi.doMock('../server/tour.js', () => ({ searchNearby: vi.fn(), searchFestivals: fest, searchTour: vi.fn(), getTourDetail: vi.fn() }))
+    const { default: h } = await import('../api/tour.js')
+    await h({ query: { mode: 'festival', from: '2026-11-01', to: '2026-11-30', keyword: '축제', page: '1', rows: '12' } }, mkRes())
+    expect(fest).toHaveBeenLastCalledWith({ from: '2026-11-01', to: '2026-11-30', keyword: '축제', page: 1, rows: 12 })
+  })
+  it('주변 검색 에러(제주 밖 좌표 등)는 500 + 메시지', async () => {
+    vi.resetModules()
+    vi.doMock('../server/tour.js', () => ({ searchNearby: vi.fn(async () => { throw new Error('제주 안의 위도·경도가 필요해요') }), searchFestivals: vi.fn(), searchTour: vi.fn(), getTourDetail: vi.fn() }))
+    const { default: h } = await import('../api/tour.js')
+    const res = mkRes(); await h({ query: { mode: 'near', lat: '37', lng: '127' } }, res)
+    expect(res.code).toBe(500)
+    expect(res.body.error).toContain('제주')
   })
 })

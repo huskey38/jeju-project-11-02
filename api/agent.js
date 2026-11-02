@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { searchTour } from '../server/tour.js';
+import { searchFestivals, searchNearby, searchTour } from '../server/tour.js';
 import { getWeather } from '../server/weather.js';
 import { searchHeritage } from '../server/heritage.js';
+import { nearFilterOf } from '../src/lib/placeCategories.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = 'claude-sonnet-5-5';
@@ -10,12 +11,38 @@ const MODEL = 'claude-sonnet-5-5';
 const tools = [
   {
     name: 'search_tour_places',
-    description: '한국관광공사 TourAPI로 제주의 관광지·문화시설·축제·음식점을 검색한다',
+    description: '한국관광공사 TourAPI로 제주의 관광지·문화시설·축제·음식점을 이름·키워드로 검색한다. 결과의 lat·lng(좌표)는 search_nearby 의 기준 위치로 쓸 수 있다. 숙박은 제공하지 않는다',
     input_schema: {
       type: 'object',
       properties: {
         keyword: { type: 'string', description: '검색어 (예: 해녀, 오름, 돌하르방)' },
-        contentTypeId: { type: 'string', description: '12 관광지, 14 문화시설, 15 축제·행사, 39 음식점' },
+        contentTypeId: { type: 'string', description: '12 관광지(기본), 14 문화시설, 15 축제·행사, 39 음식점·카페' },
+      },
+    },
+  },
+  {
+    name: 'search_nearby',
+    description: '좌표 주변의 장소를 가까운 순으로 검색한다(위치 기반). "근처·주변·가까운" 질문에 쓴다. 기준 좌표는 먼저 search_tour_places 로 기준 장소를 찾아 그 결과의 lat·lng 를 쓴다. 각 결과의 dist 는 기준점으로부터의 거리(미터)다',
+    input_schema: {
+      type: 'object',
+      properties: {
+        lat: { type: 'number', description: '기준 위도 (제주 안, 예: 33.4996)' },
+        lng: { type: 'number', description: '기준 경도 (제주 안, 예: 126.5312)' },
+        radius_m: { type: 'number', description: '반경(미터), 기본 3000, 최대 20000' },
+        category: { type: 'string', enum: ['all', 'spot', 'culture', 'festival', 'food', 'cafe'], description: 'all 전체, spot 관광지, culture 문화시설, festival 축제·행사, food 음식점(카페 제외), cafe 카페' },
+      },
+      required: ['lat', 'lng'],
+    },
+  },
+  {
+    name: 'search_festivals',
+    description: '기간으로 제주의 축제·행사를 검색한다. from 이후(기본 오늘)에 진행 중이거나 시작하는 행사가 나오고, to 를 주면 그 날짜까지로 좁힌다. "이번 주말·다음 달·○월 축제" 같은 질문에 쓴다',
+    input_schema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: '시작일 YYYY-MM-DD (생략하면 오늘)' },
+        to: { type: 'string', description: '종료일 YYYY-MM-DD (생략 가능)' },
+        keyword: { type: 'string', description: '행사명에 포함된 글자 (선택)' },
       },
     },
   },
@@ -36,11 +63,27 @@ const tools = [
 ];
 
 // ② 도구 이름 → 실제 실행할 함수
-const runTool = { search_tour_places: searchTour, get_weather: getWeather, search_heritage: searchHeritage };
+// 도구 결과는 모델이 읽기 쉽고 토큰이 덜 들도록 필요한 필드만 남김
+const slim = (list) => list.map(({ id, title, type, lcls, addr, dist, start, end, lat, lng }) => ({ id, title, type, lcls, addr, dist, start, end, lat, lng }));
+const runTool = {
+  search_tour_places: searchTour,
+  get_weather: getWeather,
+  search_heritage: searchHeritage,
+  search_nearby: async ({ lat, lng, radius_m, category = 'all' }) => {
+    const f = nearFilterOf(category);
+    return slim(await searchNearby({ lat, lng, radius: radius_m, contentTypeId: f.type, lclsSystm2: f.lcls, lclsExclude: f.xlcls, rows: 10 }));
+  },
+  search_festivals: async (a) => slim(await searchFestivals({ ...a, rows: 15 })),
+};
 
-const SYSTEM = `너는 제주 문화·콘텐츠 IP 가이드 에이전트다.
-- 장소·날씨·유산 정보는 반드시 도구로 확인한 뒤 답한다.
+// 오늘 날짜(한국 시간)를 알려줘야 "이번 주말·다음 달" 같은 기간 질문을 날짜로 바꿀 수 있다
+const systemPrompt = () => `너는 제주 문화·콘텐츠 IP 가이드 에이전트다.
+오늘은 ${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)} (한국 시간)이다.
+- 장소·날씨·유산·행사 정보는 반드시 도구로 확인한 뒤 답한다.
 - 도구 결과에 없는 장소는 지어내지 않는다.
+- "근처·주변" 질문은 기준 장소를 search_tour_places 로 찾아 좌표를 얻은 뒤 search_nearby 로 가까운 순 결과를 확인한다. 거리(dist)는 미터 단위다.
+- 날짜·기간이 있는 축제·행사 질문은 날짜를 YYYY-MM-DD 로 바꿔 search_festivals 를 쓴다.
+- 숙박(호텔·펜션 등)은 다루지 않는다. 물어보면 제공하지 않는 정보라고 알린다.
 - 비가 오거나 강수확률이 높으면 실내 대안을 함께 제안한다.
 - 답은 한국어로, 5문장 이내로 짧게.`;
 
@@ -56,7 +99,7 @@ export default async function handler(req, res) {
       const r = await client.messages.create({
         model: MODEL,
         max_tokens: 1024,
-        system: SYSTEM,
+        system: systemPrompt(),
         tools,
         messages,
       });

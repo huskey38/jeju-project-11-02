@@ -66,3 +66,10 @@ footer.bg-light { background: transparent !important; border-top-color: rgba(0, 
 .navbar .nav-link.active { background: rgba(255, 255, 255, .6); font-weight: 600; opacity: 1; }
 .navbar .navbar-toggler { border-color: rgba(36, 83, 77, .4); }
 .navbar .navbar-toggler-icon { filter: invert(1) brightness(.3); }
+
+.item-card.clickable { cursor: pointer; }
+
+/* 분류 버튼(알약형) — 선택된 버튼이 또렷하고 눌렀을 때 살짝 반응 */
+.btn.rounded-pill { transition: transform .12s, box-shadow .12s; }
+.btn.rounded-pill:active { transform: scale(.96); }
+.btn.rounded-pill.btn-primary, .btn.rounded-pill.btn-info { box-shadow: 0 4px 12px rgba(60, 120, 110, .22); }

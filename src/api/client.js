@@ -26,12 +26,23 @@ export async function post(path, body) {
 export const ping = () => get('/api/hello')
 
 // STEP 2~4: 공공데이터 API
-export const fetchPlaces = (keyword = '', type = '12', page = 1, rows = 10) =>
-  get(`/api/tour?keyword=${encodeURIComponent(keyword)}&type=${type}&page=${page}&rows=${rows}`)
+export const fetchPlaces = (keyword = '', type = '12', page = 1, rows = 10, lcls = '') =>
+  get(`/api/tour?keyword=${encodeURIComponent(keyword)}&type=${type}&lcls=${lcls}&page=${page}&rows=${rows}`)
+// 내 주변 (위치 기반): 가까운 순, 각 항목에 dist(미터)
+export const fetchNearby = ({ lat, lng, radius = 3000, type = '', lcls = '', xlcls = '', page = 1, rows = 12 }) =>
+  get(`/api/tour?mode=near&lat=${lat}&lng=${lng}&radius=${radius}&type=${type}&lcls=${lcls}&xlcls=${xlcls}&page=${page}&rows=${rows}`)
+// 축제 기간 검색: from(YYYY-MM-DD, 기본 오늘) 이후 진행 중이거나 시작하는 행사
+export const fetchFestivals = ({ from = '', to = '', keyword = '', page = 1, rows = 12 }) =>
+  get(`/api/tour?mode=festival&from=${from}&to=${to}&keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
 export const fetchWeather = (place = '제주시') =>
   get(`/api/weather?place=${encodeURIComponent(place)}`)
-export const fetchHeritage = (keyword = '') =>
-  get(`/api/heritage?keyword=${encodeURIComponent(keyword)}`)
+export const fetchHeritage = (keyword = '', page = 1, rows = 10) =>
+  get(`/api/heritage?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+
+// 상세 정보 (카드 클릭 시)
+export const fetchPlaceDetail = (id) => get(`/api/tour?id=${encodeURIComponent(id)}`)
+export const fetchHeritageDetail = ({ kdcd, asno, ctcd }) =>
+  get(`/api/heritage?kdcd=${encodeURIComponent(kdcd)}&asno=${encodeURIComponent(asno)}&ctcd=${encodeURIComponent(ctcd)}`)
 
 // STEP 6: 에이전트
 export const askAgent = (message, history) => post('/api/agent', { message, history })

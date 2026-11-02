@@ -1,34 +1,134 @@
 // 한국관광공사 TourAPI (국문 관광정보 서비스 KorService2)
+import { extractUrl, fmtDate, htmlToText, https, todayKst, ymd } from './text.js';
+
 const BASE = 'https://apis.data.go.kr/B551011/KorService2';
 
-// 이미지 주소가 http:// 로 오는데, https 로 배포하면 브라우저가 막으므로(mixed content) https 로 바꿉니다
-const https = (url) => (url ? url.replace(/^http:\/\//, 'https://') : url);
+// 숙박은 서비스 대상이 아니므로 모든 결과에서 뺍니다 (유형 32 / 분류체계 대분류 AC)
+export const isLodging = (p) => String(p.contenttypeid) === '32' || p.lclsSystm1 === 'AC';
 
-export async function searchTour({ keyword = '', contentTypeId = '12', rows = 10, page = 1 } = {}) {
+// 목록 API 공통 호출: 원본 항목 배열을 돌려줌 (region=false 면 지역 제한 없이 — 위치 기반은 좌표가 범위를 정함)
+async function callList(op, extra, { region = true } = {}) {
   const params = new URLSearchParams({
     serviceKey: process.env.DATA_GO_KR_KEY, // ★ Decoding 키
     MobileOS: 'ETC',
     MobileApp: 'JejuIP',
     _type: 'json',
-    numOfRows: String(rows),
-    pageNo: String(page),
-    // 법정동 지역코드 50 = 제주. 옛 areaCode=39 는 데이터 일부만 잡힘 (관광지 132 vs 557건, 축제는 0 vs 27건)
-    lDongRegnCd: '50',
+    ...(region && { lDongRegnCd: '50' }), // 법정동 지역코드 50 = 제주. 옛 areaCode=39 는 데이터 일부만 잡힘 (관광지 132 vs 557건, 축제는 0 vs 27건)
+    ...extra,
   });
-  if (contentTypeId) params.set('contentTypeId', contentTypeId);
-  const op = keyword ? 'searchKeyword2' : 'areaBasedList2';
-  if (keyword) params.set('keyword', keyword);
-
   const r = await fetch(`${BASE}/${op}?${params}`);
   const text = await r.text();
   let data;
   try { data = JSON.parse(text); }
   catch { throw new Error('TourAPI 응답이 JSON이 아님: ' + text.slice(0, 120)); }
-
   const item = data?.response?.body?.items?.item;
-  const list = !item ? [] : Array.isArray(item) ? item : [item];
-  return list.map((p) => ({
+  return !item ? [] : Array.isArray(item) ? item : [item];
+}
+
+// 원본 → 화면용 항목 (거리·행사 기간이 있으면 함께)
+function toItem(p) {
+  return {
     id: p.contentid, title: p.title, addr: p.addr1,
-    image: https(p.firstimage), lng: p.mapx, lat: p.mapy, type: p.contenttypeid,
-  }));
+    image: https(p.firstimage), lng: p.mapx, lat: p.mapy, type: p.contenttypeid, lcls: p.lclsSystm2,
+    ...(p.dist !== undefined && { dist: Math.round(Number(p.dist)) }),
+    ...(p.eventstartdate && { start: fmtDate(p.eventstartdate), end: fmtDate(p.eventenddate) }),
+  };
+}
+
+// lclsSystm2: 분류체계 중분류 (예: FD05 = 카페/찻집, FD01 = 한식). 카페는 음식점(39) 안에 이 코드로 들어 있음
+export async function searchTour({ keyword = '', contentTypeId = '12', rows = 10, page = 1, lclsSystm2 = '' } = {}) {
+  if (contentTypeId === '32') return [];
+  const extra = { numOfRows: String(rows), pageNo: String(page) };
+  if (contentTypeId) extra.contentTypeId = contentTypeId;
+  if (lclsSystm2) extra.lclsSystm2 = lclsSystm2;
+  if (keyword) extra.keyword = keyword;
+  const list = await callList(keyword ? 'searchKeyword2' : 'areaBasedList2', extra);
+  return list.filter((p) => !isLodging(p)).map(toItem);
+}
+
+// 걸러낸 뒤에도 쪽 크기가 일정하도록, 원본을 크게(100건씩) 읽어 숙박을 빼고 필요한 만큼 모은 다음 해당 쪽을 잘라 줌
+async function collect(op, extra, opts, page, rows, keep = () => true) {
+  const need = page * rows, kept = [];
+  for (let raw = 1; kept.length < need; raw++) {
+    const list = await callList(op, { ...extra, numOfRows: '100', pageNo: String(raw) }, opts);
+    kept.push(...list.filter((p) => !isLodging(p) && keep(p)));
+    if (list.length < 100) break;
+  }
+  return kept.slice((page - 1) * rows, page * rows);
+}
+
+// 위치 기반 검색 (locationBasedList2): 좌표 주변을 가까운 순으로. radius 는 미터(최대 20km)
+// lclsExclude: 이 분류체계 중분류는 결과에서 뺌 (예: 음식점에서 카페 FD05 제외)
+export async function searchNearby({ lat, lng, radius = 3000, contentTypeId = '', lclsSystm2 = '', lclsExclude = '', rows = 12, page = 1 } = {}) {
+  const la = Number(lat), ln = Number(lng);
+  if (!(la > 33.0 && la < 33.7 && ln > 126.0 && ln < 127.1)) throw new Error('제주 안의 위도·경도(lat, lng)가 필요해요');
+  if (contentTypeId === '32') return [];
+  const extra = {
+    mapX: String(ln), mapY: String(la), radius: String(Math.min(Math.max(Number(radius) || 3000, 100), 20000)), arrange: 'E', // E = 거리순
+  };
+  if (contentTypeId) extra.contentTypeId = contentTypeId;
+  if (lclsSystm2) extra.lclsSystm2 = lclsSystm2;
+  const keep = lclsExclude ? (p) => p.lclsSystm2 !== lclsExclude : undefined;
+  return (await collect('locationBasedList2', extra, { region: false }, page, rows, keep)).map(toItem);
+}
+
+// 축제 기간 검색 (searchFestival2): from 이후(기본 오늘)에 진행 중이거나 시작하는 행사. to 가 있으면 그 날짜까지
+// keyword 는 행사명 포함 여부로 걸러냄 (API 에 검색어가 없음)
+export async function searchFestivals({ from = '', to = '', keyword = '', rows = 12, page = 1 } = {}) {
+  const extra = { eventStartDate: ymd(from) || todayKst(), numOfRows: '100', pageNo: '1' };
+  if (ymd(to)) extra.eventEndDate = ymd(to);
+  const kw = String(keyword).trim();
+  const list = (await callList('searchFestival2', extra))
+    .filter((p) => !isLodging(p) && (!kw || String(p.title).includes(kw)));
+  return list.slice((page - 1) * rows, page * rows).map(toItem);
+}
+
+// ── 상세 조회 ─────────────────────────────────────────────
+// detailCommon2(소개·홈페이지·좌표) + detailIntro2(유형별 이용정보) + detailImage2(사진)
+async function callDetail(op, extra) {
+  const params = new URLSearchParams({
+    serviceKey: process.env.DATA_GO_KR_KEY, MobileOS: 'ETC', MobileApp: 'JejuIP', _type: 'json', ...extra,
+  });
+  const r = await fetch(`${BASE}/${op}?${params}`);
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error('TourAPI 응답이 JSON이 아님: ' + text.slice(0, 120)); }
+  const item = data?.response?.body?.items?.item;
+  return !item ? [] : Array.isArray(item) ? item : [item];
+}
+
+// 유형(contenttypeid)마다 이용정보 필드 이름이 달라서 [표시 이름, 필드] 목록으로 맞춥니다
+const INTRO_FIELDS = {
+  12: [['문의', 'infocenter'], ['이용시간', 'usetime'], ['휴무일', 'restdate'], ['주차', 'parking'], ['반려동물', 'chkpet'], ['유모차', 'chkbabycarriage'], ['신용카드', 'chkcreditcard']],
+  14: [['이용요금', 'usefee'], ['이용시간', 'usetimeculture'], ['휴관일', 'restdateculture'], ['문의', 'infocenterculture'], ['주차', 'parkingculture'], ['주차요금', 'parkingfee']],
+  15: [['장소', 'eventplace'], ['시간', 'playtime'], ['이용요금', 'usetimefestival'], ['주최', 'sponsor1'], ['주최 연락처', 'sponsor1tel'], ['프로그램', 'program']],
+  39: [['대표메뉴', 'firstmenu'], ['취급메뉴', 'treatmenu'], ['영업시간', 'opentimefood'], ['휴무일', 'restdatefood'], ['문의', 'infocenterfood'], ['주차', 'parkingfood']],
+};
+
+export async function getTourDetail({ id } = {}) {
+  if (!id) throw new Error('id 가 필요해요');
+  const [c] = await callDetail('detailCommon2', { contentId: id });
+  if (!c || isLodging(c)) throw new Error('장소를 찾을 수 없어요');
+  const type = String(c.contenttypeid);
+  // 소개·사진은 없어도 기본 정보는 보여 주도록 실패하면 빈 값으로
+  const [intro = {}] = await callDetail('detailIntro2', { contentId: id, contentTypeId: type }).catch(() => []);
+  const imgs = await callDetail('detailImage2', { contentId: id, imageYN: 'Y', numOfRows: '10' }).catch(() => []);
+
+  const info = INTRO_FIELDS[type]?.map(([label, key]) => ({ label, value: htmlToText(intro[key]) })).filter((r) => r.value) ?? [];
+  if (type === '15' && intro.eventstartdate) {
+    info.unshift({ label: '기간', value: [fmtDate(intro.eventstartdate), fmtDate(intro.eventenddate)].filter(Boolean).join(' ~ ') });
+  }
+  if (c.tel) info.unshift({ label: '전화', value: htmlToText(c.tel) });
+
+  const images = [c.firstimage, ...imgs.map((i) => i.originimgurl)].filter(Boolean).map(https);
+  return {
+    id: c.contentid, type, title: c.title,
+    addr: [c.addr1, c.addr2].filter(Boolean).join(' '),
+    homepage: extractUrl(c.homepage),
+    overview: htmlToText(c.overview),
+    lat: c.mapy, lng: c.mapx,
+    images: [...new Set(images)],
+    info,
+  };
 }
