@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, NEAR_TYPES, RADII, SUBS, advance, badgeOf, fmtDist, sourcesFor, subsOf, subtitleOf } from '../src/lib/placeCategories.js'
+import { CATEGORIES, NEAR_TYPES, RADII, SUBS, advance, badgeOf, festivalStatus, fmtDist, sourcesFor, subsOf, subtitleOf, todayKst } from '../src/lib/placeCategories.js'
 
 describe('분류 버튼', () => {
   it('요청한 6개 분류 + 내 주변, 관광지 하위 선택 3개', () => {
@@ -100,5 +100,38 @@ describe('거리·부제목', () => {
     expect(subtitleOf({ kind: 'tour', addr: '제주시' })).toBe('제주시')
     expect(subtitleOf({ kind: 'heritage', city: '제주시' })).toBe('제주시')
     expect(subtitleOf({ kind: 'tour', dist: 0, addr: '제주시' })).toBe('0m · 제주시')
+  })
+})
+
+describe('festivalStatus — 축제 진행률·상태 칩', () => {
+  const T = '2026-11-02'
+  it('기간이 없거나 날짜가 이상하면 null', () => {
+    expect(festivalStatus('', '', T)).toBeNull()
+    expect(festivalStatus(undefined, undefined, T)).toBeNull()
+    expect(festivalStatus('abc', 'def', T)).toBeNull()
+  })
+  it('시작 전: 0%, D-n 시작, 7일 이내면 감귤(citrus), 아니면 금색(gold)', () => {
+    expect(festivalStatus('2026-11-06', '2026-11-10', T)).toEqual({ state: 'upcoming', pct: 0, label: 'D-4 시작', tone: 'citrus' })
+    expect(festivalStatus('2026-11-09', '2026-11-10', T)).toMatchObject({ label: 'D-7 시작', tone: 'citrus' })
+    expect(festivalStatus('2026-11-19', '2026-11-22', T)).toMatchObject({ label: 'D-17 시작', tone: 'gold' })
+  })
+  it('진행 중: 기간 중 오늘의 위치(%)와 남은 날, 곧 끝나면 감귤색', () => {
+    // 8/25~11/15 = 83일, 오늘(11/2)은 70일째 → 84%, 13일 남음
+    expect(festivalStatus('2026-08-25', '2026-11-15', T)).toEqual({ state: 'ongoing', pct: 84, label: '진행 중 · D-13 종료', tone: 'good' })
+    expect(festivalStatus('2026-11-01', '2026-11-04', T)).toMatchObject({ pct: 50, label: '진행 중 · D-2 종료', tone: 'citrus' })
+    expect(festivalStatus('2026-11-02', '2026-11-05', T)).toMatchObject({ pct: 25 })   // 시작 당일 = 첫날
+  })
+  it('마지막 날·하루짜리 행사는 "오늘 종료" 100%', () => {
+    expect(festivalStatus('2026-10-30', '2026-11-02', T)).toMatchObject({ pct: 100, label: '오늘 종료', tone: 'citrus' })
+    expect(festivalStatus('2026-11-02', '2026-11-02', T)).toMatchObject({ pct: 100, label: '오늘 종료' })
+    expect(festivalStatus('2026-11-02', undefined, T)).toMatchObject({ state: 'ongoing', pct: 100 })   // 종료일 없으면 하루 행사
+  })
+  it('종료: 100%, 회색(muted)', () => {
+    expect(festivalStatus('2026-04-04', '2026-04-05', T)).toEqual({ state: 'ended', pct: 100, label: '종료', tone: 'muted' })
+  })
+  it('today 를 안 주면 한국 시간 오늘 (YYYY-MM-DD)', () => {
+    expect(todayKst()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    const t = todayKst()
+    expect(festivalStatus(t, t)).toMatchObject({ state: 'ongoing', label: '오늘 종료' })
   })
 })

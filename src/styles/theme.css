@@ -1,75 +1,195 @@
-/* 테마 위에 덧입히는 우리 앱 스타일 — 색은 Bootstrap 변수(--bs-*)를 써서 테마를 바꿔도 어울리게 */
+/* 디자인 시스템 — Sorrel 카드 디자인(골든 크림 + 세이지 그린 + 둥근 알약)에 제주 포인트 색을 더한 것
+   Bootstrap 기본 위에 변수와 컴포넌트 색을 덮어씁니다. 색은 아래 :root 토큰만 바꾸면 전체가 바뀝니다. */
 
-/* ── 부드러운 분위기: 모서리·그림자·배경 ─────────────────── */
 :root {
-  --bs-border-radius: .9rem;       /* 버튼·입력창 */
-  --bs-border-radius-lg: 1.25rem;  /* 카드·모달 */
-  --soft-shadow: 0 8px 28px rgba(60, 120, 110, .10);
-  --soft-ink: #24534d;             /* 진한 청록 글자색 */
+  /* 바탕·글자 */
+  --canvas: #f6f3ec;        /* 골든 크림 (유채꽃빛) */
+  --surface: #fffdf8;       /* 카드 */
+  --surface-2: #faf7f0;
+  --ink: #2a200a;           /* 현무암처럼 짙은 따뜻한 갈색 */
+  --ink-2: #524933;
+  --ink-3: #847b64;
+  --line: #e9e6df;
+  --line-soft: #f2efe8;
+  /* 강조 */
+  --accent: #2f6b52;        /* 세이지 그린 (오름의 초록) */
+  --accent-hi: #3a8266;
+  --accent-soft: #f8f0de;
+  --track: #f8eed8;         /* 진행 막대 바탕 */
+  --good-bg: #fcf2dc;
+  --good-ink: #3d6b34;
+  /* 제주 포인트 */
+  --citrus: #e8892b;        /* 감귤 */
+  --citrus-soft: #fdeedd;
+  --citrus-ink: #9a5410;
+  --sea: #3f9bb0;           /* 제주 바다 */
+  --sea-soft: #e3f1f4;
+  /* 모양 */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+  --sh-card: 0 1px 2px rgba(42, 32, 10, .05), 0 12px 28px -18px rgba(42, 32, 10, .28);
+  --sh-pop: 0 10px 24px -10px rgba(42, 32, 10, .35);
+
+  /* Bootstrap 변수 연결 */
+  --bs-body-bg: var(--canvas);
+  --bs-body-color: var(--ink);
+  --bs-body-font-size: .9375rem;                    /* 15px */
+  --bs-secondary-color: var(--ink-3);
+  --bs-border-color: var(--line);
+  --bs-border-radius: var(--r-md);
+  --bs-border-radius-lg: var(--r-lg);
+  --bs-primary: var(--accent);
+  --bs-primary-rgb: 47, 107, 82;
+  --bs-link-color: var(--accent);
+  --bs-link-color-rgb: 47, 107, 82;
+  --bs-link-hover-color: var(--accent-hi);
+  --bs-link-hover-color-rgb: 58, 130, 102;
 }
 
-body {
-  font-family: 'Pretendard', system-ui, sans-serif;
-  background: linear-gradient(180deg, #f3fbf8 0%, #fffaf4 100%) fixed;
+body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--canvas); color: var(--ink); }
+a { text-underline-offset: 2px; }
+
+/* ── 글자 크기 단계 (참고 디자인: 제목 21·섹션 24·카드 제목 19) ── */
+main header h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
+.item-card-title { font-size: 1.0625rem; font-weight: 700; line-height: 1.35; margin-bottom: .35rem; }
+.item-card-sub { font-size: .84rem; color: var(--ink-3); }
+h1, h5 { letter-spacing: -.01em; }
+.text-muted, .small.text-muted { color: var(--ink-3) !important; }
+
+/* 페이지 제목 아래 파도 장식 */
+main header.mb-4::after {
+  content: ''; display: block; width: 160px; height: 8px; margin-top: .75rem; opacity: .55;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='8' viewBox='0 0 40 8'%3E%3Cpath d='M0 4 Q10 0 20 4 T40 4' fill='none' stroke='%232f6b52' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
 }
 
-/* 상단 메뉴: 민트 → 하늘색 그라데이션, 아래쪽을 둥글게 */
+/* ── 상단 메뉴: 크림 카드색, 활성 메뉴는 세이지 알약 ── */
 .navbar.bg-primary {
-  background: linear-gradient(90deg, #86d0bd, #8fcfe6) !important;
-  border-radius: 0 0 1.25rem 1.25rem;
-  box-shadow: 0 4px 18px rgba(80, 150, 140, .18);
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(42, 32, 10, .02);
 }
+.navbar .navbar-brand { color: var(--ink) !important; font-weight: 700; font-size: 1.3rem; display: inline-flex; align-items: center; }
+.navbar .nav-link { color: var(--ink-2) !important; border-radius: var(--r-pill); padding: .4rem .9rem !important; font-weight: 500; transition: background .15s; }
+.navbar .nav-link:hover { background: var(--line-soft); color: var(--ink) !important; }
+.navbar .nav-link.active { background: var(--accent-soft); color: var(--accent) !important; font-weight: 700; }
+.navbar .navbar-text { color: var(--ink-3) !important; }
+.navbar .navbar-toggler { border-color: var(--line); }
+.navbar .navbar-toggler-icon { filter: invert(1) brightness(.35); }
+footer.bg-light { background: transparent !important; border-top-color: var(--line) !important; }
 
-footer.bg-light { background: transparent !important; border-top-color: rgba(0, 0, 0, .05) !important; }
+/* ── 카드·모달·목록: 테두리 + 은은한 그림자 ── */
+.card, .modal-content, .list-group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-card); }
+.list-group-item { background: transparent; border-color: var(--line-soft); }
+.list-group-item.active { background: var(--accent-soft); color: var(--accent); border-color: var(--line); font-weight: 600; }
+.list-group-item-action:hover { background: var(--surface-2); }
+.modal-header, .modal-footer { border-color: var(--line-soft); }
 
-.card, .modal-content, .list-group { border: 0; box-shadow: var(--soft-shadow); }
-.list-group-item { border-color: rgba(0, 0, 0, .05); }
-.form-control, .form-select { border-color: rgba(0, 0, 0, .08); box-shadow: 0 2px 8px rgba(60, 120, 110, .06); }
-.btn { font-weight: 500; }
-
-/* ── 홈 히어로: 민트·하늘·복숭아 파스텔 ──────────────────── */
-.hero {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #bfe8dc 0%, #cfe9f6 55%, #ffe3d1 100%);
-  color: var(--soft-ink);
-  border-radius: 1.75rem !important;
-  box-shadow: var(--soft-shadow);
-}
-.hero::before, .hero::after {           /* 은은한 구름 같은 원 장식 */
-  content: ''; position: absolute; border-radius: 50%; pointer-events: none;
-  background: rgba(255, 255, 255, .45);
-}
-.hero::before { width: 260px; height: 260px; top: -90px; right: -60px; }
-.hero::after  { width: 160px; height: 160px; bottom: -70px; left: 8%; background: rgba(255, 255, 255, .35); }
-.hero > * { position: relative; z-index: 1; }
-.hero h1, .hero .lead { color: var(--soft-ink); }
-
-/* ── 카드 ───────────────────────────────────────────────── */
-.item-card { transition: transform .2s, box-shadow .2s; overflow: hidden; }
-.item-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(60, 120, 110, .16); }
+.item-card { overflow: hidden; transition: transform .2s, box-shadow .2s; }
+.item-card:hover { transform: translateY(-3px); box-shadow: 0 1px 2px rgba(42, 32, 10, .05), 0 18px 34px -18px rgba(42, 32, 10, .36); }
+.item-card.clickable { cursor: pointer; }
 .item-card-img { height: 160px; object-fit: cover; }
 .placeholder-img {
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #e6f5f0, #e9f2fa); color: #8bbdb2; font-size: 2rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--sea-soft)); color: #b8b095; font-size: 2rem;
 }
 
-/* ── 채팅 말풍선 ────────────────────────────────────────── */
-.chat-box .msg { max-width: 80%; padding: .6rem .9rem; border-radius: 1.2rem; margin-bottom: .5rem; }
-.chat-box .msg.assistant { background: #eef7f4; border-bottom-left-radius: .3rem; }
-.chat-box .msg.user { background: linear-gradient(135deg, #86d0bd, #8fcfe6); color: var(--soft-ink); margin-left: auto; border-bottom-right-radius: .3rem; }
+/* ── 칩(배지): 크림 바탕 + 세이지 글자 ── */
+.badge.bg-secondary {
+  background: var(--good-bg) !important; color: var(--good-ink) !important;
+  font-weight: 600; font-size: .74rem; padding: .38em .7em; border-radius: var(--r-pill);
+}
 
-/* 연한 메뉴 배경에서 글자가 읽히도록 진한 청록색으로 */
-.navbar .navbar-brand, .navbar .nav-link, .navbar .navbar-text { color: var(--soft-ink) !important; }
-.navbar .nav-link { border-radius: .7rem; opacity: .85; }
-.navbar .nav-link:hover { background: rgba(255, 255, 255, .45); opacity: 1; }
-.navbar .nav-link.active { background: rgba(255, 255, 255, .6); font-weight: 600; opacity: 1; }
-.navbar .navbar-toggler { border-color: rgba(36, 83, 77, .4); }
-.navbar .navbar-toggler-icon { filter: invert(1) brightness(.3); }
+/* ── 버튼 ── */
+.btn { font-weight: 600; border-radius: var(--r-md); }
+.btn-primary {
+  --bs-btn-bg: var(--accent); --bs-btn-border-color: var(--accent); --bs-btn-color: #fff;
+  --bs-btn-hover-bg: var(--accent-hi); --bs-btn-hover-border-color: var(--accent-hi); --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: #285a45; --bs-btn-active-border-color: #285a45; --bs-btn-active-color: #fff;
+  --bs-btn-disabled-bg: var(--accent); --bs-btn-disabled-border-color: var(--accent);
+  --bs-btn-focus-shadow-rgb: 47, 107, 82;
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--accent); --bs-btn-border-color: #cfe0d6;
+  --bs-btn-hover-bg: var(--accent); --bs-btn-hover-border-color: var(--accent); --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--accent); --bs-btn-active-border-color: var(--accent); --bs-btn-active-color: #fff;
+  --bs-btn-disabled-color: var(--accent); --bs-btn-focus-shadow-rgb: 47, 107, 82;
+}
+.btn-link { color: var(--accent); font-weight: 600; text-decoration: none; }
+.btn-link:hover { color: var(--accent-hi); text-decoration: underline; }
 
-.item-card.clickable { cursor: pointer; }
+/* 하위 선택·반경 칩(info 버튼): 선택되면 크림 바탕 + 세이지 테두리 */
+.btn-info {
+  --bs-btn-bg: var(--good-bg); --bs-btn-color: var(--accent); --bs-btn-border-color: var(--accent);
+  --bs-btn-hover-bg: var(--good-bg); --bs-btn-hover-color: var(--accent); --bs-btn-hover-border-color: var(--accent);
+  --bs-btn-active-bg: var(--good-bg); --bs-btn-active-color: var(--accent); --bs-btn-active-border-color: var(--accent);
+  --bs-btn-focus-shadow-rgb: 47, 107, 82;
+}
+.btn-outline-info {
+  --bs-btn-color: var(--ink-2); --bs-btn-border-color: var(--line); --bs-btn-bg: var(--surface);
+  --bs-btn-hover-bg: var(--accent-soft); --bs-btn-hover-color: var(--ink); --bs-btn-hover-border-color: #dccfae;
+  --bs-btn-active-bg: var(--accent-soft); --bs-btn-active-color: var(--ink); --bs-btn-active-border-color: #dccfae;
+  --bs-btn-focus-shadow-rgb: 47, 107, 82;
+}
 
-/* 분류 버튼(알약형) — 선택된 버튼이 또렷하고 눌렀을 때 살짝 반응 */
-.btn.rounded-pill { transition: transform .12s, box-shadow .12s; }
-.btn.rounded-pill:active { transform: scale(.96); }
-.btn.rounded-pill.btn-primary, .btn.rounded-pill.btn-info { box-shadow: 0 4px 12px rgba(60, 120, 110, .22); }
+/* 분류 버튼 = 세그먼트 토글: 연한 트레이 위에서 선택된 버튼만 흰 카드색으로 도드라짐 */
+[aria-label="분류"] {
+  display: inline-flex; flex-wrap: wrap; gap: 2px !important; padding: 3px; background: #eeeae1; border-radius: 22px;
+}
+[aria-label="분류"] .btn { --bs-btn-border-width: 0; font-size: .88rem; padding: .42rem .95rem; }
+[aria-label="분류"] .btn-outline-primary {
+  --bs-btn-color: var(--ink-2); --bs-btn-bg: transparent; --bs-btn-border-color: transparent;
+  --bs-btn-hover-bg: rgba(255, 253, 248, .65); --bs-btn-hover-color: var(--ink); --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-bg: rgba(255, 253, 248, .65); --bs-btn-active-color: var(--ink); --bs-btn-active-border-color: transparent;
+}
+[aria-label="분류"] .btn-primary {
+  --bs-btn-bg: var(--surface); --bs-btn-color: var(--ink); --bs-btn-border-color: transparent;
+  --bs-btn-hover-bg: var(--surface); --bs-btn-hover-color: var(--ink); --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-bg: var(--surface); --bs-btn-active-color: var(--ink); --bs-btn-active-border-color: transparent;
+  box-shadow: 0 1px 2px rgba(42, 32, 10, .14); font-weight: 700;
+}
+.btn.rounded-pill { transition: transform .12s, background .15s; }
+.btn.rounded-pill:active { transform: scale(.97); }
+
+/* ── 입력창 ── */
+.form-control, .form-select { background-color: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: none; color: var(--ink); }
+.form-control::placeholder { color: #b0a78e; }
+.form-control:focus, .form-select:focus { border-color: var(--accent-hi); box-shadow: 0 0 0 .2rem rgba(47, 107, 82, .14); background-color: var(--surface); }
+.input-group > .btn { border-radius: 0 var(--r-md) var(--r-md) 0; }
+.spinner-border { color: var(--accent); }
+
+/* ── 홈 히어로: 크림 바탕 + 한라산 풍경 ── */
+.hero {
+  position: relative; overflow: hidden; color: var(--ink);
+  background: linear-gradient(180deg, #fdf3df 0%, #f8eed8 100%);
+  border: 1px solid var(--line); border-radius: 24px !important; box-shadow: var(--sh-card);
+}
+.hero > *:not(.hero-scene) { position: relative; z-index: 1; }
+.hero .badge.bg-light { background: var(--surface) !important; border: 1px solid var(--line); font-weight: 600; }
+.hero h1 { font-size: 2rem; font-weight: 800; color: var(--ink); }
+.hero .lead { color: var(--ink-2); font-size: 1.05rem; max-width: 34rem; }
+.hero-scene { position: absolute; right: 0; top: 0; width: min(62%, 520px); height: 220px; pointer-events: none; opacity: .95; }
+@media (max-width: 575.98px) { .hero-scene { width: 100%; opacity: .45; } }
+
+/* ── 축제 진행률 막대 + 상태 칩 ── */
+.festival-status { display: flex; flex-direction: column; gap: .55rem; }
+.pill-track { position: relative; height: 16px; border-radius: var(--r-pill); background: var(--track); overflow: hidden; }
+.pill-fill {
+  height: 100%; min-width: 16px; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, #4f9d7e, #2f6b52); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .06);
+}
+.pill-text { position: absolute; right: 8px; top: 0; line-height: 16px; font-size: .68rem; font-weight: 700; color: var(--ink-2); }
+.status-chip {
+  align-self: flex-start; display: inline-flex; align-items: center; font-size: .78rem; font-weight: 600;
+  padding: .28rem .7rem; border-radius: var(--r-pill); background: var(--good-bg); color: var(--good-ink); border: 1px solid #f0e3c3;
+}
+.festival-status.tone-citrus .pill-fill { background: linear-gradient(90deg, #f2a24d, var(--citrus)); }
+.festival-status.tone-citrus .status-chip { background: var(--citrus-soft); color: var(--citrus-ink); border-color: #f6d9b6; }
+.festival-status.tone-gold .pill-fill { background: #e3d3a8; }
+.festival-status.tone-gold .status-chip { background: var(--good-bg); color: #8a6a1f; }
+.festival-status.tone-muted .pill-fill { background: #d6d0bf; }
+.festival-status.tone-muted .status-chip { background: #efece4; color: var(--ink-3); border-color: var(--line); }
+.festival-status.tone-muted .status-chip i { display: none; }
+
+/* ── AI 가이드 채팅 말풍선 ── */
+.chat-box .msg { max-width: 80%; padding: .65rem .95rem; border-radius: 1.2rem; margin-bottom: .5rem; }
+.chat-box .msg.assistant { background: var(--surface-2); border: 1px solid var(--line-soft); border-bottom-left-radius: .3rem; }
+.chat-box .msg.user { background: var(--accent); color: #fff; margin-left: auto; border-bottom-right-radius: .3rem; }

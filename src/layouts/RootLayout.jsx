@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { Container, Nav, Navbar, Toast, ToastContainer } from 'react-bootstrap'
 import { NAV_ITEMS } from '../router'
+import { CitrusIcon } from '../components/JejuScene'
 import { useAppStore } from '../store/useAppStore'
 
 export default function RootLayout() {
@@ -12,7 +13,7 @@ export default function RootLayout() {
       <Navbar expand="md" bg="primary" data-bs-theme="dark" collapseOnSelect sticky="top">
         <Container>
           <Navbar.Brand as={NavLink} to="/">
-            <i className="bi bi-flower1 me-2" />관광 가이드
+            <CitrusIcon className="me-2" />관광 가이드
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">

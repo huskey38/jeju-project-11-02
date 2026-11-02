@@ -6,13 +6,12 @@ import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
 import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchVenueDetail, fetchVenues } from '../api/client'
-import { CATEGORIES, DEFAULT_RADIUS, RADII, advance, badgeOf, sourcesFor, subsOf, subtitleOf } from '../lib/placeCategories'
+import { CATEGORIES, DEFAULT_RADIUS, RADII, advance, badgeOf, festivalStatus, sourcesFor, subsOf, subtitleOf, todayKst } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import { useAppStore } from '../store/useAppStore'
 
 const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 const CITY_HALL = { lat: 33.4996, lng: 126.5312 }   // 위치를 못 얻을 때 기준 (제주시청)
-const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)   // 'YYYY-MM-DD'
 const valid = (list, v, fallback) => (list?.some((x) => x.key === v) ? v : fallback)
 
 // 소스 하나(TourAPI·국가유산·주변·축제)의 한 쪽을 받아 화면용 항목으로 맞춤 — API 별 모양 차이는 여기서 흡수
@@ -218,6 +217,7 @@ export default function Places() {
                 title={it.kind === 'heritage' ? it.name : it.title}
                 subtitle={subtitleOf(it)}
                 image={it.image} badge={badgeOf(it)}
+                status={festivalStatus(it.start, it.end)}
                 onClick={() => openDetail(it)}
                 onSave={() => addFavorite(it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
                   : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }

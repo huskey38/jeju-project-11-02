@@ -3,10 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 
 // ── 디자인 ───────────────────────────────────────────────
-// Bootstrap 5 + Bootswatch 테마. 아래 'minty' 한 단어만 바꾸면 앱 전체 디자인이 바뀝니다.
-// 추천: minty(민트) · lux(고급) · flatly(깔끔) · cosmo(밝음) · journal · sketchy(손그림) · darkly(다크)
-// 테마 미리보기: https://bootswatch.com
-import 'bootswatch/dist/minty/bootstrap.min.css'
+// Bootstrap 5 기본 위에 styles/theme.css 가 색·모서리·그림자를 덮어씁니다 (골든 크림 + 세이지 그린 + 제주 포인트 색).
+// 예전 Bootswatch 테마로 돌아가려면 이 줄을 'bootswatch/dist/minty/bootstrap.min.css' 로 바꾸고 theme.css 를 되돌리세요.
+import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './styles/theme.css'
 

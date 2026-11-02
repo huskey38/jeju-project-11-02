@@ -120,8 +120,27 @@ tests/      vitest 테스트
 
 ## 버전
 - `v1` 태그 / `main`: 단색 지형 3D 지도
-- `v2` 브랜치: 실제 지형(DEM) + 위성 텍스처
-- 버전 1로 돌아가기: `git switch main` (또는 `git switch --detach v1`), 다시 버전 2: `git switch v2`
+- `v2` 브랜치: 실제 지형(DEM) + 위성 텍스처 + 관광·문화 확장(분류 버튼·상세·내 주변·축제 기간·공연장) — 파스텔 민트 UI
+- `v3-design` 브랜치: v2 + **Sorrel 카드 디자인 + 제주 모티프** (아래 "디자인")
+- 버전 1로 돌아가기: `git switch main` (또는 `git switch --detach v1`), 다시 버전 2: `git switch v2`, 새 디자인: `git switch v3-design`
+
+## 디자인 (v3-design)
+참고: Kombai 갤러리 "Sorrel" 카드 섹션(골든 크림 바탕 · 세이지 그린 강조 · 둥근 알약 · 은은한 그림자). 라이브 프리뷰에서 추출한 값을 `src/styles/theme.css` 의 `:root` 토큰으로 옮기고, 제주 포인트 색을 더했습니다. 색은 이 토큰만 바꾸면 전체가 바뀝니다.
+
+| 토큰 | 값 | 제주 의미 |
+|---|---|---|
+| `--canvas` / `--surface` | `#f6f3ec` / `#fffdf8` | 유채꽃빛 골든 크림 |
+| `--accent` / `--accent-hi` | `#2f6b52` / `#3a8266` | 오름의 초록 (세이지) |
+| `--citrus` | `#e8892b` | 감귤 — 곧 시작/곧 종료 칩, 로고 |
+| `--sea` | `#3f9bb0` | 제주 바다 — 파도 장식, 풍경 |
+| `--ink` | `#2a200a` | 현무암처럼 짙은 갈색 글자 |
+
+- 모양: 카드 16px · 입력·버튼 12px · 칩 알약, 그림자 `0 1px 2px …, 0 12px 28px -18px …`. 글자: 페이지 제목 24px, 카드 제목 17px, 본문 15px (서체는 Pretendard 유지).
+- Bootstrap 은 기본 CSS 위에 `theme.css` 가 변수·버튼 색을 덮어씀 (`main.jsx` 가 Bootswatch minty 대신 기본 Bootstrap 을 불러옴).
+- **분류 버튼 = 세그먼트 토글**(연한 트레이 위에서 선택된 버튼만 흰 알약), 하위 선택·반경은 크림 칩.
+- **축제 카드**: 행사 기간 진행률 막대 + 상태 칩 — `festivalStatus()`(`placeCategories.js`): 시작 전 `D-n 시작`(7일 이내 감귤색, 이후 금색), 진행 중 `진행 중 · D-n 종료`(초록, 막대 = 경과%), 종료 회색.
+- **제주 모티프(직접 그린 SVG, `JejuScene.jsx`)**: 감귤 로고, 홈 히어로의 한라산·오름·감귤 해·파도, 페이지 제목 아래 파도 선.
+- 메뉴는 상단에 그대로 둠(좌측 아이콘 레일은 적용하지 않음).
 
 ## 배포 (Vercel)
 `vercel.json` 이 `/api` 를 제외한 모든 경로를 `index.html` 로 보내(SPA) 라우팅이 동작한다. Vercel 프로젝트 환경변수에 위 4개 값을 등록한다.

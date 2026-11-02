@@ -90,3 +90,27 @@ export function subtitleOf(item) {
   const period = item.start ? (item.start === item.end || !item.end ? item.start : `${item.start} ~ ${item.end}`) : ''
   return [item.dist !== undefined && fmtDist(item.dist), period, item.addr].filter(Boolean).join(' · ')
 }
+
+// 오늘 날짜(한국 시간) 'YYYY-MM-DD'
+export const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
+
+// 축제 카드용 진행 상태: 행사 기간 중 오늘이 어디쯤인지(진행률)와 상태 문구·색 계열
+//   start·end 는 'YYYY-MM-DD'. 기간이 없으면 null. tone: good(진행 중) · citrus(곧 시작/곧 종료) · gold(예정) · muted(종료)
+export function festivalStatus(start, end, today = todayKst()) {
+  if (!start) return null
+  const DAY = 86400000
+  const s = Date.parse(start), e = Date.parse(end || start), t = Date.parse(today)
+  if ([s, e, t].some(Number.isNaN)) return null
+  if (t < s) {
+    const d = Math.round((s - t) / DAY)
+    return { state: 'upcoming', pct: 0, label: `D-${d} 시작`, tone: d <= 7 ? 'citrus' : 'gold' }
+  }
+  if (t > e) return { state: 'ended', pct: 100, label: '종료', tone: 'muted' }
+  const total = Math.round((e - s) / DAY) + 1
+  const elapsed = Math.round((t - s) / DAY) + 1
+  const left = Math.round((e - t) / DAY)
+  return {
+    state: 'ongoing', pct: Math.round((elapsed / total) * 100),
+    label: left === 0 ? '오늘 종료' : `진행 중 · D-${left} 종료`, tone: left <= 2 ? 'citrus' : 'good',
+  }
+}

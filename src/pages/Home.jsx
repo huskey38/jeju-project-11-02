@@ -4,6 +4,7 @@ import { ping } from '../api/client'
 import { isSupabaseReady, supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
 import Jeju3D from '../components/Jeju3D'
+import { HallaScene } from '../components/JejuScene'
 import WeatherBadge from '../components/WeatherBadge'
 
 // 홈 = 기획 소개 + "동작 체크" 대시보드
@@ -30,6 +31,7 @@ export default function Home() {
   return (
     <>
       <section className="hero rounded-4 p-4 p-md-5 mb-4">
+        <HallaScene className="hero-scene" />
         <Badge bg="light" text="dark" className="mb-3">제주 콘텐츠·문화 IP</Badge>
         <h1 className="fw-bold">관광 가이드</h1>
         <p className="lead">공공데이터와 AI 가이드로 만나는 입체 제주 — 3D 지도에서 관광지와 국가유산을 탐험하세요.</p>
