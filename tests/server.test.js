@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { searchTour } from '../server/tour.js'
-import { getWeather } from '../server/weather.js'
+import { getForecast, getWeather, midBase, midDay, summarizeShort, toGrid } from '../server/weather.js'
 import { searchHeritage } from '../server/heritage.js'
 
 const mockFetch = (body) => vi.fn(async () => ({ text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) }))
@@ -17,6 +17,15 @@ describe('server/tour', () => {
     await searchTour({})
     expect(f.mock.calls[1][0]).toContain('areaBasedList2')
     expect(f.mock.calls[1][0]).toContain('lDongRegnCd=50')
+  })
+  it('분류체계 코드: 4자는 lclsSystm2, 8자(소분류)는 lclsSystm3 로 요청', async () => {
+    const f = mockFetch({ response: { body: { items: { item: [item] } } } })
+    vi.stubGlobal('fetch', f)
+    await searchTour({ contentTypeId: '39', lclsSystm2: 'FD01' })
+    expect(f.mock.calls[0][0]).toContain('lclsSystm2=FD01')
+    await searchTour({ contentTypeId: '39', lclsSystm2: 'FD020100', keyword: '짜장' })
+    expect(f.mock.calls[1][0]).toContain('lclsSystm3=FD020100')
+    expect(f.mock.calls[1][0]).not.toContain('lclsSystm2=')
   })
   it('결과를 정규화하고 단일 객체도 배열로', async () => {
     vi.stubGlobal('fetch', mockFetch({ response: { body: { items: { item } } } }))
@@ -52,6 +61,60 @@ describe('server/weather', () => {
     vi.stubGlobal('fetch', f)
     await getWeather({ place: '없는곳' })
     expect(f.mock.calls[0][0]).toContain('nx=53')
+  })
+})
+
+describe('server/weather — 장소·날짜별 예보', () => {
+  it('위경도 → 기상청 격자: 제주시청 (53,38)', () => {
+    expect(toGrid(33.4996, 126.5312)).toEqual([53, 38])
+    const [x] = toGrid(33.458, 126.942)   // 성산 쪽은 더 동쪽 격자
+    expect(x).toBeGreaterThan(53)
+  })
+  it('중기예보 발표 시각: 06·18시 + 30분 뒤부터, 그 전이면 직전 발표', () => {
+    const at = (kst) => midBase(Date.parse(`${kst}+09:00`))
+    expect(at('2026-11-02T12:00:00')).toEqual({ date: '2026-11-02', tmFc: '202611020600' })
+    expect(at('2026-11-02T18:10:00')).toEqual({ date: '2026-11-02', tmFc: '202611020600' })   // 아직 18시 발표 전
+    expect(at('2026-11-02T18:40:00')).toEqual({ date: '2026-11-02', tmFc: '202611021800' })
+    expect(at('2026-11-02T03:00:00')).toEqual({ date: '2026-11-01', tmFc: '202611011800' })
+  })
+  it('단기예보를 날짜별로 요약 (최저·최고, 낮 하늘, 강수, 강수확률 최대)', () => {
+    const row = (d, t, category, v) => ({ fcstDate: d, fcstTime: t, category, fcstValue: String(v) })
+    const items = [
+      row('20261102', '0900', 'TMP', 14), row('20261102', '1500', 'TMP', 18), row('20261102', '0900', 'SKY', 1), row('20261102', '1500', 'SKY', 1),
+      row('20261102', '1500', 'PTY', 0), row('20261102', '0900', 'POP', 10), row('20261102', '1500', 'POP', 30),
+      row('20261103', '0900', 'TMN', 12), row('20261103', '1500', 'TMX', 20), row('20261103', '0900', 'TMP', 13),
+      row('20261103', '1200', 'SKY', 4), row('20261103', '1500', 'SKY', 4), row('20261103', '1200', 'PTY', 1), row('20261103', '1200', 'POP', 70),
+    ]
+    expect(summarizeShort(items)).toEqual({
+      '2026-11-02': { tmin: 14, tmax: 18, sky: '맑음', precip: '', pop: 30 },
+      '2026-11-03': { tmin: 12, tmax: 20, sky: '흐림', precip: '비', pop: 70 },
+    })
+  })
+  it('중기예보: 4~7일은 오전·오후, 8~10일은 하루 하나', () => {
+    const land = { wf4Am: '구름많음', wf4Pm: '구름많고 비', rnSt4Am: 20, rnSt4Pm: 60, wf8: '맑음', rnSt8: 10 }
+    const ta = { taMin4: 15, taMax4: 18, taMin8: 12, taMax8: 16 }
+    expect(midDay(land, ta, 4)).toEqual({ tmin: 15, tmax: 18, sky: '구름많음 → 구름많고 비', precip: '비', pop: 60 })
+    expect(midDay(land, ta, 8)).toEqual({ tmin: 12, tmax: 16, sky: '맑음', precip: '', pop: 10 })
+  })
+  it('getForecast: 3일 이내는 이 좌표의 단기예보, 4~10일은 중기예보(제주 전체), 그 밖은 none', async () => {
+    const now = Date.parse('2026-11-02T12:00:00+09:00')
+    const shortItems = ['20261102', '20261104'].flatMap((d) => [{ fcstDate: d, fcstTime: '1200', category: 'TMP', fcstValue: '15' }, { fcstDate: d, fcstTime: '1200', category: 'SKY', fcstValue: '1' }])
+    const f = vi.fn(async (url) => ({
+      text: async () => JSON.stringify(
+        url.includes('getVilageFcst') ? { response: { body: { items: { item: shortItems } } } }
+          : url.includes('getMidLandFcst') ? { response: { body: { items: { item: [{ wf6Am: '맑음', wf6Pm: '맑음', rnSt6Am: 10, rnSt6Pm: 0 }] } } } }
+            : { response: { body: { items: { item: [{ taMin6: 9, taMax6: 14 }] } } } }),
+    }))
+    vi.stubGlobal('fetch', f)
+    const r = await getForecast({ lat: 33.4996, lng: 126.5312, dates: ['2026-11-02', '2026-11-08', '2026-11-20', '2026-11-01'] }, now)
+    expect(r.map((x) => x.kind)).toEqual(['short', 'mid', 'none', 'none'])
+    expect(r[1]).toMatchObject({ tmin: 9, tmax: 14, sky: '맑음', pop: 10 })
+    expect(f.mock.calls.some(([u]) => u.includes('nx=53') && u.includes('ny=38'))).toBe(true)
+    expect(f.mock.calls.find(([u]) => u.includes('getMidLandFcst'))[0]).toContain('regId=11G00000')
+    // 단기예보 범위 안의 날짜만 요청하면 중기예보는 부르지 않음
+    f.mockClear()
+    await getForecast({ lat: 33.4996, lng: 126.5312, dates: ['2026-11-02', '2026-11-04'] }, now)
+    expect(f.mock.calls.some(([u]) => u.includes('MidFcst'))).toBe(false)
   })
 })
 

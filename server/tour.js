@@ -35,12 +35,15 @@ function toItem(p) {
   };
 }
 
+// 분류체계 코드 → 요청 변수: 4자(FD05)는 중분류 lclsSystm2, 8자(FD020100)는 소분류 lclsSystm3
+const lclsParam = (code) => (code ? { [String(code).length > 4 ? 'lclsSystm3' : 'lclsSystm2']: code } : {});
+
 // lclsSystm2: 분류체계 중분류 (예: FD05 = 카페/찻집, FD01 = 한식). 카페는 음식점(39) 안에 이 코드로 들어 있음
 export async function searchTour({ keyword = '', contentTypeId = '12', rows = 10, page = 1, lclsSystm2 = '' } = {}) {
   if (contentTypeId === '32') return [];
   const extra = { numOfRows: String(rows), pageNo: String(page) };
   if (contentTypeId) extra.contentTypeId = contentTypeId;
-  if (lclsSystm2) extra.lclsSystm2 = lclsSystm2;
+  Object.assign(extra, lclsParam(lclsSystm2));
   if (keyword) extra.keyword = keyword;
   const list = await callList(keyword ? 'searchKeyword2' : 'areaBasedList2', extra);
   return list.filter((p) => !isLodging(p)).map(toItem);
@@ -67,7 +70,7 @@ export async function searchNearby({ lat, lng, radius = 3000, contentTypeId = ''
     mapX: String(ln), mapY: String(la), radius: String(Math.min(Math.max(Number(radius) || 3000, 100), 20000)), arrange: 'E', // E = 거리순
   };
   if (contentTypeId) extra.contentTypeId = contentTypeId;
-  if (lclsSystm2) extra.lclsSystm2 = lclsSystm2;
+  Object.assign(extra, lclsParam(lclsSystm2));
   const keep = lclsExclude ? (p) => p.lclsSystm2 !== lclsExclude : undefined;
   return (await collect('locationBasedList2', extra, { region: false }, page, rows, keep)).map(toItem);
 }

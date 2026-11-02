@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button, Col, Form, InputGroup, Row } from 'react-bootstrap'
-import PageHeader from '../components/PageHeader'
 import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { CitrusMark } from '../components/JejuScene'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
 import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchVenueDetail, fetchVenues } from '../api/client'
-import { CATEGORIES, DEFAULT_RADIUS, RADII, advance, badgeOf, festivalStatus, recommendModeOf, sourcesFor, subsOf, subtitleOf, todayKst } from '../lib/placeCategories'
+import { CATEGORIES, MENU_WORDS, NEAR_CATS, RADII, advance, badgeOf, festivalStatus, parseSub, recommendModeOf, sourcesFor, subKeys, subsOf, toggleSub, subtitleOf, todayKst, withoutOreum } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import { useAppStore } from '../store/useAppStore'
 
@@ -55,8 +54,10 @@ export default function Places() {
   const [params, setParams] = useSearchParams()          // 선택한 분류를 주소(?cat=&sub=&r=)에 남김 → 새로고침·링크 공유 시 유지
   const cat = valid(CATEGORIES, params.get('cat'), 'all')
   const subs = subsOf(cat)
-  const sub = valid(subs, params.get('sub'), 'all')
-  const radiusKm = RADII.includes(Number(params.get('r'))) ? Number(params.get('r')) : DEFAULT_RADIUS
+  const sub = parseSub(cat, params.get('sub'))   // 관광지는 여러 개('general,no-oreum'), 내 주변은 하나
+  const canNear = NEAR_CATS.includes(cat)
+  const radiusKm = canNear && RADII.includes(Number(params.get('r'))) ? Number(params.get('r')) : 0   // 0 = 내 주변을 안 씀(제주 전체)
+  const nearOn = radiusKm > 0
 
   const [keyword, setKeyword] = useState('')
   const savedItems = favorites.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 가볼만한 곳: 검색어가 있으면 제목으로 거름
@@ -89,14 +90,14 @@ export default function Places() {
       { timeout: 8000 },
     )
   }
-  useEffect(() => { if (cat === 'near' && !coords && !locating) locate() }, [cat])
+  useEffect(() => { if (nearOn && !coords && !locating) locate() }, [nearOn])
 
   // reset=true: 처음부터 다시 검색 / false: 다음 쪽을 이어 붙이기 (더 보기)
-  async function load(reset) {
+  async function load(reset, kw = keyword) {
     if (cat === 'saved') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
-    if (cat === 'near' && !coords) return                // 위치를 얻은 뒤에 검색
-    const sources = sourcesFor(cat, sub)
-    const ctx = { keyword, coords, radiusKm, from, to }
+    if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
+    const sources = sourcesFor(cat, sub, nearOn)
+    const ctx = { keyword: kw, coords, radiusKm, from, to }
     const id = reset ? ++reqId.current : reqId.current
     let cur = reset ? { i: 0, page: 1 } : cursor.current
     reset ? setLoading(true) : setMoreLoading(true)
@@ -106,7 +107,7 @@ export default function Places() {
       // 한 소스가 끝나면 다음 소스로 넘어가며, 한 번에 보여줄 개수(ROWS)가 찰 때까지 읽음
       while (cur.i < sources.length && got.length < ROWS) {
         const list = await fetchPage(sources[cur.i], ctx, cur.page)
-        got = [...got, ...list]
+        got = [...got, ...(cat === 'spot' && subKeys(sub).includes('no-oreum') ? withoutOreum(list) : list)]   // 쪽 계산(advance)은 거르기 전 개수로
         cur = advance(cur, list.length, ROWS)
       }
       if (id !== reqId.current) return
@@ -122,13 +123,25 @@ export default function Places() {
   // 분류·하위 선택·반경·기준 위치·축제 기간이 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
   useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, from, to])
 
+  // 인기 메뉴 바로가기: 누르면 그 단어로 바로 검색, 다시 누르면 해제
+  function pickWord(w) {
+    const next = keyword === w ? '' : w
+    setKeyword(next)
+    load(true, next)
+  }
   function search(e) {
     e.preventDefault()                                   // 폼 제출 시 새로고침 막기
     load(true)
   }
-  function pickCat(key) { setParams(key === 'all' ? {} : { cat: key }) }
-  function pickSub(key) { setParams({ cat, ...(key !== 'all' && { sub: key }), ...(cat === 'near' && radiusKm !== DEFAULT_RADIUS && { r: String(radiusKm) }) }) }
-  function pickRadius(km) { setParams({ cat, ...(sub !== 'all' && { sub }), r: String(km) }) }
+  // 주소(?cat=&sub=&r=) 만들기: 반경(r)은 분류를 옮겨도 유지됨
+  const urlOf = ({ c = cat, sb = sub, r = radiusKm }) => ({ ...(c !== 'all' && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }) })
+  const subOn = (key) => (key === 'all' ? sub === 'all' : subKeys(sub).includes(key))   // 관광지는 여러 버튼이 동시에 켜짐
+  function pickCat(key) {
+    if (Object.values(MENU_WORDS).flat().includes(keyword)) setKeyword('')   // 인기 메뉴로 넣은 검색어는 다른 분류로 가져가지 않음
+    setParams(urlOf({ c: key, sb: 'all' }))
+  }
+  function pickSub(key) { setParams(urlOf({ sb: toggleSub(cat, sub, key) })) }
+  function pickRadius(km) { setParams(urlOf({ r: km === radiusKm ? 0 : km })) }   // 켜진 반경을 다시 누르면 해제
 
   // 카드 클릭 → 목록 정보를 먼저 보여주고 상세를 불러옴
   //   fromRec: "근처 추천"에서 넘어온 것 → 지금 보던 곳을 기록에 쌓아 "돌아가기"를 가능하게 함
@@ -196,53 +209,53 @@ export default function Places() {
         title={d?.title ?? b.title} subtitle={d?.addr ?? b.addr}
         images={d?.images?.length ? d.images : b.image ? [b.image] : []}
         rows={d?.info} homepage={d?.homepage} text={d?.overview}
-        lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
+        lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng} visitFrom={b.start}
         saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     )
   })()
 
   return (
     <>
-      <PageHeader icon="geo-alt" title="관광·문화" subtitle="한국관광공사 TourAPI · 국가유산청" />
-
       <div className="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="분류">
         {CATEGORIES.map((c) => (
           <Button key={c.key} className="rounded-pill px-3" variant={cat === c.key ? 'primary' : 'outline-primary'}
             aria-pressed={cat === c.key} onClick={() => pickCat(c.key)}>
-            {c.key === 'near' && <i className="bi bi-crosshair me-1" />}
             {c.key === 'saved' && <CitrusMark filled size={16} className="citrus-inline" />}
             {c.label}
             {c.key === 'saved' && favorites.length > 0 && <span className="count-chip" data-testid="saved-count">{favorites.length}</span>}
           </Button>
         ))}
       </div>
-      {subs && (
-        <div className="d-flex flex-wrap gap-2 mb-2 ps-1" role="group" aria-label={cat === 'near' ? '내 주변 유형' : '관광지 세부 분류'}>
-          {subs.map((s) => (
-            <Button key={s.key} size="sm" className="rounded-pill px-3" variant={sub === s.key ? 'info' : 'outline-info'}
-              aria-pressed={sub === s.key} onClick={() => pickSub(s.key)}>{s.label}</Button>
-          ))}
-        </div>
-      )}
-
-      {cat === 'near' && (
+      {canNear && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="near-bar">
-          <span className="text-muted">반경</span>
-          <div className="d-flex gap-1" role="group" aria-label="반경">
+          <span className="text-muted"><i className="bi bi-crosshair me-1" />내 주변</span>
+          <div className="d-flex gap-1" role="group" aria-label="내 주변 반경">
             {RADII.map((km) => (
               <Button key={km} size="sm" className="rounded-pill px-2" variant={radiusKm === km ? 'info' : 'outline-info'}
                 aria-pressed={radiusKm === km} onClick={() => pickRadius(km)}>{km}km</Button>
             ))}
           </div>
-          <span className="text-muted ms-2" data-testid="near-origin">
-            <i className="bi bi-geo-alt me-1" />
-            {locating ? '위치를 찾는 중...' : coords?.note ?? '내 현재 위치 기준'}
-          </span>
-          <Button size="sm" variant="link" className="p-0" onClick={locate} disabled={locating}>내 위치 다시 찾기</Button>
+          {nearOn && (
+            <>
+              <span className="text-muted ms-2" data-testid="near-origin">
+                <i className="bi bi-geo-alt me-1" />
+                {locating ? '위치를 찾는 중...' : coords?.note ?? '내 현재 위치 기준 · 가까운 순'}
+              </span>
+              <Button size="sm" variant="link" className="p-0" onClick={locate} disabled={locating}>내 위치 다시 찾기</Button>
+            </>
+          )}
+        </div>
+      )}
+      {subs && (
+        <div className="d-flex flex-wrap gap-2 mb-2 ps-1" role="group" aria-label={cat === 'food' ? '음식 종류' : '관광지 세부 분류'}>
+          {subs.map((s) => (
+            <Button key={s.key} size="sm" className="rounded-pill px-3" variant={subOn(s.key) ? 'info' : 'outline-info'}
+              aria-pressed={subOn(s.key)} onClick={() => pickSub(s.key)}>{s.label}</Button>
+          ))}
         </div>
       )}
 
-      {cat === 'festival' && (
+      {cat === 'festival' && !nearOn && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="festival-dates">
           <span className="text-muted">기간</span>
           <Form.Control type="date" size="sm" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="시작일" style={{ width: 150 }} />
@@ -263,15 +276,24 @@ export default function Places() {
         </div>
       )}
 
-      {cat !== 'near' && (
+      {!nearOn && (
         <Form onSubmit={search} className="mt-3 mb-4">
           <InputGroup>
-            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : '검색어 (비우면 전체)'} />
+            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어 (비우면 전체)'} />
             <Button type="submit"><i className="bi bi-search" /></Button>
           </InputGroup>
+          {MENU_WORDS[cat] && (
+            <div className="d-flex flex-wrap align-items-center gap-2 mt-2 ps-1 small" role="group" aria-label="인기 메뉴" data-testid="menu-words">
+              <span className="text-muted">인기 메뉴</span>
+              {MENU_WORDS[cat].map((w) => (
+                <Button key={w} size="sm" className="rounded-pill px-2" variant={keyword === w ? 'info' : 'outline-info'}
+                  aria-pressed={keyword === w} onClick={() => pickWord(w)}>{w}</Button>
+              ))}
+            </div>
+          )}
         </Form>
       )}
-      {cat === 'near' && <div className="mb-3" />}
+      {nearOn && <div className="mb-3" />}
 
       <ErrorAlert error={error} />
 

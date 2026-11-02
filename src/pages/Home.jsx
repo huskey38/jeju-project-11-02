@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Badge, Card, Col, Form, Row } from 'react-bootstrap'
+import { Card, Col, Form, Row } from 'react-bootstrap'
 import { ping } from '../api/client'
 import { isSupabaseReady, supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
-import { Link } from 'react-router-dom'
-import Jeju3D from '../components/Jeju3D'
 import Places from './Places'
 import { HallaScene } from '../components/JejuScene'
-import WeatherBadge from '../components/WeatherBadge'
 
 // 홈 = 기획 소개 + "동작 체크" 대시보드
 // STEP 0~1 에서 이 화면의 체크가 모두 초록색이 되어야 다음 단계로 넘어갑니다.
@@ -34,23 +31,13 @@ export default function Home() {
     <>
       <section className="hero rounded-4 p-4 p-md-5 mb-4">
         <HallaScene className="hero-scene" />
-        <Badge bg="light" text="dark" className="mb-3">제주 콘텐츠·문화 IP</Badge>
-        <h1 className="fw-bold">관광 가이드</h1>
-        <p className="lead">공공데이터와 AI 가이드로 만나는 입체 제주 — 3D 지도에서 관광지와 국가유산을 탐험하세요.</p>
-        <WeatherBadge place="서귀포시" />
+        <div className="hero-greet">혼저옵서예</div>
+        <h1 className="fw-bold">제주 관광 길잡이</h1>
+        <p className="lead">공공데이터와 AI 가이드로 쉽고 편한 제주도 탐방</p>
       </section>
 
-      {/* 3D 지도가 있던 자리: 관광·문화를 홈에서 바로 둘러봄 (분류 버튼·검색·내 주변·축제·상세·감귤 즐겨찾기 모두 이 화면에서 동작) */}
+      {/* 관광·문화를 홈에서 바로 둘러봄 (분류 버튼·검색·내 주변·축제·상세·감귤 즐겨찾기 모두 이 화면에서 동작) */}
       <section className="mb-5" data-testid="home-places"><Places /></section>
-
-      {/* 기존 3D 지도는 관광·문화 아래로 */}
-      <section className="mb-5" data-testid="home-3d-section">
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h5 className="fw-bold mb-0"><i className="bi bi-globe-asia-australia me-2 text-primary" />3D 제주 지도</h5>
-          <Link to="/map3d" className="small fw-bold">핀과 함께 크게 보기 <i className="bi bi-arrow-right" /></Link>
-        </div>
-        <div className="rounded-4 overflow-hidden border" data-testid="home-3d"><Jeju3D autoRotate height={320} /></div>
-      </section>
 
       <h5 className="fw-bold mb-3"><i className="bi bi-clipboard-check me-2" />동작 체크</h5>
       <Row xs={1} md={3} className="g-3">

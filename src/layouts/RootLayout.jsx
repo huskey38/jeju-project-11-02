@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { Container, Nav, Navbar, Toast, ToastContainer } from 'react-bootstrap'
-import { NAV_ITEMS } from '../router'
-import { CitrusIcon } from '../components/JejuScene'
+import { Outlet } from 'react-router-dom'
+import { Container, Toast, ToastContainer } from 'react-bootstrap'
 import ChatWidget from '../components/ChatWidget'
 import { useAppStore } from '../store/useAppStore'
 import { isSupabaseReady } from '../lib/supabase'
@@ -22,27 +20,7 @@ export default function RootLayout() {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <Navbar expand="md" bg="primary" data-bs-theme="dark" collapseOnSelect sticky="top">
-        <Container>
-          <Navbar.Brand as={NavLink} to="/">
-            <CitrusIcon className="me-2" />관광 가이드
-          </Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" />
-          <Navbar.Collapse id="main-nav">
-            <Nav className="me-auto">
-              {NAV_ITEMS.map((item) => (
-                <Nav.Link key={item.to} as={NavLink} to={item.to} end={item.to === '/'} eventKey={item.to}>
-                  <i className={`bi bi-${item.icon} me-1`} />{item.label}
-                </Nav.Link>
-              ))}
-            </Nav>
-            {nickname && (
-              <Navbar.Text><i className="bi bi-person-circle me-1" />{nickname}</Navbar.Text>
-            )}
-          </Navbar.Collapse>
-        </Container>
-      </Navbar>
-
+      {/* 상단 메뉴(Navbar)는 제거했습니다. 페이지 주소는 그대로이고, 메뉴 목록은 router.jsx 의 NAV_ITEMS 에 남겨 두었습니다 */}
       <main className="flex-grow-1 py-4">
         <Container>
           <Outlet />   {/* ← 여기에 주소에 맞는 페이지가 들어갑니다 */}
@@ -51,7 +29,7 @@ export default function RootLayout() {
 
       <footer className="py-3 border-top bg-light">
         <Container className="small text-muted">
-          데이터 출처: 공공데이터포털 외
+          데이터 출처: 공공데이터포털 외 · 한국관광공사 TourAPI · 국가유산청
         </Container>
       </footer>
 

@@ -38,8 +38,9 @@ export const fetchFestivals = ({ from = '', to = '', keyword = '', page = 1, row
 export const fetchVenues = (keyword = '', page = 1, rows = 12) =>
   get(`/api/venue?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
 export const fetchVenueDetail = (id) => get(`/api/venue?id=${encodeURIComponent(id)}`)
-export const fetchWeather = (place = '제주시') =>
-  get(`/api/weather?place=${encodeURIComponent(place)}`)
+// 장소(좌표)·날짜별 예보: dates = ['YYYY-MM-DD', ...] → [{ date, kind: 'short'|'mid'|'none', tmin, tmax, sky, precip, pop }]
+export const fetchForecast = ({ lat, lng, dates }) =>
+  get(`/api/weather?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&dates=${dates.join(',')}`)
 export const fetchHeritage = (keyword = '', page = 1, rows = 10) =>
   get(`/api/heritage?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
 

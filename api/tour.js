@@ -1,6 +1,6 @@
 import { getTourDetail, searchFestivals, searchNearby, searchTour } from '../server/tour.js';
 
-const LCLS = /^[A-Z]{2}\d{2}$/;   // 분류체계 중분류 형식 (예: FD05)
+const LCLS = /^[A-Z]{2}\d{2}(\d{4})?$/;   // 분류체계 중분류(FD05) 또는 소분류(FD020100) 형식
 const okLcls = (v) => (LCLS.test(v) ? v : '');
 
 // GET /api/tour?keyword=&type=&lcls=&page=&rows=                      → 목록 (lcls = 분류체계 중분류, 예: FD05 카페)

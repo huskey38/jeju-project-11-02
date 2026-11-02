@@ -86,6 +86,7 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .item-card { overflow: hidden; transition: transform .2s, box-shadow .2s; }
 .item-card:hover { transform: translateY(-3px); box-shadow: 0 1px 2px rgba(42, 32, 10, .05), 0 18px 34px -18px rgba(42, 32, 10, .36); }
 .item-card.clickable { cursor: pointer; }
+.item-card .card-body.has-fav { padding-right: 62px; }
 .item-card-img { height: 160px; object-fit: cover; }
 .placeholder-img {
   display: flex; align-items: center; justify-content: center;
@@ -163,7 +164,7 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
   border: 1px solid var(--line); border-radius: 24px !important; box-shadow: var(--sh-card);
 }
 .hero > *:not(.hero-scene) { position: relative; z-index: 1; }
-.hero .badge.bg-light { background: var(--surface) !important; border: 1px solid var(--line); font-weight: 600; }
+.hero-greet { display: inline-block; margin-bottom: .6rem; padding: .15rem .8rem; border-radius: 999px; background: rgba(232, 137, 43, .14); color: #a85a0c; font-weight: 700; font-size: .9rem; letter-spacing: .04em; }   /* 제주 방언 인사 '혼저옵서예'(어서 오세요) */
 .hero h1 { font-size: 2rem; font-weight: 800; color: var(--ink); }
 .hero .lead { color: var(--ink-2); font-size: 1.05rem; max-width: 34rem; }
 .hero-scene { position: absolute; right: 0; top: 0; width: min(62%, 520px); height: 220px; pointer-events: none; opacity: .95; }
@@ -253,9 +254,9 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 }
 @media (prefers-reduced-motion: reduce) { .chat-fab-icon { transition: none; } .chat-fab:not(.is-open):hover .chat-fab-icon { transform: none; } }
 
-/* ── 즐겨찾기 감귤 버튼: 카드 이미지 오른쪽 위에 떠 있는 동그란 버튼 ── */
+/* ── 즐겨찾기 감귤 버튼: 카드 오른쪽 아래에 떠 있는 동그란 버튼 (글·진행률 막대가 가리지 않게 .has-fav 는 오른쪽 여백을 둠) ── */
 .fav-btn {
-  position: absolute; top: 10px; right: 10px; z-index: 2; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  position: absolute; bottom: calc(10px + 1cm); right: 10px; z-index: 2; width: 40px; height: 40px; padding: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   background: rgba(255, 253, 248, .94); border: 1px solid var(--line); box-shadow: 0 4px 12px -4px rgba(42, 32, 10, .35);
   transition: transform .15s, border-color .15s, background .15s;
@@ -304,3 +305,8 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .kmap-pin:hover, .kmap-pin:focus-visible { padding: .2rem .65rem .2rem .2rem; border-color: var(--accent); outline: none; }
 .kmap-pin:hover span, .kmap-pin:focus-visible span { max-width: 10rem; opacity: 1; margin-left: .4rem; }
 .map-links .btn { font-size: .8rem; }
+
+/* ── 상세 팝업 날씨 ── */
+.weather-box { padding: .85rem 1rem; border-radius: var(--radius, 16px); background: var(--surface-2, #f6f3ec); border: 1px solid var(--line-soft, #e8e1d2); }
+.weather-cell { min-width: 220px; padding: .6rem .8rem; border-radius: 12px; background: var(--surface, #fffdf8); border: 1px solid var(--line-soft, #e8e1d2); }
+.weather-src { font-size: .72rem; color: var(--ink-3, #7a7366); }

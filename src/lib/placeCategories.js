@@ -7,28 +7,65 @@
 
 export const CATEGORIES = [
   { key: 'all', label: '전체' },
+  { key: 'food', label: '음식점' },
+  { key: 'cafe', label: '카페' },
   { key: 'spot', label: '관광지' },
   { key: 'culture', label: '문화시설' },
   { key: 'festival', label: '축제·행사' },
-  { key: 'food', label: '음식점' },
-  { key: 'cafe', label: '카페' },
-  { key: 'near', label: '내 주변' },
   { key: 'saved', label: '가볼만한 곳' },   // 감귤로 담아 둔 곳 (예전 '내 즐겨찾기') — API 가 아니라 저장된 목록을 보여줌
 ]
 // '관광지' 안의 하위 선택
 export const SUBS = [
   { key: 'all', label: '전체' },
-  { key: 'general', label: '일반' },
-  { key: 'heritage', label: '국가유산' },
+  { key: 'no-oreum', label: '오름 제외' },   // 관광지(국가유산 포함) 중 이름에 '오름'이 든 곳을 뺌
 ]
-// '내 주변' 안의 유형 선택 (분류 버튼과 같은 이름, '내 주변'·'가볼만한 곳'은 제외)
-export const NEAR_TYPES = CATEGORIES.filter((c) => c.key !== 'near' && c.key !== 'saved')
-// '내 주변' 반경(km)
-export const RADII = [1, 3, 5, 10]
-export const DEFAULT_RADIUS = 3
+
+// '음식점' 안의 종류 선택 (분류체계 코드로 거름: FD01 한식 / 외국식 FD02xx / 간이음식 FD03xx). 카페는 종류가 거의 한 가지라 칩이 없음
+export const FOOD_TYPES = [
+  { key: 'all', label: '전체' },
+  { key: 'korean', label: '한식', lcls: 'FD01' },
+  { key: 'chinese', label: '중식', lcls: 'FD020100' },
+  { key: 'japanese', label: '일식', lcls: 'FD020200' },
+  { key: 'western', label: '양식', lcls: 'FD020300' },
+  { key: 'snack', label: '분식', lcls: 'FD030400' },
+  { key: 'bakery', label: '제과', lcls: 'FD030100' },
+]
+// 검색창 밑 '인기 메뉴' 바로가기: 누르면 그 단어로 검색 (가게 이름에 든 단어로 찾음)
+export const MENU_WORDS = {
+  food: ['흑돼지', '해물', '국수', '갈치', '전복', '보말'],
+  cafe: ['커피', '베이커리', '감귤', '한라봉', '말차', '디저트'],
+}
+
+// 이름에 '오름'이 든 항목을 뺌 (관광지는 title, 국가유산은 name)
+export const withoutOreum = (list) => list.filter((it) => !String(it.title ?? it.name ?? '').includes('오름'))
+
+// '내 주변' 반경(km): 분류 버튼마다 아래에서 고름 (고르지 않으면 제주 전체)
+export const RADII = [1, 3, 5]
+// 내 주변을 고를 수 있는 분류 (가볼만한 곳은 저장된 목록이라 제외)
+export const NEAR_CATS = ['all', 'spot', 'culture', 'festival', 'food', 'cafe']
+
+// 관광지는 세부 분류를 여러 개 고를 수 있도록 'no-oreum,...' 처럼 쉼표로 이어 한 문자열로 다룹니다 ('all' = 아무것도 안 고름).
+export const isMultiSub = (cat) => cat === 'spot'
+export const subKeys = (sub) => (!sub || sub === 'all' ? [] : String(sub).split(','))
+// 주소에서 읽은 값 → 유효한 키만 남긴 문자열 (없으면 'all')
+export function parseSub(cat, raw) {
+  const list = subsOf(cat)
+  if (!list) return 'all'
+  if (!isMultiSub(cat)) return list.some((x) => x.key === raw) ? raw : 'all'
+  const keys = [...new Set(subKeys(raw))].filter((k) => k !== 'all' && list.some((x) => x.key === k))
+  return keys.length ? keys.join(',') : 'all'
+}
+// 버튼을 눌렀을 때의 다음 선택. '전체'는 모두 해제, 나머지는 켜고 끄기
+export function toggleSub(cat, current, key) {
+  if (!isMultiSub(cat)) return key
+  if (key === 'all') return 'all'
+  const keys = subKeys(current)
+  const next = keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]
+  return next.length ? next.join(',') : 'all'
+}
 
 // 분류별 하위 선택 목록 (없으면 null)
-export const subsOf = (cat) => (cat === 'spot' ? SUBS : cat === 'near' ? NEAR_TYPES : null)
+export const subsOf = (cat) => (cat === 'spot' ? SUBS : cat === 'food' ? FOOD_TYPES : null)
 
 const TOUR_SPOT = { api: 'tour', type: '12' }
 const HERITAGE = { api: 'heritage' }
@@ -37,7 +74,7 @@ const VENUE = { api: 'venue' }   // 제주도내 공연장 현황 (파일 데이
 // 음식점(39)에서 카페(FD05)를 뺀 분류체계 중분류: 한식 FD01, 양식 FD02, 일식·기타 FD03 (FD04 는 제주에 0건)
 const FOOD_LCLS = ['FD01', 'FD02', 'FD03']
 
-// '내 주변' 유형별 조건 — xlcls: 이 중분류는 제외 (음식점에서 카페 빼기)
+// 내 주변 유형별 조건 — xlcls: 이 중분류는 제외 (음식점에서 카페 빼기)
 const NEAR_FILTER = {
   all: {},
   spot: { type: '12' },
@@ -53,16 +90,18 @@ export const nearFilterOf = (key) => NEAR_FILTER[key] ?? NEAR_FILTER.all
 // 숙박(32)을 뺀 TourAPI 유형: 관광지 12, 문화시설 14, 축제 15, 레포츠 28, 쇼핑 38, 음식점·카페 39
 const ALL_TOUR_TYPES = ['12', '14', '15', '28', '38', '39']
 
-export function sourcesFor(cat, sub = 'all') {
+// near=true 면 분류와 상관없이 위치 기반 검색(가까운 순, locationBasedList2)으로 그 분류의 유형 조건만 걸어 불러옴
+export function sourcesFor(cat, sub = 'all', near = false) {
+  const foodType = cat === 'food' ? FOOD_TYPES.find((t) => t.key === sub && t.lcls) : null   // 음식점 종류 선택
+  if (near && NEAR_CATS.includes(cat)) return [{ api: 'near', ...(foodType ? { type: '39', lcls: foodType.lcls } : NEAR_FILTER[cat] ?? NEAR_FILTER.all) }]
+  if (foodType) return [{ api: 'tour', type: '39', lcls: foodType.lcls }]
   switch (cat) {
-    case 'spot':
-      return sub === 'general' ? [TOUR_SPOT] : sub === 'heritage' ? [HERITAGE] : [TOUR_SPOT, HERITAGE]
+    case 'spot': return [TOUR_SPOT, HERITAGE]                // 국가유산은 관광지에 합쳐 항상 함께 나옴 ('오름 제외'는 소스가 아니라 결과를 거름)
     case 'culture': return [{ api: 'tour', type: '14' }, VENUE]
     case 'festival': return [{ api: 'festival' }]            // 기간 검색 (searchFestival2)
     case 'food': return FOOD_LCLS.map((lcls) => ({ api: 'tour', type: '39', lcls }))
     case 'cafe': return [{ api: 'tour', type: '39', lcls: 'FD05' }]
     case 'saved': return []                                  // 저장된 목록은 소스(API)가 없음
-    case 'near': return [{ api: 'near', ...(NEAR_FILTER[sub] ?? NEAR_FILTER.all) }]   // 가까운 순 (locationBasedList2)
     default: return [...ALL_TOUR_TYPES.map((type) => ({ api: 'tour', type })), HERITAGE, VENUE]
   }
 }

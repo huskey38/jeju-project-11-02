@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Badge, Button, Carousel, ListGroup, Modal } from 'react-bootstrap'
 import PlaceMap from './PlaceMap'
 import NearbyRecs from './NearbyRecs'
+import PlaceWeather from './PlaceWeather'
 import { CitrusMark } from './JejuScene'
 import { ErrorAlert, Loading } from './Status'
 import { isJejuCoord } from '../lib/geo'
@@ -9,9 +10,10 @@ import { kakaoLinks } from '../lib/kakao'
 
 // 상세 정보 팝업 — 사진 · 이용정보 · 소개 · 지도 (관광지·국가유산 페이지가 함께 사용)
 // rows: [{ label, value }]   images: [url]   homepage: 주소(선택)
+// visitFrom: 날씨의 방문일 기본값(축제 시작일 등)
 // recommend: { mode: 'spot'|'food', excludeId, onPick(item) } — 있으면 아래에 "근처 추천"을 보여줌
 // onBack / backLabel: 추천에서 넘어온 경우 이전 장소로 돌아가는 버튼
-export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, saved = false, onSave, recommend, onBack, backLabel }) {
+export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, visitFrom, saved = false, onSave, recommend, onBack, backLabel }) {
   const bodyRef = useRef(null)
   const [pins, setPins] = useState({ markers: [], radiusKm: null })   // 근처 추천을 지도 위 핀으로 (NearbyRecs 가 채움)
   const links = kakaoLinks({ name: title, lat, lng })                  // 카카오맵 보기·길찾기·로드뷰 링크 (좌표가 있을 때)
@@ -32,6 +34,9 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
         </Modal.Title>
       </Modal.Header>
       <Modal.Body data-testid="detail-modal" ref={bodyRef}>
+        {/* 날씨: 제목 바로 밑 */}
+        {isJejuCoord(lat, lng) && <PlaceWeather key={`${lat},${lng}`} lat={lat} lng={lng} visitFrom={visitFrom} />}
+
         <ErrorAlert error={error} />
         {loading && <Loading text="상세 정보를 불러오는 중..." />}
 

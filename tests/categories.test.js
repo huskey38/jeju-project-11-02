@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, NEAR_TYPES, RADII, RECOMMEND_GROUPS, RECOMMEND_RADII, SUBS, advance, badgeOf, festivalStatus, fmtDist, recommendModeOf, sourcesFor, subsOf, subtitleOf, todayKst } from '../src/lib/placeCategories.js'
+import { CATEGORIES, NEAR_CATS, RADII, RECOMMEND_GROUPS, RECOMMEND_RADII, SUBS, advance, badgeOf, festivalStatus, fmtDist, recommendModeOf, sourcesFor, subsOf, subtitleOf, FOOD_TYPES, MENU_WORDS, todayKst, withoutOreum, parseSub, toggleSub } from '../src/lib/placeCategories.js'
 
 describe('분류 버튼', () => {
-  it('요청한 6개 분류 + 내 주변 + 가볼만한 곳, 관광지 하위 선택 3개', () => {
-    expect(CATEGORIES.map((c) => c.label)).toEqual(['전체', '관광지', '문화시설', '축제·행사', '음식점', '카페', '내 주변', '가볼만한 곳'])
-    expect(SUBS.map((s) => s.label)).toEqual(['전체', '일반', '국가유산'])
+  it('6개 분류 + 가볼만한 곳(내 주변 분류는 없음), 관광지 하위 선택 2개', () => {
+    expect(CATEGORIES.map((c) => c.label)).toEqual(['전체', '음식점', '카페', '관광지', '문화시설', '축제·행사', '가볼만한 곳'])
+    expect(SUBS.map((s) => s.label)).toEqual(['전체', '오름 제외'])
   })
-  it('하위 선택: 관광지 = 국가유산 등, 내 주변 = 유형(내 주변 자신은 제외), 그 외는 없음', () => {
+  it('하위 선택은 관광지만, 내 주변 반경은 1·3·5km (가볼만한 곳은 내 주변 없음)', () => {
     expect(subsOf('spot')).toBe(SUBS)
-    expect(subsOf('near')).toBe(NEAR_TYPES)
-    expect(NEAR_TYPES.map((t) => t.key)).toEqual(['all', 'spot', 'culture', 'festival', 'food', 'cafe'])
     expect(subsOf('cafe')).toBeNull()
-    expect(RADII).toEqual([1, 3, 5, 10])
+    expect(NEAR_CATS).toEqual(['all', 'spot', 'culture', 'festival', 'food', 'cafe'])
+    expect(RADII).toEqual([1, 3, 5])
   })
 })
 
@@ -24,14 +23,20 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
   })
   it('숙박(유형 32)은 어떤 분류에도 없음', () => {
     const cats = CATEGORIES.map((c) => c.key)
-    for (const c of cats) for (const sub of ['all', 'general', 'heritage', ...NEAR_TYPES.map((t) => t.key)]) {
-      expect(sourcesFor(c, sub).some((x) => x.type === '32')).toBe(false)
+    for (const c of cats) for (const sub of ['all', 'no-oreum']) for (const near of [false, true]) {
+      expect(sourcesFor(c, sub, near).some((x) => x.type === '32')).toBe(false)
     }
   })
   it('관광지: 전체(일반→국가유산) / 일반 / 국가유산', () => {
     expect(sourcesFor('spot', 'all')).toEqual([{ api: 'tour', type: '12' }, { api: 'heritage' }])
-    expect(sourcesFor('spot', 'general')).toEqual([{ api: 'tour', type: '12' }])
-    expect(sourcesFor('spot', 'heritage')).toEqual([{ api: 'heritage' }])
+    expect(sourcesFor('spot', 'no-oreum')).toEqual([{ api: 'tour', type: '12' }, { api: 'heritage' }])
+    expect(sourcesFor('spot', 'general')).toEqual([{ api: 'tour', type: '12' }, { api: 'heritage' }])   // 예전 주소(sub=general)도 국가유산 포함
+    expect(parseSub('spot', 'heritage,no-oreum,xx')).toBe('no-oreum')
+    expect(parseSub('spot', 'general')).toBe('all')
+    expect(toggleSub('spot', 'all', 'no-oreum')).toBe('no-oreum')
+    expect(toggleSub('spot', 'no-oreum', 'no-oreum')).toBe('all')
+    expect(toggleSub('spot', 'no-oreum', 'all')).toBe('all')
+    expect(withoutOreum([{ title: '가마오름' }, { title: '성산일출봉' }, { name: '오름 유적' }, { name: '수월봉' }]).map((x) => x.title ?? x.name)).toEqual(['성산일출봉', '수월봉'])
   })
   it('문화시설·카페, 축제는 기간 검색 소스', () => {
     expect(sourcesFor('culture')).toEqual([{ api: 'tour', type: '14' }, { api: 'venue' }])   // 문화시설 → 공연장
@@ -43,12 +48,32 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
     expect(lcls).toEqual(['FD01', 'FD02', 'FD03'])
     expect(lcls).not.toContain('FD05')
   })
-  it('내 주변: 유형별 조건 (음식점은 카페 제외, 카페는 FD05만)', () => {
-    expect(sourcesFor('near')).toEqual([{ api: 'near' }])
-    expect(sourcesFor('near', 'spot')).toEqual([{ api: 'near', type: '12' }])
-    expect(sourcesFor('near', 'food')).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])
-    expect(sourcesFor('near', 'cafe')).toEqual([{ api: 'near', type: '39', lcls: 'FD05' }])
-    expect(sourcesFor('near', '없는유형')).toEqual([{ api: 'near' }])
+  it('음식점 종류 선택: 분류체계 코드로 거름 (한식=중분류, 그 밖은 소분류), 내 주변에서도 같은 코드', () => {
+    expect(subsOf('food')).toBe(FOOD_TYPES)
+    expect(subsOf('cafe')).toBeNull()
+    expect(parseSub('food', 'chinese')).toBe('chinese')
+    expect(parseSub('food', 'xx')).toBe('all')
+    expect(sourcesFor('food', 'korean')).toEqual([{ api: 'tour', type: '39', lcls: 'FD01' }])
+    expect(sourcesFor('food', 'japanese')).toEqual([{ api: 'tour', type: '39', lcls: 'FD020200' }])
+    expect(sourcesFor('food', 'all')).toHaveLength(3)
+    expect(sourcesFor('food', 'snack', true)).toEqual([{ api: 'near', type: '39', lcls: 'FD030400' }])
+    expect(sourcesFor('food', 'all', true)).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])
+    expect(sourcesFor('cafe', 'chinese')).toEqual([{ api: 'tour', type: '39', lcls: 'FD05' }])   // 음식점 종류는 카페에 영향 없음
+    for (const t of FOOD_TYPES.filter((x) => x.lcls)) expect(t.lcls).not.toMatch(/^FD05/)          // 카페 코드는 섞이지 않음
+  })
+  it('인기 메뉴 바로가기는 음식점·카페만', () => {
+    expect(Object.keys(MENU_WORDS)).toEqual(['food', 'cafe'])
+    for (const list of Object.values(MENU_WORDS)) expect(list.length).toBeGreaterThan(3)
+  })
+  it('내 주변을 켜면 분류별 유형 조건으로 위치 검색 (음식점은 카페 제외, 카페는 FD05만, 가볼만한 곳은 해당 없음)', () => {
+    expect(sourcesFor('all', 'all', true)).toEqual([{ api: 'near' }])
+    expect(sourcesFor('spot', 'all', true)).toEqual([{ api: 'near', type: '12' }])
+    expect(sourcesFor('culture', 'all', true)).toEqual([{ api: 'near', type: '14' }])
+    expect(sourcesFor('festival', 'all', true)).toEqual([{ api: 'near', type: '15' }])
+    expect(sourcesFor('food', 'all', true)).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])
+    expect(sourcesFor('cafe', 'all', true)).toEqual([{ api: 'near', type: '39', lcls: 'FD05' }])
+    expect(sourcesFor('saved', 'all', true)).toEqual([])
+    expect(sourcesFor('food')).toHaveLength(3)   // 끄면 원래 소스
   })
 })
 
@@ -170,11 +195,11 @@ describe('근처 추천 규칙 (recommendModeOf · RECOMMEND_GROUPS)', () => {
 })
 
 describe('가볼만한 곳 (저장된 목록)', () => {
-  it('분류 버튼 맨 끝에 있고, API 소스가 없으며 내 주변 유형·하위 선택에는 나오지 않음', () => {
+  it('분류 버튼 맨 끝에 있고, API 소스가 없으며 내 주변·하위 선택 대상이 아님', () => {
     expect(CATEGORIES.at(-1)).toEqual({ key: 'saved', label: '가볼만한 곳' })
     expect(sourcesFor('saved')).toEqual([])
     expect(sourcesFor('saved', 'heritage')).toEqual([])
     expect(subsOf('saved')).toBeNull()
-    expect(NEAR_TYPES.some((t) => t.key === 'saved' || t.key === 'near')).toBe(false)
+    expect(NEAR_CATS).not.toContain('saved')
   })
 })

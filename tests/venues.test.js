@@ -150,6 +150,8 @@ describe('분류·카드 표시', () => {
   it('공연장은 문화시설과 전체에만 합쳐지고, 내 주변(좌표 필요)에는 없음', () => {
     expect(sourcesFor('culture').some((s) => s.api === 'venue')).toBe(true)
     expect(sourcesFor('all').some((s) => s.api === 'venue')).toBe(true)
-    for (const c of ['spot', 'festival', 'food', 'cafe', 'near']) expect(sourcesFor(c).some((s) => s.api === 'venue')).toBe(false)
+    for (const c of ['spot', 'festival', 'food', 'cafe']) expect(sourcesFor(c).some((s) => s.api === 'venue')).toBe(false)
+    expect(sourcesFor('all', 'all', true).some((s) => s.api === 'venue')).toBe(false)
+    expect(sourcesFor('culture', 'all', true).some((s) => s.api === 'venue')).toBe(false)
   })
 })

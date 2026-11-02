@@ -2,7 +2,7 @@ import { Badge, Card } from 'react-bootstrap'
 import FavButton from './FavButton'
 
 // 관광지·유산·즐겨찾기 등 "목록의 한 칸"을 모두 이 카드 하나로 표시합니다 (재사용 컴포넌트)
-// onClick 을 주면 카드 전체가 눌리고(상세 보기), 이미지 오른쪽 위 감귤 버튼은 따로 동작합니다
+// onClick 을 주면 카드 전체가 눌리고(상세 보기), 오른쪽 아래 감귤 버튼은 따로 동작합니다
 // onSave 를 주면 감귤 즐겨찾기 버튼이 생기고, saved 로 담김 여부를 표시합니다
 // status 를 주면(축제) 기간 진행률 막대와 상태 칩이 붙습니다: { pct, label, tone }
 export default function ItemCard({ title, subtitle, image, badge, status, saved = false, onSave, onClick }) {
@@ -12,7 +12,7 @@ export default function ItemCard({ title, subtitle, image, badge, status, saved 
       {image
         ? <Card.Img variant="top" src={image} alt={title} className="item-card-img" />
         : <div className="item-card-img placeholder-img"><i className="bi bi-image" /></div>}
-      <Card.Body className="d-flex flex-column">
+      <Card.Body className={`d-flex flex-column${onSave ? ' has-fav' : ''}`}>
         {badge && <Badge bg="secondary" className="align-self-start mb-2">{badge}</Badge>}
         <Card.Title className="item-card-title">{title}</Card.Title>
         {subtitle && <Card.Text className="item-card-sub">{subtitle}</Card.Text>}

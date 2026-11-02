@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../server/tour.js', () => ({ searchTour: vi.fn(async (a) => [{ id: '1', title: 'T', args: a }]) }))
-vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async (a) => [{ place: a.place }]) }))
+vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async (a) => [{ place: a.place }]), getForecast: vi.fn(async (a) => a.dates.map((date) => ({ date, kind: 'short' }))) }))
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async (a) => [{ name: 'H', args: a }]) }))
 
 const mkRes = () => {
@@ -30,6 +30,16 @@ describe('api handlers', () => {
     const { default: h } = await import('../api/weather.js')
     const res = mkRes(); await h({ query: { place: '서귀포시' } }, res)
     expect(res.body).toEqual([{ place: '서귀포시' }])
+  })
+  it('weather: 좌표·날짜별 예보 (좌표가 제주 밖이거나 날짜 형식이 틀리면 400, 날짜는 3개까지)', async () => {
+    const { default: h } = await import('../api/weather.js')
+    const ok = mkRes(); await h({ query: { lat: '33.5', lng: '126.5', dates: '2026-11-02,2026-11-06,bad,2026-11-07,2026-11-08' } }, ok)
+    expect(ok.code).toBe(200)
+    expect(ok.body.map((x) => x.date)).toEqual(['2026-11-02', '2026-11-06', '2026-11-07'])
+    const far = mkRes(); await h({ query: { lat: '37.5', lng: '127', dates: '2026-11-02' } }, far)
+    expect(far.code).toBe(400)
+    const bad = mkRes(); await h({ query: { lat: '33.5', lng: '126.5', dates: 'x' } }, bad)
+    expect(bad.code).toBe(400)
   })
   it('heritage', async () => {
     const { default: h } = await import('../api/heritage.js')
@@ -113,6 +123,8 @@ describe('api/tour — 주변·축제 모드', () => {
     const { default: h } = await import('../api/tour.js')
     await h({ query: { mode: 'near', lat: '33.5', lng: '126.5', radius: '5000', type: '39', xlcls: 'FD05', page: '2', rows: '12' } }, mkRes())
     expect(near).toHaveBeenLastCalledWith({ lat: '33.5', lng: '126.5', radius: 5000, contentTypeId: '39', lclsSystm2: '', lclsExclude: 'FD05', page: 2, rows: 12 })
+    await h({ query: { mode: 'near', lat: '33.5', lng: '126.5', type: '39', lcls: 'FD020100' } }, mkRes())
+    expect(near).toHaveBeenLastCalledWith(expect.objectContaining({ lclsSystm2: 'FD020100' }))   // 소분류 코드도 통과
     await h({ query: { mode: 'near', lat: '33.5', lng: '126.5', lcls: 'bad&x' } }, mkRes())
     expect(near).toHaveBeenLastCalledWith(expect.objectContaining({ contentTypeId: '', lclsSystm2: '', radius: 3000 }))
   })

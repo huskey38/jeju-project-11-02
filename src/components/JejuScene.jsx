@@ -33,10 +33,10 @@ export function CitrusMark({ filled = false, size = 22, className = '' }) {
 }
 
 // 돌하르방 캐릭터: 벙거지 모자 · 크고 둥근 눈 · 넓적한 코 · 미소 · 현무암 구멍 무늬 (AI 가이드의 얼굴)
-export function DolHareubang({ size = 40, className = '' }) {
+export function DolHareubang({ size = 40, className = '', ...rest }) {
   const stone = '#9b968e', stoneDark = '#77726b', stoneLight = '#aaa59c', ink = '#3b3733'
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <svg className={className} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false" {...rest}>
       {/* 몸통과 두 손 (한 손은 배, 한 손은 가슴) */}
       <path d="M11 64 C11 53 20 47 32 47 C44 47 53 53 53 64 Z" fill={stone} />
       <rect x="18" y="55" width="11" height="6.5" rx="3.2" fill={stoneLight} stroke={stoneDark} strokeWidth=".8" />
@@ -76,7 +76,7 @@ export function DolHareubang({ size = 40, className = '' }) {
   )
 }
 
-// 홈 상단 풍경: 감귤빛 해 · 한라산과 오름 실루엣 · 바다 파도
+// 홈 상단 풍경: 감귤빛 해 · 한라산과 오름 · 유채꽃 · 감귤나무 · 현무암 돌담 · 돌하르방 · 갈매기 · 바다 파도
 export function HallaScene({ className = '' }) {
   return (
     <svg className={className} viewBox="0 0 520 220" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
@@ -91,6 +91,26 @@ export function HallaScene({ className = '' }) {
       <path d="M0 184 C34 150 82 150 120 184 Z" fill="#8dbf9e" />
       <path d="M96 184 C140 138 206 138 248 184 Z" fill="#6fae88" />
       <path d="M330 184 C362 156 410 156 446 184 Z" fill="#8dbf9e" />
+      {/* 유채꽃: 오름 자락에 노란 점 */}
+      <g fill="#f2c94c">
+        {[[104,176],[116,172],[128,177],[142,170],[156,175],[170,171],[184,176],[198,172],[212,177],[226,173],[238,178],[344,178],[358,175],[372,179],[420,177],[432,180]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="2.4" />)}
+      </g>
+      {/* 감귤나무: 오름 위에 한 그루 */}
+      <rect x="387" y="148" width="3" height="10" rx="1.2" fill="#7a5a3a" />
+      <circle cx="388.5" cy="142" r="11" fill="#2f6b52" />
+      <g fill="#e8892b"><circle cx="383" cy="141" r="2.4" /><circle cx="392" cy="138" r="2.4" /><circle cx="390" cy="146" r="2.4" /></g>
+      {/* 현무암 돌담: 구멍 숭숭한 검은 돌을 쌓아 올린 담 */}
+      <g fill="#6f6a63">
+        {[0,15,30,45,60,75].map((x) => <ellipse key={`a${x}`} cx={x + 8} cy="180" rx="8.2" ry="5" />)}
+        {[7,22,37,52,67].map((x) => <ellipse key={`b${x}`} cx={x + 8} cy="172" rx="8" ry="4.8" fill="#7e7870" />)}
+      </g>
+      <g fill="#4a4641" opacity=".55">{[6,20,34,48,62,76,14,29,44,59].map((x, i) => <circle key={x} cx={x + 6} cy={i < 6 ? 180 : 172} r=".9" />)}</g>
+      {/* 갈매기 */}
+      <g fill="none" stroke="#8a857e" strokeWidth="1.8" strokeLinecap="round" opacity=".7">
+        <path d="M292 44 q6 -7 12 0 q6 -7 12 0" /><path d="M324 62 q5 -6 10 0 q5 -6 10 0" />
+      </g>
+      {/* 돌하르방: 바닷가에서 마중 */}
+      <DolHareubang x={452} y={118} size={68} />
       {/* 바다 + 파도 */}
       <rect x="0" y="180" width="520" height="40" fill="#3f9bb0" opacity=".22" />
       <path d="M0 192 Q20 184 40 192 T80 192 T120 192 T160 192 T200 192 T240 192 T280 192 T320 192 T360 192 T400 192 T440 192 T480 192 T520 192"
