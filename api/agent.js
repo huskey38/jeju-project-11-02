@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getTourDetail, searchFestivals, searchNearby, searchTour } from '../server/tour.js';
 import { BIZ_TYPES, searchRestaurants } from '../server/restaurants.js';
+import { searchOreum } from '../server/oreum.js';
+import { TAG_RULES } from '../src/lib/placeTags.js';
 import { getWeather } from '../server/weather.js';
 import { searchHeritage } from '../server/heritage.js';
 import { nearFilterOf } from '../src/lib/placeCategories.js';
@@ -9,7 +11,24 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = 'claude-sonnet-5-5';
 
 // ① 도구 설명서: Claude는 이 설명만 보고 "어떤 도구를 언제 쓸지" 결정한다
+const OREUM_TAGS = TAG_RULES.oreum.map((t) => t.key);
 const tools = [
+  {
+    name: 'search_oreum',
+    description: '제주 오름 현황(제주특별자치도 공식 368곳: 이름·행정시·소재지·표고·형태·면적·비고, 모두 좌표 있음)에서 오름을 찾는다. 오름 질문은 search_tour_places 보다 먼저 이 도구를 쓴다. 이름(keyword)·형태(form)로 거르고 sort=elev 로 표고 높은 순·sort=elev_asc 로 낮은 순, 기준 좌표(lat·lng)와 radius_m 을 주면 그 반경 안의 오름을 가까운 순으로 준다("근처 오름"은 기준 장소를 search_tour_places 로 먼저 찾아 좌표를 얻는다). tag(일출·일몰, 억새·꽃, 정상 전망, 분화구, 가볍게 걷기, 가족, 숲길)는 관광공사 소개글에서 뽑은 특징이라 관광공사에 등록된 약 80곳에만 있다. 결과에 tour_id 가 있으면 get_place_detail 로 사진·소개글 설명을 확인할 수 있다(없는 오름은 공식 정보만 있음)',
+    input_schema: {
+      type: 'object',
+      properties: {
+        keyword: { type: 'string', description: '오름 이름에 든 글자 (예: 새별, 다랑쉬)' },
+        form: { type: 'string', enum: ['cone', 'round', 'horseshoe', 'mixed'], description: '형태: cone 원추형 / round 원형 / horseshoe 말굽형 / mixed 복합형' },
+        sort: { type: 'string', enum: ['elev', 'elev_asc'], description: 'elev = 표고 높은 순("가장 높은 오름"), elev_asc = 표고 낮은 순("가장 낮은 오름")' },
+        tag: { type: 'string', enum: OREUM_TAGS, description: 'sunrise 일출·일몰 / grass 억새·꽃 / view 정상 전망 / crater 분화구·굼부리 / easy 가볍게 걷기 / family 가족·아이 / forest 숲길·자연' },
+        lat: { type: 'number', description: '기준 위도 (제주 안)' },
+        lng: { type: 'number', description: '기준 경도 (제주 안)' },
+        radius_m: { type: 'number', description: '반경(미터), 기본 5000, 최대 30000' },
+      },
+    },
+  },
   {
     name: 'search_tour_places',
     description: '한국관광공사 TourAPI로 제주의 관광지·문화시설·축제·음식점을 검색한다. keyword 는 **장소 이름**에 든 글자만 찾는다(소개글은 보지 않음). 이름에 없는 종류("동물원", "오름" 등)로 찾으려면 keyword 대신(또는 함께) lcls 분류 코드를 쓴다. 결과의 lat·lng(좌표)는 search_nearby 의 기준 위치로 쓸 수 있다. 숙박은 제공하지 않는다',
@@ -94,6 +113,13 @@ const runTool = {
     const code = LCLS.test(lcls) && !lcls.startsWith('AC') ? lcls : ''
     return slim(await searchTour({ keyword, contentTypeId: code && !contentTypeId ? '' : (contentTypeId ?? '12'), lclsSystm2: code, rows: code ? 30 : 10 }))
   },
+  search_oreum: async ({ tag, keyword = '', form = '', sort = '', lat, lng, radius_m = 5000 } = {}) => {
+    const near = lat !== undefined && lng !== undefined && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+    return searchOreum({
+      keyword, form, sort, tags: OREUM_TAGS.includes(tag) ? [tag] : [], rows: 10,
+      ...(near && { lat, lng, radius: Math.min(Math.max(Number(radius_m) || 5000, 100), 30000) }),
+    }).map(({ id, name, city, addr, elev, form: f, lat: la, lng: ln, dist, tourId }) => ({ id, title: name, city, addr, elev, form: f, lat: la, lng: ln, ...(dist !== undefined && { dist }), ...(tourId && { tour_id: tourId }) }))
+  },
   search_restaurants: async ({ keyword = '', biz = '' } = {}) =>
     (await searchRestaurants({ keyword, biz, rows: 15 })).map(({ id, title, biz: b, addr, tel, lat, lng, dup }) => ({ id, title, biz: b, addr, tel, lat, lng, ...(dup && { dup }) })),
   get_place_detail: async ({ id } = {}) => {
@@ -110,10 +136,11 @@ const runTool = {
 };
 
 // 오늘 날짜(한국 시간)를 알려줘야 "이번 주말·다음 달" 같은 기간 질문을 날짜로 바꿀 수 있다
-const systemPrompt = () => `너는 제주 문화·콘텐츠 IP 가이드 에이전트다.
+const systemPrompt = () => `너는 제주 오름 가이드 에이전트다. 오름을 중심으로, 그 주변 장소·날씨·행사까지 안내한다.
 오늘은 ${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)} (한국 시간)이다.
 - 장소·날씨·유산·행사 정보는 반드시 도구로 확인한 뒤 답한다.
 - 도구 결과에 없는 장소는 지어내지 않는다.
+- 오름을 묻는 질문은 search_oreum 으로 먼저 찾는다(이름 keyword, 형태 form, "가장 높은"은 sort=elev, "가장 낮은"은 sort=elev_asc, 특징은 tag, "근처"는 좌표+반경). 자세한 설명은 get_place_detail 로 소개글을 확인한다. 오름에 가기 전후로 날씨와 근처 음식점·카페를 이어서 안내하면 좋다.
 - search_tour_places 의 keyword 는 장소 이름에 든 글자만 찾는다. "동물원·수족관·체험"처럼 이름에 없을 수 있는 종류를 물으면, keyword 로 0건이어도 포기하지 말고 lcls 분류 코드(예: 동물·테마파크는 VE02)로 후보를 모은 뒤 이름·소개글(get_place_detail, 많아야 3곳)로 알맞은 곳을 골라 답한다.
 - 관광공사에 없는 동네 식당이나 특정 업태(횟집·식육구이·분식 등)는 search_restaurants 로도 찾는다 (이름에 든 글자만 찾고 사진·소개글은 없다).
 - 그래도 찾지 못했으면 이름 기준 검색의 한계라고 솔직히 알리고, 가까운 대안을 제안한다.
@@ -131,7 +158,7 @@ export default async function handler(req, res) {
 
   try {
     // ③ 에이전트 루프: 생각 → 도구 호출 → 결과 확인 → (반복) → 최종 답
-    for (let turn = 0; turn < 6; turn++) {
+    for (let turn = 0; turn < 5; turn++) {   // 루프 상한 5회 (안내서의 Claude 키 규칙)
       const r = await client.messages.create({
         model: MODEL,
         max_tokens: 1024,

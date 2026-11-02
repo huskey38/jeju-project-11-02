@@ -134,11 +134,14 @@ describe('불러오기·닉네임', () => {
     expect(rows.at(-1).nickname).toBe('새닉네임')
   })
 
-  it('닉네임이 없으면 "익명" 으로 저장·조회', async () => {
-    useAppStore.setState({ nickname: '' })
+  it('닉네임이 없으면 "익명" 으로 섞어 저장하지 않고 닉네임 만들기 창을 띄움(눌렀던 동작은 pending)', async () => {
+    useAppStore.setState({ nickname: '', nicknameDialog: { open: false, pending: null } })
     await S().addFavorite(tour)
-    expect(rows[0].nickname).toBe('익명')
-    await S().loadFavorites()
-    expect(S().favorites).toHaveLength(1)
+    expect(rows).toHaveLength(0)
+    expect(S().nicknameDialog.open).toBe(true)
+    expect(S().nicknameDialog.pending).toEqual({ kind: 'fav', item: tour })
+    await S().loadFavorites()                       // 닉네임이 없으면 조회도 하지 않고 빈 목록
+    expect(S().favorites).toEqual([])
+    expect(S().favLoaded).toBe(true)
   })
 })

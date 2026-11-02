@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { TAG_RULES, tabOfItem, tagsOf } from '../src/lib/placeTags.js'
 import { parseTags, sourcesFor, toggleTag } from '../src/lib/placeCategories.js'
 import { filterByTags, indexInfo, searchTagged } from '../server/tags.js'
+import { isOreum } from '../src/lib/placeTags.js'
 
 describe('placeTags — 소개글에서 태그 뽑기', () => {
   it('탭 키: 12 관광지 · 14 문화시설 · 15 축제 · 39 음식점(FD05 는 카페), 그 밖은 없음', () => {
@@ -36,13 +37,11 @@ describe('분류·화면 쪽 규칙', () => {
     expect(toggleTag(['sea'], 'forest')).toEqual(['sea', 'forest'])
     expect(toggleTag(['sea', 'forest'], 'sea')).toEqual(['forest'])
   })
-  it('태그를 고르면 색인 소스, 축제는 기간 검색에 태그를 얹음, 분류 칩은 함께 반영, 내 주변이 우선', () => {
-    expect(sourcesFor('spot', 'all', false, ['sea'])).toEqual([{ api: 'tagged', tab: 'spot', tags: ['sea'], lcls: '' }])
+  it('태그를 고르면 색인 소스, 음식점 종류 칩은 함께 반영, 내 주변이 우선(오름은 내 주변과 태그를 함께 씀)', () => {
     expect(sourcesFor('food', 'japanese', false, ['seafood'])).toEqual([{ api: 'tagged', tab: 'food', tags: ['seafood'], lcls: 'FD020200' }])
     expect(sourcesFor('cafe', 'all', false, ['dessert'])).toEqual([{ api: 'tagged', tab: 'cafe', tags: ['dessert'], lcls: '' }])
-    expect(sourcesFor('festival', 'all', false, ['music'])).toEqual([{ api: 'festival', tags: ['music'] }])
-    expect(sourcesFor('spot', 'all', true, ['sea'])).toEqual([{ api: 'near', type: '12' }])
-    expect(sourcesFor('all', 'all', false, ['sea']).length).toBeGreaterThan(5)   // 전체 탭은 태그 없음(원래 소스)
+    expect(sourcesFor('cafe', 'all', true, ['dessert'])).toEqual([{ api: 'near', type: '39', lcls: 'FD05' }])
+    expect(sourcesFor('saved', 'all', false, ['sea'])).toEqual([])
   })
 })
 
@@ -76,5 +75,35 @@ describe('server/tags — 색인 조회', () => {
     const list = [...first, { id: 'nope', title: '없는행사' }]
     expect(filterByTags(list, []).length).toBe(list.length)
     expect(filterByTags(list, ['zzz'])).toEqual([])
+  })
+})
+
+describe('오름 탭 — 분류 NA010100 관광지', () => {
+  it('오름 판별: 관광지(12) 중 소분류 NA010100', () => {
+    expect(isOreum({ type: '12', lcls3: 'NA010100' })).toBe(true)
+    expect(isOreum({ type: 12, lclsSystm3: 'NA010100' })).toBe(true)
+    expect(isOreum({ type: '12', lcls3: 'NA020100' })).toBe(false)
+    expect(isOreum({ type: '39', lcls3: 'NA010100' })).toBe(false)
+  })
+  it('색인에서 오름만 나오고 태그(AND)·이름으로 거를 수 있음, 태그는 오름 전용 키', () => {
+    const all = searchTagged({ tab: 'oreum', rows: 500 })
+    expect(all.length).toBeGreaterThan(60)
+    expect(all.length).toBeLessThan(200)
+    expect(all.some((p) => p.title.includes('오름'))).toBe(true)
+    expect(all.every((p) => p.type === '12')).toBe(true)
+    const sun = searchTagged({ tab: 'oreum', tags: ['sunrise'], rows: 500 })
+    expect(sun.length).toBeGreaterThan(0)
+    expect(sun.length).toBeLessThan(all.length)
+    expect(searchTagged({ tab: 'oreum', tags: ['sunrise', 'grass', 'family'], rows: 500 }).length).toBeLessThanOrEqual(sun.length)
+    expect(searchTagged({ tab: 'oreum', keyword: '새별', rows: 50 }).every((p) => p.title.includes('새별'))).toBe(true)
+    expect(searchTagged({ tab: 'oreum', tags: ['sea'], rows: 50 })).toEqual([])   // 관광지 탭의 태그 키는 오름에 없음
+  })
+  it('내 위치 반경 안의 오름을 가까운 순으로 (dist 포함), 반경 밖은 제외, 위치 없으면 dist 없음', () => {
+    const near = searchTagged({ tab: 'oreum', lat: 33.4996, lng: 126.5312, radius: 8000, rows: 100 })
+    expect(near.length).toBeGreaterThan(0)
+    expect(near.every((p) => p.dist <= 8000)).toBe(true)
+    expect(near.map((p) => p.dist)).toEqual([...near.map((p) => p.dist)].sort((a, b) => a - b))
+    expect(searchTagged({ tab: 'oreum', lat: 33.4996, lng: 126.5312, radius: 1, rows: 100 })).toEqual([])
+    expect(searchTagged({ tab: 'oreum', rows: 3 })[0].dist).toBeUndefined()
   })
 })

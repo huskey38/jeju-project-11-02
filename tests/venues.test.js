@@ -147,11 +147,7 @@ describe('분류·카드 표시', () => {
     expect(badgeOf({ kind: 'venue' })).toBe('공연장')
     expect(subtitleOf({ kind: 'venue', addr: '제주시 동광로 69' })).toBe('제주시 동광로 69')
   })
-  it('공연장은 문화시설과 전체에만 합쳐지고, 내 주변(좌표 필요)에는 없음', () => {
-    expect(sourcesFor('culture').some((s) => s.api === 'venue')).toBe(true)
-    expect(sourcesFor('all').some((s) => s.api === 'venue')).toBe(true)
-    for (const c of ['spot', 'festival', 'food', 'cafe']) expect(sourcesFor(c).some((s) => s.api === 'venue')).toBe(false)
-    expect(sourcesFor('all', 'all', true).some((s) => s.api === 'venue')).toBe(false)
-    expect(sourcesFor('culture', 'all', true).some((s) => s.api === 'venue')).toBe(false)
+  it('공연장은 문화시설 분류가 없어져 어떤 분류 소스에도 나오지 않음 (저장한 공연장은 가볼만한 곳에서 열림)', () => {
+    for (const c of ['oreum', 'food', 'cafe', 'saved', 'visited', 'culture', 'all']) expect(sourcesFor(c).some((s) => s.api === 'venue')).toBe(false)
   })
 })

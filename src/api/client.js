@@ -35,8 +35,8 @@ export const fetchNearby = ({ lat, lng, radius = 3000, type = '', lcls = '', xlc
 export const fetchFestivals = ({ from = '', to = '', keyword = '', tags = [], page = 1, rows = 12 }) =>
   get(`/api/tour?mode=festival&from=${from}&to=${to}&keyword=${encodeURIComponent(keyword)}&tags=${tags.join(',')}&page=${page}&rows=${rows}`)
 // 테마 태그 검색 (소개글에서 뽑은 태그, 색인에서 조회): tab = spot|culture|food|cafe, tags 는 모두 가진 곳만
-export const fetchTagged = ({ tab, tags = [], lcls = '', keyword = '', page = 1, rows = 12 }) =>
-  get(`/api/tour?mode=tagged&tab=${tab}&tags=${tags.join(',')}&lcls=${lcls}&keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+export const fetchTagged = ({ tab, tags = [], lcls = '', keyword = '', lat, lng, radius, page = 1, rows = 12 }) =>
+  get(`/api/tour?mode=tagged&tab=${tab}&tags=${tags.join(',')}&lcls=${lcls}&keyword=${encodeURIComponent(keyword)}${lat !== undefined ? `&lat=${lat}&lng=${lng}&radius=${radius}` : ''}&page=${page}&rows=${rows}`)
 // 공연장 (제주도내 공연장 현황 — 파일 데이터를 서버에서 조회)
 export const fetchVenues = (keyword = '', page = 1, rows = 12) =>
   get(`/api/venue?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
@@ -48,6 +48,17 @@ export const fetchVenueDetail = (id) => get(`/api/venue?id=${encodeURIComponent(
 // 장소(좌표)·날짜별 예보: dates = ['YYYY-MM-DD', ...] → [{ date, kind: 'short'|'mid'|'none', tmin, tmax, sky, precip, pop }]
 export const fetchForecast = ({ lat, lng, dates }) =>
   get(`/api/weather?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&dates=${dates.join(',')}`)
+// 좌표 주변 편의점(CS2)·주차장(PK6)·주유소(OL7), 가까운 순 (카카오 로컬 API, 서버가 대신 호출)
+export const fetchPoi = ({ lat, lng, cat, radius = 500 }) =>
+  get(`/api/poi?lat=${lat}&lng=${lng}&cat=${cat}&radius=${radius}`)
+// 제주 오름 현황(공식 368곳): keyword 이름, form 형태 묶음(cone·round·horseshoe·mixed), tags 소개글 특징, sort 'elev'(표고 높은 순),
+// lat·lng·radius(미터)를 주면 그 반경 안을 가까운 순으로. 항목: { id, title, city, addr, elev, area, rel, form, lat, lng, tourId?, image?, dist? }
+export const fetchOreum = ({ keyword = '', form = '', tags = [], sort = '', lat, lng, radius, page = 1, rows = 12 } = {}) =>
+  get(`/api/oreum?keyword=${encodeURIComponent(keyword)}&form=${form}&tags=${tags.join(',')}&sort=${sort}${lat !== undefined ? `&lat=${lat}&lng=${lng}&radius=${radius}` : ''}&page=${page}&rows=${rows}`)
+export const fetchOreumById = (id) => get(`/api/oreum?id=${encodeURIComponent(id)}`).then((list) => list[0])
+// 오름 전체 368곳 — 등반률의 최대치와 3D 지도의 마크 위치. 한 번만 받아 둠
+let oreumAll = null   // 요청 자체를 보관해 동시에 여러 번 불러도 한 번만 요청
+export const fetchOreumAll = () => (oreumAll ??= fetchOreum({ rows: 400 }).catch((e) => { oreumAll = null; throw e }))
 export const fetchHeritage = (keyword = '', page = 1, rows = 10) =>
   get(`/api/heritage?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
 

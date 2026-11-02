@@ -9,6 +9,7 @@ vi.mock('../server/tour.js', () => ({
   searchFestivals: vi.fn(async () => [{ id: '2', title: '벚꽃축제', start: '2026-04-04', end: '2026-04-05', image: 'x.jpg' }]),
 }))
 vi.mock('../server/restaurants.js', () => ({ BIZ_TYPES: ['한식', '횟집'], searchRestaurants: vi.fn(async () => [{ id: 'r1', title: '성산막회', biz: '횟집', addr: 'a', tel: '064', lat: '33.4', lng: '126.9', dup: true, extra: 'x' }]) }))
+vi.mock('../server/oreum.js', () => ({ searchOreum: vi.fn(() => [{ id: '7', title: '새별오름', name: '새별오름', city: '제주시', addr: '애월', elev: 519.3, form: '말굽형', lat: 33.36, lng: 126.36, dist: 900, tourId: '555', image: 'x.jpg', area: 1 }]) }))
 vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async () => []) }))
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async () => []) }))
 
@@ -179,5 +180,46 @@ describe('api/agent — 일반음식점 도구', () => {
     const sent = JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)
     expect(sent[0]).toEqual({ id: 'r1', title: '성산막회', biz: '횟집', addr: 'a', tel: '064', lat: '33.4', lng: '126.9', dup: true })
     expect(res.body.steps[0]).toMatchObject({ tool: 'search_restaurants', count: 1 })
+  })
+})
+
+describe('api/agent — 오름 중심 (오름 도구·지침·루프 상한 5회)', () => {
+  const toolUse = (id, name, input) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id, name, input }] })
+  const done = { stop_reason: 'end_turn', content: [{ type: 'text', text: '답' }] }
+  const run = async () => {
+    const { default: h } = await import('../api/agent.js')
+    const res = mkRes(); await h({ method: 'POST', body: { message: '억새 오름' } }, res)
+    return res
+  }
+  it('지침은 오름 가이드, search_oreum 도구에 태그 목록이 있음', async () => {
+    create.mockClear(); create.mockResolvedValueOnce(done)
+    await run()
+    const call = create.mock.calls[0][0]
+    expect(call.system).toContain('오름 가이드')
+    expect(call.system).toContain('search_oreum')
+    const tool = call.tools.find((t) => t.name === 'search_oreum')
+    expect(tool.input_schema.properties.tag.enum).toEqual(['sunrise', 'grass', 'view', 'crater', 'easy', 'family', 'forest'])
+    expect(tool.input_schema.properties.form.enum).toEqual(['cone', 'round', 'horseshoe', 'mixed'])
+    expect(tool.description).toContain('368')
+  })
+  it('search_oreum: 이름·형태·정렬·태그·좌표·반경을 공식 현황 조회로 넘기고 필요한 필드만(tour_id 포함) 전달, 잘못된 태그는 무시', async () => {
+    const oreum = await import('../server/oreum.js')
+    create.mockClear()
+    create.mockResolvedValueOnce(toolUse('a', 'search_oreum', { tag: 'grass', form: 'horseshoe', sort: 'elev', lat: 33.5, lng: 126.5, radius_m: 999999 })).mockResolvedValueOnce(done)
+    const res = await run()
+    expect(oreum.searchOreum).toHaveBeenLastCalledWith({ keyword: '', form: 'horseshoe', sort: 'elev', tags: ['grass'], rows: 10, lat: 33.5, lng: 126.5, radius: 30000 })
+    expect(JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)[0]).toEqual({ id: '7', title: '새별오름', city: '제주시', addr: '애월', elev: 519.3, form: '말굽형', lat: 33.36, lng: 126.36, dist: 900, tour_id: '555' })
+    expect(res.body.steps[0]).toMatchObject({ tool: 'search_oreum', count: 1 })
+    create.mockResolvedValueOnce(toolUse('b', 'search_oreum', { tag: 'nope', keyword: '새별' })).mockResolvedValueOnce(done)
+    await run()
+    expect(oreum.searchOreum).toHaveBeenLastCalledWith({ keyword: '새별', form: '', sort: '', tags: [], rows: 10 })
+  })
+  it('도구를 끝없이 부르면 5번째에서 멈춤 (루프 상한 5회)', async () => {
+    create.mockClear()
+    create.mockResolvedValue(toolUse('loop', 'get_weather', { place: '제주시' }))
+    const res = await run()
+    expect(create).toHaveBeenCalledTimes(5)
+    expect(res.body.answer).toContain('너무 많아')
+    create.mockReset()
   })
 })

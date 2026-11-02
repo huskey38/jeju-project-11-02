@@ -166,6 +166,7 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .hero > *:not(.hero-scene) { position: relative; z-index: 1; }
 .hero-greet { display: inline-block; margin-bottom: .6rem; padding: .15rem .8rem; border-radius: 999px; background: rgba(232, 137, 43, .14); color: #a85a0c; font-weight: 700; font-size: .9rem; letter-spacing: .04em; }   /* 제주 방언 인사 '혼저옵서예'(어서 오세요) */
 .hero h1 { font-size: 2rem; font-weight: 800; color: var(--ink); }
+.hero-intent { max-width: 24rem; margin: -.4rem 0 .2rem; font-size: .92rem; color: var(--ink-3); }
 .hero .lead { color: var(--ink-2); font-size: 1.05rem; max-width: 34rem; }
 .hero-scene { position: absolute; right: 0; top: 0; width: min(62%, 520px); height: 220px; pointer-events: none; opacity: .95; }
 @media (max-width: 575.98px) { .hero-scene { width: 100%; opacity: .45; } }
@@ -311,3 +312,45 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .weather-box { padding: .85rem 1rem; border-radius: var(--radius, 16px); background: var(--surface-2, #f6f3ec); border: 1px solid var(--line-soft, #e8e1d2); }
 .weather-cell { min-width: 220px; padding: .6rem .8rem; border-radius: 12px; background: var(--surface, #fffdf8); border: 1px solid var(--line-soft, #e8e1d2); }
 .weather-src { font-size: .72rem; color: var(--ink-3, #7a7366); }
+
+/* ── 정보 카드 주변 편의시설(편의점·주차장) ── */
+.poi-dot { flex: 0 0 auto; width: .7rem; height: .7rem; border-radius: 50%; margin-top: .3rem; }
+.poi-list { max-height: 240px; overflow-y: auto; }
+
+/* 에이전트가 호출한 도구: 답변 위에 작은 글씨로 (마우스를 올리면 실제 함수 이름과 인자) */
+.msg-tools { font-size: .74rem; color: var(--ink-3); margin-bottom: .35rem; line-height: 1.7; }
+.msg-tool { display: inline-block; margin-right: .1rem; padding: 0 .5rem; border-radius: 999px; background: rgba(47, 107, 82, .09); color: var(--accent); font-weight: 600; white-space: nowrap; cursor: help; }
+.msg-tool .bi { margin: 0 .1rem 0 -.15rem; opacity: .6; }
+
+/* ── '가봤어요' 버튼: 카드 오른쪽 아래, 감귤 버튼 밑에 작은 동그란 체크 ── */
+.visit-btn {
+  position: absolute; bottom: 10px; right: 14px; z-index: 2; width: 32px; height: 32px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.05rem; color: var(--accent);
+  background: rgba(255, 253, 248, .94); border: 1px solid var(--line); box-shadow: 0 4px 12px -4px rgba(42, 32, 10, .35);
+  transition: transform .15s, background .15s, color .15s;
+}
+.visit-btn:hover { transform: scale(1.1); border-color: var(--accent); }
+.visit-btn:focus-visible { outline: 3px solid rgba(47, 107, 82, .35); outline-offset: 2px; }
+.visit-btn.is-visited { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── 오름 등반률 카드 (가본 곳 탭) ── */
+.oreum-progress { padding: 1rem 1.1rem; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sh-card); }
+.oreum-count { font-size: 1.7rem; line-height: 1.1; }
+.oreum-percent { font-size: 1.05rem; font-weight: 800; color: var(--citrus-ink); }
+.oreum-bar { height: 12px; border-radius: 999px; background: #efe6d2; }
+.oreum-bar .progress-bar { background: linear-gradient(90deg, var(--citrus), #f3b35c); transition: width .6s ease; }
+.oreum-map { background: #cfe6ea; }
+.oreum-key { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; vertical-align: -1px; }
+.oreum-key-done { background: var(--citrus); box-shadow: 0 0 0 3px rgba(232, 137, 43, .25); }
+.oreum-key-todo { background: #fff; border: 1px solid #b9b19a; }
+
+/* 메인 오름 소개 */
+.oreum-intro { background: #f3f7ec; border: 1px solid var(--line); box-shadow: var(--sh-card); color: var(--ink); }
+
+/* 오름 카드 형태 표식 (사진 왼쪽 위) */
+.item-card-media { position: relative; }
+.form-tag { position: absolute; top: 10px; left: 10px; padding: .2rem .65rem; border-radius: 999px; font-size: .78rem; font-weight: 700; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.form-tag-cone { background: #e8892b; }
+.form-tag-round { background: #4f8f5a; }
+.form-tag-horseshoe { background: #3b7fb0; }
+.form-tag-mixed { background: #8a6bb5; }

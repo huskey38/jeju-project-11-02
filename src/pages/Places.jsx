@@ -4,48 +4,46 @@ import { Button, Col, Form, InputGroup, Row } from 'react-bootstrap'
 import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { CitrusMark } from '../components/JejuScene'
+import OreumProgress from '../components/OreumProgress'
+import { FORM_GROUPS } from '../lib/oreumForms'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
-import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchRestaurantDetail, fetchRestaurants, fetchTagged, fetchVenueDetail, fetchVenues } from '../api/client'
+import { fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchRestaurantDetail, fetchRestaurants, fetchOreum, fetchOreumById, fetchVenueDetail } from '../api/client'
 import { TAG_RULES } from '../lib/placeTags'
-import { CATEGORIES, MENU_WORDS, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, festivalStatus, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf, todayKst } from '../lib/placeCategories'
+import { CATEGORIES, DEFAULT_CAT, MENU_WORDS, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
+import OreumArt from '../components/OreumArt'
+import { formGroupOf } from '../lib/oreumForms'
 import { useAppStore } from '../store/useAppStore'
 
 const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 const CITY_HALL = { lat: 33.4996, lng: 126.5312 }   // 위치를 못 얻을 때 기준 (제주시청)
 // 가볼만한 곳(저장된 행)에 붙이는 종류 배지
-const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', venue: '공연장', rest: '일반음식점' }
+const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', venue: '공연장', rest: '일반음식점', oreum: '오름' }
+const SORTS = [{ key: '', label: '이름순' }, { key: 'elev', label: '표고 높은 순' }, { key: 'elev_asc', label: '표고 낮은 순' }]   // 오름 정렬 (내 주변을 켜면 가까운 순)
 // 목록 항목 → 즐겨찾기 키 (favorites 테이블의 source·item_id 와 같은 규칙)
 const favOf = (it) => it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
   : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
   : it.kind === 'rest' ? { source: 'rest', id: it.id, title: it.title }
+  // 오름: 관광공사에 등록된 곳은 예전 기록(관광공사 id)과 같은 키를 써서 기존 가본 곳·가볼만한 곳이 그대로 이어지고, 나머지는 공식 연번
+  : it.kind === 'oreum' ? (it.tourId ? { source: 'tour', id: it.tourId, title: it.title } : { source: 'oreum', id: it.id, title: it.title })
   : { source: 'tour', id: it.id, title: it.title }
 const valid = (list, v, fallback) => (list?.some((x) => x.key === v) ? v : fallback)
 
-// 소스 하나(TourAPI·국가유산·주변·축제)의 한 쪽을 받아 화면용 항목으로 맞춤 — API 별 모양 차이는 여기서 흡수
-// ctx: { keyword, coords, radiusKm, from, to }
+// 소스 하나(TourAPI·일반음식점·오름 색인·주변)의 한 쪽을 받아 화면용 항목으로 맞춤 — API 별 모양 차이는 여기서 흡수
+// ctx: { keyword, coords, radiusKm }
 async function fetchPage(src, ctx, page) {
-  if (src.api === 'heritage') {
-    const list = await fetchHeritage(ctx.keyword, page, ROWS)
-    return list.map((h) => ({ ...h, kind: 'heritage', key: `h-${h.asno}`, kindName: h.kind }))
-  }
   if (src.api === 'rest') {
     const list = await fetchRestaurants(ctx.keyword, src.biz, page, ROWS)
     return list.map((r) => ({ ...r, kind: 'rest', key: `r-${r.id}` }))
   }
-  if (src.api === 'venue') {
-    const list = await fetchVenues(ctx.keyword, page, ROWS)
-    return list.map((v) => ({ ...v, kind: 'venue', key: `v-${v.id}` }))
-  }
   let list
-  if (src.api === 'tagged') {
-    const list = await fetchTagged({ tab: src.tab, tags: src.tags, lcls: src.lcls, keyword: ctx.keyword, page, rows: ROWS })
-    return list.map((p) => ({ ...p, kind: 'tour', key: `t-${p.id}` }))
+  if (src.api === 'oreum') {
+    const near = src.near && ctx.coords ? { lat: ctx.coords.lat, lng: ctx.coords.lng, radius: ctx.radiusKm * 1000 } : {}   // 내 위치 반경 안을 가까운 순으로
+    const list = await fetchOreum({ keyword: ctx.keyword, form: src.form, tags: src.tags, sort: src.sort, ...near, page, rows: ROWS })
+    return list.map((o) => ({ ...o, kind: 'oreum', key: `o-${o.id}` }))
   }
   if (src.api === 'near') {
     list = await fetchNearby({ ...ctx.coords, radius: ctx.radiusKm * 1000, type: src.type, lcls: src.lcls, xlcls: src.xlcls, page, rows: ROWS })
-  } else if (src.api === 'festival') {
-    list = await fetchFestivals({ from: ctx.from, to: ctx.to, keyword: ctx.keyword, tags: src.tags ?? [], page, rows: ROWS })
   } else {
     list = await fetchPlaces(ctx.keyword, src.type, page, ROWS, src.lcls)
   }
@@ -57,21 +55,29 @@ export default function Places() {
   const favorites = useAppStore((s) => s.favorites)
   const favLoading = useAppStore((s) => s.favLoading)
   const removeFavorite = useAppStore((s) => s.removeFavorite)
+  const visits = useAppStore((s) => s.visits)
+  const visitLoading = useAppStore((s) => s.visitLoading)
+  const toggleVisit = useAppStore((s) => s.toggleVisit)
+  const removeVisit = useAppStore((s) => s.removeVisit)
+  const nickname = useAppStore((s) => s.nickname)
+  const askNickname = useAppStore((s) => s.askNickname)
   const toast = useAppStore((s) => s.toast)
+  const isVisited = (it) => { const f = favOf(it); return visits.some((x) => x.source === f.source && x.item_id === String(f.id)) }
   const isSaved = (it) => { const f = favOf(it); return favorites.some((x) => x.source === f.source && x.item_id === String(f.id)) }
   const [params, setParams] = useSearchParams()          // 선택한 분류를 주소(?cat=&sub=&r=)에 남김 → 새로고침·링크 공유 시 유지
-  const cat = valid(CATEGORIES, params.get('cat'), 'all')
+  const cat = valid(CATEGORIES, params.get('cat'), DEFAULT_CAT)   // 기본은 오름
   const subs = subsOf(cat)
   const sub = parseSub(cat, params.get('sub'))   // 음식점 종류(하나)
   const canNear = NEAR_CATS.includes(cat)
   const radiusKm = canNear && RADII.includes(Number(params.get('r'))) ? Number(params.get('r')) : 0   // 0 = 내 주변을 안 씀(제주 전체)
   const nearOn = radiusKm > 0
-  const tags = nearOn ? [] : parseTags(cat, params.get('t'))   // 테마 태그 (내 주변과는 함께 쓰지 않음)
+  const tags = nearOn && cat !== 'oreum' ? [] : parseTags(cat, params.get('t'))   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
+  const form = cat === 'oreum' && FORM_GROUPS.some((g) => g.key === params.get('fm')) ? params.get('fm') : ''   // 오름 형태 (원추형·원형·말굽형·복합형)
+  const sort = cat === 'oreum' && ['elev', 'elev_asc'].includes(params.get('so')) ? params.get('so') : ''                                    // 오름 정렬
 
   const [keyword, setKeyword] = useState('')
-  const savedItems = favorites.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 가볼만한 곳: 검색어가 있으면 제목으로 거름
-  const [from, setFrom] = useState(todayKst)             // 축제 기간 (기본: 오늘부터)
-  const [to, setTo] = useState('')
+  const listMode = cat === 'saved' || cat === 'visited'                  // 가볼만한 곳·가본 곳은 저장된 목록(스토어)을 보여줌
+  const savedItems = (cat === 'visited' ? visits : favorites).filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 검색어가 있으면 제목으로 거름
   const [coords, setCoords] = useState(null)             // 내 주변 기준 좌표 { lat, lng, note? }
   const [locating, setLocating] = useState(false)
   const [items, setItems] = useState([])                 // ① 데이터
@@ -103,10 +109,10 @@ export default function Places() {
 
   // reset=true: 처음부터 다시 검색 / false: 다음 쪽을 이어 붙이기 (더 보기)
   async function load(reset, kw = keyword) {
-    if (cat === 'saved') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
+    if (cat === 'saved' || cat === 'visited') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳·가본 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
     if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
-    const sources = sourcesFor(cat, sub, nearOn, tags)
-    const ctx = { keyword: kw, coords, radiusKm, from, to }
+    const sources = sourcesFor(cat, sub, nearOn, tags, { form, sort })
+    const ctx = { keyword: kw, coords, radiusKm }
     const id = reset ? ++reqId.current : reqId.current
     let cur = reset ? { i: 0, page: 1 } : cursor.current
     reset ? setLoading(true) : setMoreLoading(true)
@@ -129,8 +135,8 @@ export default function Places() {
       if (id === reqId.current) { setLoading(false); setMoreLoading(false) }
     }
   }
-  // 분류·하위 선택·반경·기준 위치·축제 기간이 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
-  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, from, to, tags.join(',')])
+  // 분류·하위 선택·반경·기준 위치가 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
+  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, tags.join(','), form, sort])
 
   // 인기 메뉴 바로가기: 누르면 그 단어로 바로 검색, 다시 누르면 해제
   function pickWord(w) {
@@ -143,12 +149,14 @@ export default function Places() {
     load(true)
   }
   // 주소(?cat=&sub=&r=) 만들기: 반경(r)은 분류를 옮겨도 유지됨
-  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags }) => ({ ...(c !== 'all' && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
+  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags, fm = form, so = sort }) => ({ ...(fm && c === 'oreum' && { fm }), ...(so && c === 'oreum' && { so }), ...(c !== DEFAULT_CAT && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
   const subOn = (key) => sub === key
   function pickCat(key) {
     if (Object.values(MENU_WORDS).flat().includes(keyword)) setKeyword('')   // 인기 메뉴로 넣은 검색어는 다른 분류로 가져가지 않음
-    setParams(urlOf({ c: key, sb: 'all', tg: [] }))
+    setParams(urlOf({ c: key, sb: 'all', tg: [], fm: '', so: '' }))
   }
+  function pickForm(key) { setParams(urlOf({ fm: key === form ? '' : key })) }   // 켜진 형태를 다시 누르면 해제
+  function pickSort(key) { setParams(urlOf({ so: key })) }
   function pickTag(key) { setParams(urlOf({ tg: toggleTag(tags, key) })) }
   function pickSub(key) { setParams(urlOf({ sb: toggleSub(cat, sub, key) })) }
   function pickRadius(km) { setParams(urlOf({ r: km === radiusKm ? 0 : km })) }   // 켜진 반경을 다시 누르면 해제
@@ -165,6 +173,7 @@ export default function Places() {
       const data = it.kind === 'heritage' ? await fetchHeritageDetail(it)
         : it.kind === 'venue' ? await fetchVenueDetail(it.id)
         : it.kind === 'rest' ? await fetchRestaurantDetail(it.id)
+        : it.kind === 'oreum' ? (it.tourId ? await fetchPlaceDetail(it.tourId).catch(() => ({})) : {})   // 관광공사에 등록된 오름만 사진·소개글(실패해도 공식 정보는 보임)
         : await fetchPlaceDetail(it.id)
       if (id === detailReq.current) setDetail({ base: it, data })
     } catch (err) { if (id === detailReq.current) setDetail({ base: it, error: err.message }) }
@@ -181,6 +190,12 @@ export default function Places() {
     }
     if (f.source === 'venue') return openDetail({ id: f.item_id, title: f.title, addr: '', kind: 'venue', key: `v-${f.item_id}` })
     if (f.source === 'rest') return openDetail({ id: f.item_id, title: f.title, addr: '', kind: 'rest', key: `r-${f.item_id}` })
+    if (f.source === 'oreum') {   // 공식 연번으로 저장한 오름(관광공사에 없는 곳)
+      try {
+        const o = await fetchOreumById(f.item_id)
+        return o ? openDetail({ ...o, kind: 'oreum', key: `o-${o.id}` }) : toast('오름 정보를 찾지 못했어요', 'warning')
+      } catch (err) { return toast(err.message, 'danger') }
+    }
     return openDetail({ id: f.item_id, title: f.title, kind: 'tour', key: `t-${f.item_id}` })
   }
   function closeDetail() { detailReq.current++; setDetail(null); setTrail([]) }
@@ -203,6 +218,7 @@ export default function Places() {
     const common = {
       show: true, onHide: closeDetail, loading: !d && !detail.error, error: detail.error, badge: badgeOf({ ...b, type: d?.type ?? b.type }),
       recommend, onBack: prev ? goBack : undefined, backLabel: prev && (prev.title ?? prev.name),
+      visited: isVisited(b), onVisit: () => toggleVisit(favOf(b)),
     }
     return b.kind === 'heritage' ? (
       <DetailModal {...common}
@@ -210,6 +226,18 @@ export default function Places() {
         images={d?.image ? [d.image] : []}
         rows={d?.info ?? [{ label: '지역', value: b.city }]} text={d?.content}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
+        saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
+    ) : b.kind === 'oreum' ? (
+      <DetailModal {...common} badge={badgeOf(b)}
+        title={b.title} subtitle={b.addr}
+        images={d?.images?.length ? d.images : b.image ? [b.image] : []}
+        rows={[
+          { label: '행정시', value: b.city }, { label: '표고', value: b.elev != null ? `${b.elev}m` : '' },
+          { label: '비고(比高)', value: b.rel != null ? `${b.rel}m` : '' }, { label: '면적', value: b.area != null ? `${b.area.toLocaleString('ko-KR')}㎡` : '' },
+          { label: '형태', value: b.form }, ...(d?.info ?? []),
+        ].filter((r) => r.value)}
+        homepage={d?.homepage} text={d?.overview}
+        lat={b.lat} lng={b.lng}
         saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     ) : b.kind === 'rest' ? (
       <DetailModal {...common} badge={badgeOf({ ...b, biz: d?.biz ?? b.biz })}
@@ -238,8 +266,10 @@ export default function Places() {
           <Button key={c.key} className="rounded-pill px-3" variant={cat === c.key ? 'primary' : 'outline-primary'}
             aria-pressed={cat === c.key} onClick={() => pickCat(c.key)}>
             {c.key === 'saved' && <CitrusMark filled size={16} className="citrus-inline" />}
+            {c.key === 'visited' && <i className="bi bi-check-circle-fill me-1" />}
             {c.label}
             {c.key === 'saved' && favorites.length > 0 && <span className="count-chip" data-testid="saved-count">{favorites.length}</span>}
+            {c.key === 'visited' && visits.length > 0 && <span className="count-chip" data-testid="visited-count">{visits.length}</span>}
           </Button>
         ))}
       </div>
@@ -272,41 +302,55 @@ export default function Places() {
         </div>
       )}
 
-      {TAG_RULES[cat] && !nearOn && (
+      {cat === 'oreum' && (
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="오름 형태" data-testid="form-bar">
+          <span className="text-muted"><i className="bi bi-hexagon me-1" />형태</span>
+          {FORM_GROUPS.map((g) => (
+            <Button key={g.key} size="sm" className="rounded-pill px-2" variant={form === g.key ? 'info' : 'outline-info'}
+              aria-pressed={form === g.key} onClick={() => pickForm(g.key)}>{g.label}</Button>
+          ))}
+          {!nearOn && (
+            <span className="ms-auto d-flex align-items-center gap-1" role="group" aria-label="정렬" data-testid="sort-bar">
+              <span className="text-muted"><i className="bi bi-sort-down me-1" />정렬</span>
+              {SORTS.map((o) => (
+                <Button key={o.key} size="sm" variant="link" className={`p-0 me-1 ${sort === o.key ? 'fw-bold' : 'text-muted'}`} aria-pressed={sort === o.key} onClick={() => pickSort(o.key)}>{o.label}</Button>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
+
+      {TAG_RULES[cat] && (!nearOn || cat === 'oreum') && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="테마" data-testid="tag-bar">
-          <span className="text-muted"><i className="bi bi-tags me-1" />테마</span>
+          <span className="text-muted"><i className="bi bi-tags me-1" />{cat === 'oreum' ? '소개글 특징(관광공사 등록 오름)' : '테마'}</span>
           {TAG_RULES[cat].map((t) => (
             <Button key={t.key} size="sm" className="rounded-pill px-2" variant={tags.includes(t.key) ? 'info' : 'outline-info'}
               aria-pressed={tags.includes(t.key)} onClick={() => pickTag(t.key)}>{t.label}</Button>
           ))}
           {tags.length > 0 && <Button size="sm" variant="link" className="p-0" onClick={() => setParams(urlOf({ tg: [] }))}>테마 해제</Button>}
-          {cat === 'spot' && tags.length > 0 && <span className="text-muted">· 국가유산은 테마 분류에서 빠져요</span>}
         </div>
       )}
 
-      {cat === 'festival' && !nearOn && (
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="festival-dates">
-          <span className="text-muted">기간</span>
-          <Form.Control type="date" size="sm" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="시작일" style={{ width: 150 }} />
-          <span className="text-muted">~</span>
-          <Form.Control type="date" size="sm" value={to} min={from} onChange={(e) => setTo(e.target.value)} aria-label="종료일" style={{ width: 150 }} />
-          {(to || from !== todayKst()) && (
-            <Button size="sm" variant="link" className="p-0" onClick={() => { setFrom(todayKst()); setTo('') }}>오늘부터 보기</Button>
-          )}
-          <span className="text-muted">에 진행 중이거나 시작하는 행사</span>
-        </div>
-      )}
+      {cat === 'visited' && <OreumProgress />}
 
-      {cat === 'saved' && (
+      {listMode && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
-          <span className="text-muted">가볼만한 곳 {favorites.length}곳 · 카드의 감귤을 누르면 빠져요</span>   {/* 닉네임 입력칸은 숨김(저장된 닉네임은 그대로 사용) */}
+          <span className="text-muted">
+            {cat === 'visited' ? `가본 곳 ${visits.length}곳 · 카드의 체크를 누르면 빠져요` : `가볼만한 곳 ${favorites.length}곳 · 카드의 감귤을 누르면 빠져요`}
+          </span>
+          <span className="ms-auto" data-testid="my-nickname">
+            {nickname
+              ? <><i className="bi bi-person-circle me-1" />{nickname}</>
+              : <span className="text-muted">닉네임을 만들면 나만의 목록이 생겨요</span>}
+            <Button size="sm" variant="link" className="py-0" onClick={() => askNickname()} data-testid="nickname-open">{nickname ? '바꾸기' : '닉네임 만들기'}</Button>
+          </span>
         </div>
       )}
 
-      {!nearOn && (
+      {(!nearOn || cat === 'oreum') && (
         <Form onSubmit={search} className="mt-3 mb-4">
           <InputGroup>
-            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어 (비우면 전체)'} />
+            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'visited' ? '가본 곳에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
             <Button type="submit"><i className="bi bi-search" /></Button>
           </InputGroup>
           {MENU_WORDS[cat] && (
@@ -320,20 +364,24 @@ export default function Places() {
           )}
         </Form>
       )}
-      {nearOn && <div className="mb-3" />}
+      {nearOn && cat !== 'oreum' && <div className="mb-3" />}
 
       <ErrorAlert error={error} />
 
-      {cat === 'saved' ? (
-        favLoading ? <Loading /> : savedItems.length === 0
-          ? <Empty text={favorites.length ? '검색 결과가 없어요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
+      {listMode ? (
+        (cat === 'visited' ? visitLoading : favLoading) ? <Loading /> : savedItems.length === 0
+          ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 가본 곳이 없어요 — 카드의 체크 버튼을 눌러 기록해 보세요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
           : (
-            <Row xs={1} sm={2} lg={3} className="g-3" data-testid="saved-list">
+            <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'visited' ? 'visited-list' : 'saved-list'}>
               {savedItems.map((f) => (
                 <Col key={f.id}>
                   <ItemCard title={f.title} badge={SOURCE_LABEL[f.source] ?? f.source}
-                    subtitle={`${new Date(f.created_at).toLocaleDateString('ko-KR')}에 담음`}
-                    onClick={() => openSaved(f)} saved onSave={() => removeFavorite(f)} />
+                    subtitle={`${new Date(f.created_at).toLocaleDateString('ko-KR')}에 ${cat === 'visited' ? '기록' : '담음'}`}
+                    onClick={() => openSaved(f)}
+                    saved={cat === 'visited' ? favorites.some((x) => x.source === f.source && x.item_id === f.item_id) : true}
+                    onSave={() => (cat === 'visited' ? toggleFavorite({ source: f.source, id: f.item_id, title: f.title }) : removeFavorite(f))}
+                    visited={cat === 'visited' ? true : visits.some((x) => x.source === f.source && x.item_id === f.item_id)}
+                    onVisit={() => (cat === 'visited' ? removeVisit(f) : toggleVisit({ source: f.source, id: f.item_id, title: f.title }))} />
                 </Col>
               ))}
             </Row>
@@ -348,9 +396,11 @@ export default function Places() {
                     title={it.kind === 'heritage' ? it.name : it.title}
                     subtitle={subtitleOf(it)}
                     image={it.image} badge={badgeOf(it)}
-                    status={festivalStatus(it.start, it.end)}
+                    tag={it.kind === 'oreum' && formGroupOf(it.form).key !== 'etc' ? { label: formGroupOf(it.form).label, tone: formGroupOf(it.form).key } : undefined}
+                    art={it.kind === 'oreum' ? <OreumArt form={it.form} elev={it.elev} className="item-card-img w-100 d-block" /> : undefined}
                     onClick={() => openDetail(it)}
-                    saved={isSaved(it)} onSave={() => toggleFavorite(favOf(it))} />
+                    saved={isSaved(it)} onSave={() => toggleFavorite(favOf(it))}
+                    visited={isVisited(it)} onVisit={cat === 'food' || cat === 'cafe' ? undefined : () => toggleVisit(favOf(it))} />
                 </Col>
               ))}
             </Row>

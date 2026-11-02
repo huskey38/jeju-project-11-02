@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../server/tour.js', () => ({ searchTour: vi.fn(async (a) => [{ id: '1', title: 'T', args: a }]) }))
 vi.mock('../server/tags.js', () => ({ searchTagged: vi.fn((a) => [a]), filterByTags: vi.fn((l) => l.slice(0, 1)) }))
 vi.mock('../server/restaurants.js', () => ({ searchRestaurants: vi.fn(async (a) => [a]), getRestaurant: vi.fn(async (a) => ({ got: a.id })) }))
+vi.mock('../server/poi.js', () => ({ searchPoi: vi.fn(async (a) => { if (a.cat === 'XX') throw new Error('cat 은 CS2(편의점)·PK6(주차장)·OL7(주유소) 중 하나예요'); return [a] }) }))
 vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async (a) => [{ place: a.place }]), getForecast: vi.fn(async (a) => a.dates.map((date) => ({ date, kind: 'short' }))) }))
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async (a) => [{ name: 'H', args: a }]) }))
 
@@ -49,6 +50,14 @@ describe('api handlers', () => {
     expect(list.body[0]).toEqual({ keyword: '흑돼지', biz: '횟집', page: 2, rows: 100 })
     const one = mkRes(); await h({ query: { id: '6510000-1' } }, one)
     expect(one.body).toEqual({ got: '6510000-1' })
+  })
+  it('poi: 좌표·카테고리·반경 전달, 잘못된 카테고리는 400', async () => {
+    const { default: h } = await import('../api/poi.js')
+    const ok = mkRes(); await h({ query: { lat: '33.25', lng: '126.41', cat: 'PK6', radius: '1000' } }, ok)
+    expect(ok.code).toBe(200)
+    expect(ok.body[0]).toEqual({ lat: '33.25', lng: '126.41', cat: 'PK6', radius: 1000 })
+    const bad = mkRes(); await h({ query: { lat: '33.25', lng: '126.41', cat: 'XX' } }, bad)
+    expect(bad.code).toBe(400)
   })
   it('heritage', async () => {
     const { default: h } = await import('../api/heritage.js')
@@ -156,6 +165,12 @@ describe('api/tour — 주변·축제 모드', () => {
     expect(tagsMod.searchTagged).toHaveBeenLastCalledWith({ tab: 'food', tags: ['seafood', 'noodle'], lcls: 'FD020200', keyword: '회', page: 2, rows: 12 })
     const bad = mkRes(); await h({ query: { mode: 'tagged', tab: 'hack' } }, bad)
     expect(bad.code).toBe(400)
+    const oreum = mkRes(); await h({ query: { mode: 'tagged', tab: 'oreum', tags: 'sunrise', lat: '33.5', lng: '126.5', radius: '5000', page: '1', rows: '12' } }, oreum)
+    expect(tagsMod.searchTagged).toHaveBeenLastCalledWith({ tab: 'oreum', tags: ['sunrise'], lcls: '', keyword: '', lat: '33.5', lng: '126.5', radius: 5000, page: 1, rows: 12 })
+    await h({ query: { mode: 'tagged', tab: 'oreum', rows: '500' } }, mkRes())
+    expect(tagsMod.searchTagged).toHaveBeenLastCalledWith(expect.objectContaining({ rows: 100 }))   // 오름 전체(91곳)를 한 번에 받게 100 까지, 그 밖 모드는 50
+    await h({ query: { mode: 'tagged', tab: 'oreum' } }, mkRes())
+    expect(tagsMod.searchTagged).toHaveBeenLastCalledWith({ tab: 'oreum', tags: [], lcls: '', keyword: '', page: 1, rows: 10 })   // 좌표가 없으면 위치 조건 없음
   })
   it('mode=festival + tags: 기간 안 행사를 한 번에 받아 태그로 거른 뒤 쪽으로 자름', async () => {
     vi.resetModules()

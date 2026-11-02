@@ -5,6 +5,7 @@ import { isSupabaseReady, supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
 import Places from './Places'
 import { HallaScene } from '../components/JejuScene'
+import OreumIntro from '../components/OreumIntro'
 
 // 홈 = 기획 소개 + "동작 체크" 대시보드
 // 동작 체크(React·Supabase·/api)는 모두 정상이라 화면에서 숨겼습니다. 다시 보려면 SHOW_CHECKS 를 true 로 바꾸세요 (숨기면 확인 호출도 하지 않음).
@@ -36,9 +37,12 @@ export default function Home() {
       <section className="hero rounded-4 p-4 p-md-5 mb-4">
         <HallaScene className="hero-scene" />
         <div className="hero-greet">혼저옵서예</div>
-        <h1 className="fw-bold">제주 관광 길잡이</h1>
-        <p className="lead">공공데이터와 AI 가이드로 쉽고 편한 제주도 탐방</p>
+        <h1 className="fw-bold">제주 오름 길잡이</h1>
+        <p className="lead">제주의 오름을 공공데이터와 AI 가이드로 쉽고 편하게 찾아가는 탐방 길잡이</p>
+        <p className="hero-intent">가까운 오름, 일출·억새·가볍게 걷기 좋은 오름까지 — 오름 앞뒤로 들를 맛집·카페·날씨를 한 번에.</p>
       </section>
+
+      <OreumIntro />
 
       {/* 관광·문화를 홈에서 바로 둘러봄 (분류 버튼·검색·내 주변·축제·상세·감귤 즐겨찾기 모두 이 화면에서 동작) */}
       <section className="mb-5" data-testid="home-places"><Places /></section>

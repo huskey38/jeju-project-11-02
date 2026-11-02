@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadKakao, radiusEdges } from '../lib/kakao'
 
-// 근처 추천 핀 색 (묶음별): 음식점 감귤 · 카페 갈색 · 관광지 초록
-const PIN_COLOR = { food: '#e8892b', cafe: '#8a5a2b', spot: '#2f6b52' }
+// 근처 추천 핀 색 (묶음별): 음식점 감귤 · 카페 갈색 · 관광지 초록 · 편의점 하늘색 · 주차장 보라 · 주유소 붉은 벽돌색
+const PIN_COLOR = { food: '#e8892b', cafe: '#8a5a2b', spot: '#2f6b52', CS2: '#3f9bb0', PK6: '#6b6f9a', OL7: '#c8553d', PK6P: '#2f6b52' }   // CS2 편의점 · PK6 주차장 · OL7 주유소 · PK6P 공영주차장
 
 // 카카오 지도: 이 곳에 핀 1개 + (선택) 근처 추천 핀들과 반경 원 + 줌 컨트롤 + 일반/스카이뷰 전환
 //   markers: [{ id, title, lat, lng, group }]   radiusM: 반경(미터, 원으로 표시)   onPickMarker(marker): 핀을 눌렀을 때

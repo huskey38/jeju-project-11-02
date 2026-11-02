@@ -6,7 +6,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { tabOfItem, tagsOf } from '../src/lib/placeTags.js'
+import { isOreum, tabOfItem, tagsOf } from '../src/lib/placeTags.js'
 
 const BASE = 'https://apis.data.go.kr/B551011/KorService2'
 const CACHE = join(tmpdir(), 'jeju-tag-cache.json')
@@ -77,9 +77,11 @@ for (const p of list) {
   if (!tab) continue
   const text = cache[p.contentid]
   if (text) withText++
+  const lcls3 = p.lclsSystm3 ?? ''
   items.push({
     id: p.contentid, title: p.title, addr: p.addr1 ?? '', image: https(p.firstimage), lng: p.mapx, lat: p.mapy,
-    type: String(p.contenttypeid), lcls: p.lclsSystm2 ?? '', lcls3: p.lclsSystm3 ?? '', tags: tagsOf(tab, `${p.title} ${text ?? ''}`),
+    type: String(p.contenttypeid), lcls: p.lclsSystm2 ?? '', lcls3, tags: tagsOf(tab, `${p.title} ${text ?? ''}`),
+    ...(isOreum({ type: p.contenttypeid, lcls3 }) && { oreum: true, otags: tagsOf('oreum', `${p.title} ${text ?? ''}`) }),   // 오름 탭 전용 태그
   })
 }
 await mkdir('server/data', { recursive: true })
