@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
-import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces } from '../api/client'
+import { fetchFestivals, fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchVenueDetail, fetchVenues } from '../api/client'
 import { CATEGORIES, DEFAULT_RADIUS, RADII, advance, badgeOf, sourcesFor, subsOf, subtitleOf } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import { useAppStore } from '../store/useAppStore'
@@ -21,6 +21,10 @@ async function fetchPage(src, ctx, page) {
   if (src.api === 'heritage') {
     const list = await fetchHeritage(ctx.keyword, page, ROWS)
     return list.map((h) => ({ ...h, kind: 'heritage', key: `h-${h.asno}`, kindName: h.kind }))
+  }
+  if (src.api === 'venue') {
+    const list = await fetchVenues(ctx.keyword, page, ROWS)
+    return list.map((v) => ({ ...v, kind: 'venue', key: `v-${v.id}` }))
   }
   let list
   if (src.api === 'near') {
@@ -112,7 +116,9 @@ export default function Places() {
   async function openDetail(it) {                        // 카드 클릭 → 목록 정보를 먼저 보여주고 상세를 불러옴
     setDetail({ base: it })
     try {
-      const data = it.kind === 'heritage' ? await fetchHeritageDetail(it) : await fetchPlaceDetail(it.id)
+      const data = it.kind === 'heritage' ? await fetchHeritageDetail(it)
+        : it.kind === 'venue' ? await fetchVenueDetail(it.id)
+        : await fetchPlaceDetail(it.id)
       setDetail({ base: it, data })
     } catch (err) { setDetail({ base: it, error: err.message }) }
   }
@@ -127,6 +133,11 @@ export default function Places() {
         rows={d?.info ?? [{ label: '지역', value: b.city }]} text={d?.content}
         lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
         onSave={() => addFavorite({ source: 'heritage', id: b.name, title: b.name })} />
+    ) : b.kind === 'venue' ? (
+      <DetailModal {...common}
+        title={d?.title ?? b.title} subtitle={b.addr} rows={d?.info}
+        lat={d?.lat ?? b.lat} lng={d?.lng ?? b.lng}
+        onSave={() => addFavorite({ source: 'venue', id: b.id, title: b.title })} />
     ) : (
       <DetailModal {...common}
         title={d?.title ?? b.title} subtitle={d?.addr ?? b.addr}
@@ -208,8 +219,8 @@ export default function Places() {
                 subtitle={subtitleOf(it)}
                 image={it.image} badge={badgeOf(it)}
                 onClick={() => openDetail(it)}
-                onSave={() => addFavorite(it.kind === 'heritage'
-                  ? { source: 'heritage', id: it.name, title: it.name }
+                onSave={() => addFavorite(it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
+                  : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
                   : { source: 'tour', id: it.id, title: it.title })} />
             </Col>
           ))}

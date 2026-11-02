@@ -34,6 +34,10 @@ export const fetchNearby = ({ lat, lng, radius = 3000, type = '', lcls = '', xlc
 // 축제 기간 검색: from(YYYY-MM-DD, 기본 오늘) 이후 진행 중이거나 시작하는 행사
 export const fetchFestivals = ({ from = '', to = '', keyword = '', page = 1, rows = 12 }) =>
   get(`/api/tour?mode=festival&from=${from}&to=${to}&keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+// 공연장 (제주도내 공연장 현황 — 파일 데이터를 서버에서 조회)
+export const fetchVenues = (keyword = '', page = 1, rows = 12) =>
+  get(`/api/venue?keyword=${encodeURIComponent(keyword)}&page=${page}&rows=${rows}`)
+export const fetchVenueDetail = (id) => get(`/api/venue?id=${encodeURIComponent(id)}`)
 export const fetchWeather = (place = '제주시') =>
   get(`/api/weather?place=${encodeURIComponent(place)}`)
 export const fetchHeritage = (keyword = '', page = 1, rows = 10) =>

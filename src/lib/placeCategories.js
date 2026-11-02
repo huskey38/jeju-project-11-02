@@ -31,6 +31,7 @@ export const subsOf = (cat) => (cat === 'spot' ? SUBS : cat === 'near' ? NEAR_TY
 
 const TOUR_SPOT = { api: 'tour', type: '12' }
 const HERITAGE = { api: 'heritage' }
+const VENUE = { api: 'venue' }   // 제주도내 공연장 현황 (파일 데이터) — 문화시설에 합침
 
 // 음식점(39)에서 카페(FD05)를 뺀 분류체계 중분류: 한식 FD01, 양식 FD02, 일식·기타 FD03 (FD04 는 제주에 0건)
 const FOOD_LCLS = ['FD01', 'FD02', 'FD03']
@@ -55,12 +56,12 @@ export function sourcesFor(cat, sub = 'all') {
   switch (cat) {
     case 'spot':
       return sub === 'general' ? [TOUR_SPOT] : sub === 'heritage' ? [HERITAGE] : [TOUR_SPOT, HERITAGE]
-    case 'culture': return [{ api: 'tour', type: '14' }]
+    case 'culture': return [{ api: 'tour', type: '14' }, VENUE]
     case 'festival': return [{ api: 'festival' }]            // 기간 검색 (searchFestival2)
     case 'food': return FOOD_LCLS.map((lcls) => ({ api: 'tour', type: '39', lcls }))
     case 'cafe': return [{ api: 'tour', type: '39', lcls: 'FD05' }]
     case 'near': return [{ api: 'near', ...(NEAR_FILTER[sub] ?? NEAR_FILTER.all) }]   // 가까운 순 (locationBasedList2)
-    default: return [...ALL_TOUR_TYPES.map((type) => ({ api: 'tour', type })), HERITAGE]
+    default: return [...ALL_TOUR_TYPES.map((type) => ({ api: 'tour', type })), HERITAGE, VENUE]
   }
 }
 
@@ -75,6 +76,7 @@ const TYPE_LABEL = { 12: '관광지', 14: '문화시설', 15: '축제·행사', 
 // 카드에 붙일 배지 글자 (숙박 유형은 라벨이 없음)
 export function badgeOf(item) {
   if (item.kind === 'heritage') return `국가유산${item.kindName ? `·${item.kindName}` : ''}`
+  if (item.kind === 'venue') return `공연장${item.kindName ? `·${item.kindName}` : ''}`
   if (item.lcls === 'FD05') return '카페'
   return TYPE_LABEL[item.type]
 }

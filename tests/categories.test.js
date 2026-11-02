@@ -19,7 +19,7 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
   it('전체 = 숙박(32)을 뺀 TourAPI 유형들 → 국가유산', () => {
     const s = sourcesFor('all')
     expect(s.filter((x) => x.api === 'tour').map((x) => x.type)).toEqual(['12', '14', '15', '28', '38', '39'])
-    expect(s.at(-1)).toEqual({ api: 'heritage' })
+    expect(s.slice(-2)).toEqual([{ api: 'heritage' }, { api: 'venue' }])   // 국가유산 → 공연장(파일 데이터) 순
     expect(sourcesFor('아무거나')).toEqual(s)
   })
   it('숙박(유형 32)은 어떤 분류에도 없음', () => {
@@ -34,7 +34,7 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
     expect(sourcesFor('spot', 'heritage')).toEqual([{ api: 'heritage' }])
   })
   it('문화시설·카페, 축제는 기간 검색 소스', () => {
-    expect(sourcesFor('culture')).toEqual([{ api: 'tour', type: '14' }])
+    expect(sourcesFor('culture')).toEqual([{ api: 'tour', type: '14' }, { api: 'venue' }])   // 문화시설 → 공연장
     expect(sourcesFor('festival')).toEqual([{ api: 'festival' }])
     expect(sourcesFor('cafe')).toEqual([{ api: 'tour', type: '39', lcls: 'FD05' }])
   })

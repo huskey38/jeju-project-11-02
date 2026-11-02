@@ -44,6 +44,8 @@ tests/      vitest 테스트
 |---|---|
 | `src/components/Jeju3D.jsx` | 3D 장면. **실제 지형**: DEM 높이맵(`public/terrain/height.png`)으로 정점을 올리고 **Sentinel-2 위성사진**(`satellite.jpg`)을 입힘(높이 약 4배 과장). 하늘(drei `Sky`), 바다 평면, 클릭·호버 가능한 핀(관광=주황, 유산=노랑), 마우스 회전·확대(OrbitControls). 높이맵을 못 불러오면 단색 대체 섬을 표시. props: `items`, `selected`, `onSelect`, `height`, `autoRotate` |
 | `src/lib/geo.js` | `toXZ` 위경도→3D 좌표, `isJejuCoord` 제주 범위 좌표 판별, `heightAt` 지면 높이(높이맵 등록 전에는 종 모양 근사), `setHeightField` 높이맵 등록, `TERRAIN` 지형 크기·배율 |
+| `scripts/build-venues.mjs` | 일회성: 제주도내 공연장 현황 CSV(EUC-KR)를 `server/data/venues.js` 로 변환 (`node scripts/build-venues.mjs <csv>`). 이름·개관일 분리, 원본 오탈자·깨진 글자 보정, 주소 정리·지오코딩용 주소 생성 |
+| `scripts/geocode-venues.mjs` | 일회성: 공연장 주소 → 좌표 (`node --env-file=.env scripts/geocode-venues.mjs`). `.env` 의 `KAKAO_REST_KEY`(카카오 REST API 키) 필요. 주소 검색 → 실패하면 장소 검색, 이미 좌표가 있으면 건너뜀 |
 | `scripts/build-terrain.mjs` | 일회성 스크립트(`node scripts/build-terrain.mjs`). AWS Terrain Tiles(Terrarium)와 EOX Sentinel-2 cloudless 2020 타일(z11)을 받아 위경도 선형 격자로 재투영해 `public/terrain/` 에 저장 (`sharp` 사용) |
 | `src/lib/placeCategories.js` | 분류별 데이터 소스 규칙: 음식점 = 한식(FD01)→양식(FD02)→일식·기타(FD03) (카페 FD05 제외), 카페 = FD05, 관광지 = 일반(12)→국가유산, 축제 = 기간 검색, 내 주변 = 위치 기반(유형별 조건), 전체 = **숙박(32)을 뺀** TourAPI 유형들(12·14·15·28·38·39)→국가유산. `advance` 가 다음 쪽/소스 위치를 계산, `subtitleOf`·`fmtDist` 가 카드 부제목(거리·기간·주소) 구성 |
 | `src/components/DetailModal.jsx`, `PlaceMap.jsx` | 상세 팝업(사진 캐러셀·이용정보·소개·지도)과 Leaflet 2D 지도(OpenStreetMap 타일, 핀 1개). 관광·국가유산 페이지가 공유. 좌표가 없으면 지도 대신 안내 문구 |
@@ -57,6 +59,7 @@ tests/      vitest 테스트
 | `weather.js` | 기상청 단기예보 | 제주시·서귀포시 격자, 가장 가까운 발표시각 계산, 6개 시간대 기온/하늘/강수 |
 | `text.js` | 응답 HTML 정리 도구: `htmlToText`(태그 제거, XSS 방지), `extractUrl`(홈페이지 주소만, http/https 만 허용), `fmtDate`, `https` | |
 | `heritage.js` | 국가유산청 | 제주(ccbaCtcd 50) 국가유산 XML 검색 |
+| `venues.js` + `data/venues.js` | 제주도내 공연장 현황 (**파일 데이터**, 공공데이터포털 15096065, 기준일 2021-11-30, 이용허락범위 제한 없음) | API 호출 없이 변환해 둔 34건을 조회 (이름·주소 검색, 쪽 나누기, 상세). 좌표·전화번호가 없어 지도는 지오코딩 후 표시 |
 
 ### 서버 함수 (`api/`)
 | 주소 | 기능 |
@@ -68,6 +71,7 @@ tests/      vitest 테스트
 | `GET /api/tour?mode=festival&from=&to=&keyword=&page=&rows=` | 축제 기간 검색 (`from` 기본 오늘, YYYY-MM-DD) |
 | `GET /api/tour?id=` | 관광지 상세: 소개·이용정보(유형별)·사진·좌표 (`detailCommon2`+`detailIntro2`+`detailImage2`) |
 | `GET /api/heritage?keyword=&page=&rows=` | 국가유산 검색 |
+| `GET /api/venue?keyword=&page=&rows=` / `?id=v1` | 공연장 목록(34건, 이름·주소 검색) / 상세. 없는 id 는 404 |
 | `GET /api/heritage?kdcd=&asno=&ctcd=` | 국가유산 상세: 설명·사진·지정일·소재지 (`SearchKindOpenapiDt`) |
 | `POST /api/agent` | Claude 에이전트 루프(최대 5턴): 도구 5개(`search_tour_places`, `get_weather`, `search_heritage`, `search_nearby`(위치 기반·가까운 순), `search_festivals`(기간 검색)) 호출. 시스템 프롬프트에 오늘 날짜(KST)와 "숙박은 다루지 않는다" 규칙 포함 → 결과 전달 → 최종 답, 사용한 도구 기록(`steps`) 반환. 429 는 안내 메시지 |
 
@@ -75,7 +79,7 @@ tests/      vitest 테스트
 | 경로 | 기능 |
 |---|---|
 | `/` | 소개 + 3D + 동작 체크(React / Supabase / `/api`) + 닉네임(Zustand, localStorage 저장) |
-| `/places` | **분류 버튼**(전체·관광지·문화시설·축제·행사·음식점·카페·**내 주변**) + 관광지 하위 선택(전체·일반·국가유산). 선택은 주소(`?cat=cafe`, `?cat=spot&sub=heritage`, `?cat=near&sub=cafe&r=5`)에 유지. **축제·행사**: 기간(시작일 기본 오늘~종료일) 입력, 카드에 행사 기간 표시. **내 주변**: 브라우저 위치(제주 안이면)·아니면 제주시청 기준, 반경 1/3/5/10km, 유형 선택, 거리순 카드(`286m ·` 표시), 검색창 숨김. 숙박은 어디에도 나오지 않음. 검색어(비우면 전체), 카드, 더 보기(12건씩, 분류의 소스를 순서대로 이어 붙임), 즐겨찾기. **카드 클릭 → 상세 모달**(사진·이용정보·소개·홈페이지·2D 지도). 국가유산 카드는 `국가유산·보물` 같은 배지. (국가유산 별도 메뉴/`/heritage` 페이지는 없어짐) |
+| `/places` | **분류 버튼**(전체·관광지·문화시설·축제·행사·음식점·카페·**내 주변**) + 관광지 하위 선택(전체·일반·국가유산). 선택은 주소(`?cat=cafe`, `?cat=spot&sub=heritage`, `?cat=near&sub=cafe&r=5`)에 유지. **축제·행사**: 기간(시작일 기본 오늘~종료일) 입력, 카드에 행사 기간 표시. **내 주변**: 브라우저 위치(제주 안이면)·아니면 제주시청 기준, 반경 1/3/5/10km, 유형 선택, 거리순 카드(`286m ·` 표시), 검색창 숨김. 숙박은 어디에도 나오지 않음. 검색어(비우면 전체), 카드, 더 보기(12건씩, 분류의 소스를 순서대로 이어 붙임), 즐겨찾기. **카드 클릭 → 상세 모달**(사진·이용정보·소개·홈페이지·2D 지도). 국가유산 카드는 `국가유산·보물` 같은 배지. (국가유산 별도 메뉴/`/heritage` 페이지는 없어짐) **공연장 34건은 문화시설(TourAPI 97건 뒤)과 전체에 합쳐짐**: `공연장·공공/민간` 배지, 상세(소재지·시설구분·공연 형태·개관일·자료 기준일), 좌표가 없으면 지도 대신 안내 문구. 내 주변에는 좌표가 생긴 뒤에 추가 가능 |
 | `/map3d` | 3D 지도 |
 | `/agent` | AI 가이드 채팅, 도구 사용 내역 표시, 대화는 store 에 유지 |
 | `/my` | Supabase 즐겨찾기 목록(닉네임별) |
@@ -101,6 +105,11 @@ tests/      vitest 테스트
 - ✅ 404 페이지
 - ✅ 버전 2: 실제 제주 해안선·한라산 입체 지형과 위성 텍스처 렌더, 핀이 지형 높이 위에 놓임
 - ✅ `npm run build` 성공
+
+### 공연장·맛집 파일 데이터
+- ✅ 공연장 CSV 34건 변환(깨진 글자 0), 문화시설 97 + 공연장 34 = 131건 끝까지 더 보기, 검색('예술의전당' → 문화시설 1 + 공연장 2), 상세 모달. 자동 테스트 `tests/venues.test.js`
+- ⚠ **한국국토정보공사_랜다아이_공사맛집리스트는 반영하지 않음**: 전국 2,013건 중 제주는 3건(전부 카페)이고 메뉴·영업시간·주차·제안수·댓글수 칸이 모두 비어 있어 쓸 정보가 상호·주소뿐 (TourAPI 음식점·카페가 훨씬 풍부)
+- ⏳ 공연장 지도: `.env` 에 `KAKAO_REST_KEY` 를 넣고 `node --env-file=.env scripts/geocode-venues.mjs` 실행 후 좌표가 채워지면 상세 모달에 지도가 나옴 (키 없이는 미확인, 스크립트 로직은 모의 응답으로 테스트)
 
 ### 아직 확인하지 못한 것 (키 필요)
 - 실제 공공데이터 응답(`DATA_GO_KR_KEY`), Supabase 즐겨찾기 저장·조회, 실제 Claude 에이전트 응답, Vercel 배포
