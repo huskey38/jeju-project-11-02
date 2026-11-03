@@ -128,13 +128,13 @@ describe('가본 곳 (visits 테이블)', () => {
     expect(tables.visits[0]).toMatchObject({ nickname: '오름러버#4821', source: 'tour', item_id: '126508', title: '새별오름' })
     expect(tables.favorites).toHaveLength(0)                         // 가볼만한 곳과는 따로 기록
     expect(S().visits.map((v) => v.item_id)).toEqual(['126508'])
-    expect(lastToast().message).toBe('가본 곳에 기록했어요')
+    expect(lastToast().message).toBe('오른 오름에 기록했어요')
   })
   it('toggleVisit: 처음엔 기록, 다시 누르면 뺌, 미로딩이면 먼저 불러와 중복 저장하지 않음', async () => {
     tables.visits.push({ id: 50, nickname: '오름러버#4821', source: 'tour', item_id: '126508', title: '새별오름', created_at: 'x' })
     await S().toggleVisit(oreum)                                      // 이미 있으니 빼는 쪽
     expect(tables.visits).toHaveLength(0)
-    expect(lastToast().message).toBe('가본 곳에서 뺐어요')
+    expect(lastToast().message).toBe('오른 오름에서 뺐어요')
     await S().toggleVisit(oreum)
     expect(tables.visits).toHaveLength(1)
     expect(S().visits).toHaveLength(1)

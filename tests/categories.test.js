@@ -3,7 +3,7 @@ import { CATEGORIES, DEFAULT_CAT, NEAR_CATS, RADII, RECOMMEND_GROUPS, RECOMMEND_
 
 describe('분류 버튼', () => {
   it('오름이 맨 앞·기본 분류, 음식점·카페, 그 뒤에 가볼만한 곳·가본 곳 (관광지·문화시설·축제·전체는 없음)', () => {
-    expect(CATEGORIES.map((c) => c.label)).toEqual(['오름', '음식점', '카페', '가볼만한 곳', '가본 곳'])
+    expect(CATEGORIES.map((c) => c.label)).toEqual(['오름', '음식점', '카페', '가볼만한 곳', '오른 오름'])
   })
   it('하위 선택은 음식점만, 내 주변은 오름·음식점·카페에서 반경 1·3·5km (가볼만한 곳·가본 곳은 내 주변 없음)', () => {
     expect(subsOf('oreum')).toBeNull()
@@ -171,7 +171,7 @@ describe('근처 추천 규칙 (recommendModeOf · RECOMMEND_GROUPS)', () => {
 
 describe('가볼만한 곳 (저장된 목록)', () => {
   it('가볼만한 곳 바로 옆(맨 끝)에 가본 곳, 둘 다 API 소스가 없으며 내 주변·하위 선택 대상이 아님', () => {
-    expect(CATEGORIES.slice(-2)).toEqual([{ key: 'saved', label: '가볼만한 곳' }, { key: 'visited', label: '가본 곳' }])
+    expect(CATEGORIES.slice(-2)).toEqual([{ key: 'saved', label: '가볼만한 곳' }, { key: 'visited', label: '오른 오름' }])
     expect(sourcesFor('visited')).toEqual([])
     expect(subsOf('visited')).toBeNull()
     expect(NEAR_CATS).not.toContain('visited')

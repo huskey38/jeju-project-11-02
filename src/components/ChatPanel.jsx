@@ -39,7 +39,8 @@ export default function ChatPanel({ autoFocus = false, height }) {
       <div className="chat-list" ref={listRef} data-testid="chat-list">
         {messages.length === 0 && (
           <div className="chat-empty">
-            <p className="mb-2">안녕하세요! 제주 오름과 주변 장소·날씨를 공공데이터로 찾아 드려요.</p>
+            <p className="mb-1">안녕하세요, 오름 가이드 오롬이예요! 제주 오름과 주변 장소·날씨를 공공데이터로 찾아 드려요.</p>
+            <p className="small text-muted mb-2" data-testid="oreumi-name-note">‘오롬’은 오름의 제주 옛 방언 이름이에요~</p>
             <div className="d-flex flex-column gap-2 align-items-start">
               {EXAMPLES.map((q) => (
                 <button key={q} type="button" className="chat-example" onClick={() => send(q)} disabled={loading}>{q}</button>

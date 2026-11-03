@@ -42,7 +42,7 @@ function colorAt(meters, out) {
   return out.copy(STOPS.at(-1)[1])
 }
 
-// 단순한 지형: DEM 높이로 정점을 올리고, 높이에 따라 정점 색을 입힘 (질감·법선 지도 없음 → 가볍고 깃발이 잘 보임)
+// 단순한 지형: DEM 높이로 정점을 올리고, 높이에 따라 정점 색을 입힘 (질감·법선 지도 없음 → 가볍고 귤이 잘 보임)
 function Terrain() {
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(TERRAIN.width, TERRAIN.depth, 220, 132)
@@ -112,45 +112,38 @@ function peakOf(x, z) {
   return [bx, bz, by]
 }
 
-// 아직 안 간 오름 = 빈 깃대: 가는 막대 + 끝의 흰 공을 한 번에(InstancedMesh) 그려 돌릴 때 가볍게. 깃발을 꽂으면 이 자리가 채워짐
-const POLE_H = 0.26
+// 아직 안 오른 오름 = 빈 돌받침: 납작한 흰 돌받침을 한 번에(InstancedMesh) 그려 돌릴 때 가볍게. 오르면 이 자리에 귤이 올라감
+const BASE_H = 0.035
 function Dots({ pts, onHover }) {
-  const poles = useRef(), tips = useRef()
+  const bases = useRef()
   useLayoutEffect(() => {
+    const m = bases.current
+    if (!m) return
     const d = new THREE.Object3D()
-    pts.forEach((p, i) => {
-      d.position.set(p.x, p.y + POLE_H / 2, p.z); d.updateMatrix(); poles.current?.setMatrixAt(i, d.matrix)
-      d.position.set(p.x, p.y + POLE_H, p.z); d.updateMatrix(); tips.current?.setMatrixAt(i, d.matrix)
-    })
-    for (const m of [poles.current, tips.current]) if (m) { m.count = pts.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere() }
+    pts.forEach((p, i) => { d.position.set(p.x, p.y + BASE_H / 2, p.z); d.updateMatrix(); m.setMatrixAt(i, d.matrix) })
+    m.count = pts.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere()
   }, [pts])
   if (!pts.length) return null
   return (
-    <>
-      <instancedMesh ref={poles} args={[undefined, undefined, pts.length]} raycast={() => null}>
-        <cylinderGeometry args={[0.006, 0.006, POLE_H, 5]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
-      </instancedMesh>
-      <instancedMesh ref={tips} args={[undefined, undefined, pts.length]}
-        onPointerMove={(e) => { e.stopPropagation(); onHover(pts[e.instanceId] ?? null); document.body.style.cursor = 'pointer' }}
-        onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}>
-        <sphereGeometry args={[0.04, 8, 8]} />
-        <meshBasicMaterial color="#ffffff" />
-      </instancedMesh>
-    </>
+    <instancedMesh ref={bases} args={[undefined, undefined, pts.length]}
+      onPointerMove={(e) => { e.stopPropagation(); onHover(pts[e.instanceId] ?? null); document.body.style.cursor = 'pointer' }}
+      onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}>
+      <cylinderGeometry args={[0.05, 0.062, BASE_H, 10]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+    </instancedMesh>
   )
 }
 
-// 가본 오름: 정상에 현무암 돌탑을 쌓고 감귤색 깃발을 꽂음(바람에 살랑). 처음엔 위에서 떨어져 꽂히고, 발밑엔 금빛 고리가 퍼짐
+// 오른 오름: 정상에 현무암 돌탑을 쌓고 그 위에 감귤 한 알(잎 포함)을 올림. 처음엔 위에서 통통 떨어져 앉고, 귤은 살짝 둥실거리며 발밑에 금빛 고리가 퍼짐
 function Summit({ p, delay, onHover }) {
-  const g = useRef(), flag = useRef(), ring = useRef(), born = useRef(null)
+  const g = useRef(), fruit = useRef(), ring = useRef(), born = useRef(null)
   useFrame(({ clock }) => {
     if (born.current === null) born.current = clock.elapsedTime
     const t = Math.min(1, Math.max(0, clock.elapsedTime - born.current - delay) / 0.7)
     const ease = t === 0 ? 0 : 1 - Math.pow(1 - t, 3) + Math.sin(t * Math.PI) * 0.18
-    g.current.scale.setScalar(ease * 1.4)   // 단순한 지도에서도 깃발이 눈에 띄게 크게
+    g.current.scale.setScalar(ease * 1.5)   // 단순한 지도에서도 귤이 눈에 띄게 크게
     g.current.position.y = p.y + (1 - t) * 0.8
-    if (flag.current) flag.current.rotation.y = Math.sin(clock.elapsedTime * 2.2 + p.x * 3) * 0.25   // 깃발이 바람에 흔들림
+    if (fruit.current) fruit.current.position.y = 0.2 + Math.sin(clock.elapsedTime * 2 + p.x * 3) * 0.012   // 귤이 둥실
     if (ring.current) { const k = (clock.elapsedTime * 0.5 + p.z) % 1; ring.current.scale.setScalar(0.6 + k); ring.current.material.opacity = 0.6 * (1 - k) * (t >= 1 ? 1 : 0) }
   })
   const over = (e) => { e.stopPropagation(); onHover(p); document.body.style.cursor = 'pointer' }
@@ -164,13 +157,13 @@ function Summit({ p, delay, onHover }) {
       <mesh position={[0, 0.025, 0]}><dodecahedronGeometry args={[0.07, 0]} /><meshStandardMaterial color="#3f4147" flatShading /></mesh>
       <mesh position={[0.06, 0.02, 0.03]}><dodecahedronGeometry args={[0.045, 0]} /><meshStandardMaterial color="#55585f" flatShading /></mesh>
       <mesh position={[-0.05, 0.02, -0.03]}><dodecahedronGeometry args={[0.04, 0]} /><meshStandardMaterial color="#4a4d54" flatShading /></mesh>
-      <mesh position={[0, 0.09, 0]}><dodecahedronGeometry args={[0.04, 0]} /><meshStandardMaterial color="#3f4147" flatShading /></mesh>
-      {/* 깃대 + 깃발 */}
-      <mesh position={[0, 0.36, 0]}><cylinderGeometry args={[0.01, 0.012, 0.52, 6]} /><meshStandardMaterial color="#5b4a2f" /></mesh>
-      <group ref={flag} position={[0, 0.56, 0]}>
-        <mesh position={[0.1, -0.02, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.075, 0.2, 3]} /><meshStandardMaterial color="#f08a24" emissive="#f08a24" emissiveIntensity={0.5} /></mesh>
+      <mesh position={[0, 0.085, 0]}><dodecahedronGeometry args={[0.045, 0]} /><meshStandardMaterial color="#3f4147" flatShading /></mesh>
+      {/* 감귤 한 알 + 잎 */}
+      <group ref={fruit} position={[0, 0.2, 0]}>
+        <mesh><sphereGeometry args={[0.095, 16, 14]} /><meshStandardMaterial color="#f08a24" emissive="#f08a24" emissiveIntensity={0.45} roughness={0.6} /></mesh>
+        <mesh position={[-0.03, 0.035, 0.07]}><sphereGeometry args={[0.03, 8, 8]} /><meshBasicMaterial color="#ffd9a0" transparent opacity={0.55} /></mesh>
+        <mesh position={[0.025, 0.1, 0]} rotation={[0, 0, -0.6]} scale={[1.6, 0.5, 1]}><sphereGeometry args={[0.04, 8, 8]} /><meshStandardMaterial color="#6fbf4a" /></mesh>
       </group>
-      <mesh position={[0, 0.63, 0]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#fff3d6" emissive="#ffd9a0" emissiveIntensity={0.8} /></mesh>
     </group>
   )
 }
@@ -308,16 +301,16 @@ export default function OreumJeju3D({ oreums = [], visitedIds = new Set(), heigh
         <Dots pts={todo} onHover={setHover} />
         {visited.map((p) => <Summit key={p.o.id} p={p} delay={order.get(p.o.id) ?? 0} onHover={setHover} />)}
         {hover && (
-          <Html position={[hover.x, hover.y + (isVisited ? 0.95 : POLE_H + 0.12), hover.z]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
+          <Html position={[hover.x, hover.y + (isVisited ? 0.62 : BASE_H + 0.12), hover.z]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
             <div className={`badge ${isVisited ? 'text-bg-warning' : 'text-bg-dark'}`}>
-              {isVisited ? '⛰ 정상 도착 · ' : ''}{hover.o.title}{hover.o.elev ? ` · ${hover.o.elev}m` : ''}
+              {isVisited ? '🍊 정상 도착 · ' : ''}{hover.o.title}{hover.o.elev ? ` · ${hover.o.elev}m` : ''}
             </div>
           </Html>
         )}
         <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.1} minDistance={4} maxDistance={24} />
         <CompassSync roseRef={roseRef} />
       </Canvas>
-      <div className="map-hud" data-testid="map-hud">🚩 <strong>{visited.length}</strong> / {pts.length}<span> · 빈 깃대 {todo.length}</span></div>
+      <div className="map-hud" data-testid="map-hud">🍊 <strong>{visited.length}</strong> / {pts.length}<span> · 빈 자리 {todo.length}</span></div>
       <div className="map-compass" aria-label="나침반: 북쪽 표시" data-testid="map-compass">
         <div className="map-compass-rose" ref={roseRef}>
           <span className="mc-n">북</span><span className="mc-e">동</span><span className="mc-s">남</span><span className="mc-w">서</span>

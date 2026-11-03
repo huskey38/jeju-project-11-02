@@ -4,7 +4,7 @@ import VisitButton from './VisitButton'
 
 // 관광지·유산·즐겨찾기 등 "목록의 한 칸"을 모두 이 카드 하나로 표시합니다 (재사용 컴포넌트)
 // onClick 을 주면 카드 전체가 눌리고(상세 보기), 오른쪽 아래 감귤 버튼은 따로 동작합니다
-// onSave 를 주면 감귤 즐겨찾기 버튼이 생기고, saved 로 담김 여부를 표시합니다. onVisit 를 주면 그 밑에 '가봤어요' 버튼(visited 로 가본 여부)이 생깁니다
+// onSave 를 주면 감귤 즐겨찾기 버튼이 생기고, saved 로 담김 여부를 표시합니다. onVisit 를 주면 그 밑에 '올랐어요' 버튼(visited 로 가본 여부)이 생깁니다
 // art 를 주면 사진이 없을 때 빈 이미지 대신 그 그림(예: 오름 형태 일러스트)을 보여줍니다
 // tag 를 주면({ label, tone }) 사진 왼쪽 위에 색 표식이 붙습니다 (오름 형태)
 // flag 를 주면 사진 오른쪽 위에 '가본 오름' 표식이 붙습니다 (features.js 의 visitedFilter)
@@ -20,7 +20,7 @@ export default function ItemCard({ title, subtitle, image, badge, status, saved 
           ? <Card.Img variant="top" src={image} alt={title} className="item-card-img" loading="lazy" />
           : art ?? <div className="item-card-img placeholder-img"><i className="bi bi-image" /></div>}
         {credit && image && <span className="photo-credit" data-testid="photo-credit">사진 · {credit.replace(/\(.*\)/, '')}</span>}
-        {flag && <span className="visited-flag" data-testid="visited-flag">🚩 가본 오름</span>}
+        {flag && <span className="visited-flag" data-testid="visited-flag">🍊 오른 오름</span>}
         {tag && <span className={`form-tag form-tag-${tag.tone}`} data-testid="form-tag">{tag.label}</span>}
       </div>
       <Card.Body className={`d-flex flex-column${onSave || onVisit ? ' has-fav' : ''}`}>

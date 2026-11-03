@@ -34,7 +34,7 @@ const tierPopover = (p) => (
   </Popover>
 )
 
-// 가본 곳 탭 맨 위: 오름 등반률(가본 오름 ÷ 등록된 오름)과, 가본 오름마다 마크가 하나씩 꽂히는 3D 제주 지도
+// 오른 오름 탭 맨 위: 오름 등반률(오른 오름 ÷ 등록된 오름)과, 오른 오름마다 돌탑 위에 귤이 하나씩 올라가는 3D 제주 지도
 export default function OreumProgress() {
   const visits = useAppStore((s) => s.visits)
   const [oreums, setOreums] = useState(null)
@@ -80,8 +80,8 @@ export default function OreumProgress() {
             </Suspense>
           </div>
           <div className="small text-muted mt-2 d-flex flex-wrap gap-3">
-            <span><span className="oreum-key oreum-key-done" />깃발 꽂은 오름</span>
-            <span><span className="oreum-key oreum-key-todo" />빈 깃대(아직 안 간 오름) {p.remaining}곳</span>
+            <span><span className="oreum-key oreum-key-done" />귤 올린 오름</span>
+            <span><span className="oreum-key oreum-key-todo" />빈 자리(아직 안 오른 오름) {p.remaining}곳</span>
             <span className="ms-auto">마우스로 돌리고 확대해 보세요 · 마크에 올리면 이름이 보여요</span>
           </div>
           {FEATURES.progressBreakdown && <div className="mt-4"><ProgressBreakdown /></div>}

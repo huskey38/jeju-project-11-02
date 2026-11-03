@@ -6,7 +6,7 @@ import ChatPanel from '../components/ChatPanel'
 export default function Agent() {
   return (
     <>
-      <PageHeader icon="robot" title="AI 가이드" subtitle="공공데이터 API를 도구로 쓰는 에이전트" />
+      <PageHeader icon="robot" title="오롬이" subtitle="오름을 안내하는 AI 가이드 — 공공데이터 API를 도구로 쓰는 에이전트" />
       <Card className="chat-box mb-3"><ChatPanel height="65vh" /></Card>
     </>
   )

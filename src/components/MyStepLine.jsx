@@ -18,12 +18,12 @@ export default function MyStepLine({ oreums }) {
           <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
             <span className="fw-bold">내 걸음 <span data-testid="mystep-count">{p.count} / {p.total}곳</span></span>
             <span className="badge tier-badge" data-testid="mystep-tier" style={{ '--tier-bg': '#fde7c9', '--tier-fg': '#9a5208' }}>{p.tier.title}</span>
-            <Link to="/places?cat=visited" className="small ms-auto">가본 곳 보기 →</Link>
+            <Link to="/places?cat=visited" className="small ms-auto">오른 오름 보기 →</Link>
           </div>
           <ProgressBar now={p.percent} className="oreum-bar" aria-label="내 걸음" />
         </>
       ) : (
-        <div className="small"><i className="bi bi-signpost-2 me-1" />아직 첫 걸음 전이에요 — 가고 싶은 오름의 <strong>체크 버튼</strong>을 눌러 첫 깃발을 꽂아 보세요 <span className="text-muted">(처음엔 닉네임을 만들어요)</span></div>
+        <div className="small"><i className="bi bi-signpost-2 me-1" />아직 첫 걸음 전이에요 — 가고 싶은 오름 카드의 <strong>오름 버튼(올랐어요)</strong>을 눌러 첫 귤을 올려 보세요 <span className="text-muted">(처음엔 닉네임을 만들어요)</span></div>
       )}
     </div>
   )

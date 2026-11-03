@@ -35,11 +35,11 @@ export default function NextStep() {
         <i className="bi bi-signpost-split-fill me-2 text-success" />
         {next
           ? <>다음 등급 <strong>{next.tier.title}</strong>까지 <strong className="text-warning-emphasis">{next.needCount}곳</strong> 남았어요 <span className="text-muted small">({next.tier.min}%~ · 총 {next.needTotal}곳)</span></>
-          : <>가장 높은 등급이에요. 남은 <strong>{p.remaining}곳</strong>의 빈 깃대를 채워 보세요</>}
+          : <>가장 높은 등급이에요. 남은 <strong>{p.remaining}곳</strong>의 빈 자리를 귤로 채워 보세요</>}
       </div>
       <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
         <Button size="sm" variant="outline-success" className="rounded-pill px-3" onClick={find} disabled={busy} data-testid="nextstep-find">
-          <i className="bi bi-geo-alt me-1" />{busy ? '찾는 중...' : '내 주변 안 가 본 오름 찾기'}
+          <i className="bi bi-geo-alt me-1" />{busy ? '찾는 중...' : '내 주변 안 오른 오름 찾기'}
         </Button>
         {near?.note && <span className="small text-muted">{near.note}</span>}
       </div>
@@ -48,7 +48,7 @@ export default function NextStep() {
           {near.rows.map((o) => (
             <li key={o.id}><strong>{o.name}</strong><span className="text-muted small"> · {fmtDist(o.dist)}{o.elev ? ` · 표고 ${o.elev}m` : ''}{o.form ? ` · ${o.form.replace(/\(.*\)/, '')}` : ''}</span></li>
           ))}
-          {near.rows.length === 0 && <li className="text-muted">안 가 본 오름이 없어요 🎉</li>}
+          {near.rows.length === 0 && <li className="text-muted">안 오른 오름이 없어요 🎉</li>}
         </ul>
       )}
     </section>

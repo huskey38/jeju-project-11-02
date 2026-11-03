@@ -12,7 +12,7 @@ import VisitPhoto from './VisitPhoto'
 
 // [기능 1] 오름 도감(스탬프 북): 공식 오름을 한 칸씩 — 가본 오름은 컬러 그림 + 방문일 스탬프, 안 간 오름은 회색 윤곽. features.js 의 stampBook
 const PAGE = 24
-const FILTERS = [['all', '전체'], ['done', '가본 오름'], ['todo', '안 간 오름']]
+const FILTERS = [['all', '전체'], ['done', '오른 오름'], ['todo', '안 오른 오름']]
 
 export default function StampBook() {
   const visits = useAppStore((s) => s.visits)
@@ -38,7 +38,7 @@ export default function StampBook() {
         </div>
       </div>
 
-      {rows.length === 0 ? <div className="small text-muted py-3 text-center">{filter === 'done' ? '아직 채운 쪽이 없어요 — 가본 오름에 체크하면 이곳에 스탬프가 찍혀요' : '모든 쪽을 채웠어요!'}</div> : (
+      {rows.length === 0 ? <div className="small text-muted py-3 text-center">{filter === 'done' ? '아직 채운 쪽이 없어요 — 오른 오름에 기록하면 이곳에 스탬프가 찍혀요' : '모든 쪽을 채웠어요!'}</div> : (
         <div className="stamp-grid">
           {rows.slice(0, shown).map((o) => {
             const done = p.visitedIds.has(String(o.id))
@@ -54,7 +54,7 @@ export default function StampBook() {
                   <div className="stamp-meta">{form.key !== 'etc' ? form.label : '기타'}{o.elev ? ` · ${o.elev}m` : ''}</div>
                 </div>
                 {done
-                  ? <div className="stamp-mark" aria-label="가본 오름"><span>{dates.get(String(o.id)) ? fmtDate(dates.get(String(o.id))) : '완료'}</span></div>
+                  ? <div className="stamp-mark" aria-label="오른 오름"><span>{dates.get(String(o.id)) ? fmtDate(dates.get(String(o.id))) : '완료'}</span></div>
                   : <div className="stamp-no">No.{o.id}</div>}
               </div>
             )

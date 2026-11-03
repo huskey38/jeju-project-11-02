@@ -14,6 +14,7 @@ import { isJejuCoord } from '../lib/geo'
 import OreumArt from '../components/OreumArt'
 import { FEATURES } from '../lib/features'
 import VisitPhoto from '../components/VisitPhoto'
+import OreumMark from '../components/OreumMark'
 import { formGroupOf } from '../lib/oreumForms'
 import { useAppStore } from '../store/useAppStore'
 
@@ -287,7 +288,7 @@ export default function Places() {
           <Button key={c.key} className="rounded-pill px-3" variant={cat === c.key ? 'primary' : 'outline-primary'}
             aria-pressed={cat === c.key} onClick={() => pickCat(c.key)}>
             {c.key === 'saved' && <CitrusMark filled size={16} className="citrus-inline" />}
-            {c.key === 'visited' && <i className="bi bi-check-circle-fill me-1" />}
+            {c.key === 'visited' && <OreumMark filled size={17} className="me-1" style={{ verticalAlign: '-3px' }} />}
             {c.label}
             {c.key === 'saved' && favorites.length > 0 && <span className="count-chip" data-testid="saved-count">{favorites.length}</span>}
             {c.key === 'visited' && visits.length > 0 && <span className="count-chip" data-testid="visited-count">{visits.length}</span>}
@@ -332,7 +333,7 @@ export default function Places() {
           ))}
           {FEATURES.visitedFilter && (
             <Button size="sm" className="rounded-pill px-2" variant={unvisited ? 'success' : 'outline-success'} aria-pressed={unvisited} onClick={pickUnvisited} data-testid="unvisited-toggle">
-              <i className="bi bi-flag me-1" />안 가 본 오름만
+              <OreumMark size={15} className="me-1" style={{ verticalAlign: '-3px' }} />안 오른 오름만
             </Button>
           )}
           {!nearOn && (
@@ -362,7 +363,7 @@ export default function Places() {
       {listMode && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
           <span className="text-muted">
-            {cat === 'visited' ? `가본 곳 ${visits.length}곳 · 카드의 체크를 누르면 빠져요` : `가볼만한 곳 ${favorites.length}곳 · 카드의 감귤을 누르면 빠져요`}
+            {cat === 'visited' ? `오른 오름 ${visits.length}곳 · 카드의 오름 버튼을 누르면 빠져요` : `가볼만한 곳 ${favorites.length}곳 · 카드의 감귤을 누르면 빠져요`}
           </span>
           <span className="ms-auto" data-testid="my-nickname">
             {nickname
@@ -376,7 +377,7 @@ export default function Places() {
       {(!nearOn || cat === 'oreum') && (
         <Form onSubmit={search} className="mt-3 mb-4">
           <InputGroup>
-            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'visited' ? '가본 곳에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
+            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'visited' ? '오른 오름에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
             <Button type="submit"><i className="bi bi-search" /></Button>
           </InputGroup>
           {MENU_WORDS[cat] && (
@@ -396,7 +397,7 @@ export default function Places() {
 
       {listMode ? (
         (cat === 'visited' ? visitLoading : favLoading) ? <Loading /> : savedItems.length === 0
-          ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 가본 곳이 없어요 — 카드의 체크 버튼을 눌러 기록해 보세요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
+          ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 오른 오름이 없어요 — 오름 카드의 오름 버튼(올랐어요)을 눌러 기록해 보세요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
           : (
             <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'visited' ? 'visited-list' : 'saved-list'}>
               {savedItems.map((f) => (

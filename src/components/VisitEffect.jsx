@@ -4,7 +4,7 @@ import { useOreums } from '../lib/useOreums'
 import { useAppStore } from '../store/useAppStore'
 import TierEmblem from './TierEmblem'
 
-// [기능 4] 깃발 꽂는 순간 연출: 가본 곳에 오름을 새로 기록하면 "N번째 오름 정상 도착!" 카드가 뜨고, 등급이 오르면 엠블럼과 함께 축하 효과. features.js 의 visitEffect
+// [기능 4] 귤 올리는 순간 연출: 가본 곳에 오름을 새로 기록하면 "N번째 오름 정상 도착!" 카드가 뜨고, 등급이 오르면 엠블럼과 함께 축하 효과. features.js 의 visitEffect
 // 스토어의 lastVisit(기록 직후 한 번 바뀜)을 보고 움직이며, 처음 불러오기·삭제·오름 아닌 기록에는 반응하지 않음
 const SHOW_MS = 4200
 const PIECES = Array.from({ length: 16 }, (_, i) => i)
@@ -40,7 +40,7 @@ export default function VisitEffect() {
       {fx.up && <div className="fx-confetti" aria-hidden="true">{PIECES.map((i) => <span key={i} style={{ '--i': i }} />)}</div>}
       <TierEmblem level={fx.level} size={fx.up ? 72 : 52} title={fx.tier.title} />
       <div className="fx-text">
-        <div className="fx-title">🚩 {fx.count}번째 오름{fx.title ? ` · ${fx.title}` : ''} 정상 도착!</div>
+        <div className="fx-title">🍊 {fx.count}번째 오름{fx.title ? ` · ${fx.title}` : ''} 정상 도착!</div>
         <div className="fx-sub" data-testid="visit-fx-sub">{fx.up ? <>등급 UP! <strong>{fx.tier.title}</strong></> : `${fx.total - fx.count}곳 남았어요 — 다음 걸음도 응원해요`}</div>
       </div>
     </div>

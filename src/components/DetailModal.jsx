@@ -5,6 +5,7 @@ import NearbyRecs from './NearbyRecs'
 import PlaceWeather from './PlaceWeather'
 import NearbyPoi from './NearbyPoi'
 import { CitrusMark } from './JejuScene'
+import OreumMark from './OreumMark'
 import { ErrorAlert, Loading } from './Status'
 import { isJejuCoord } from '../lib/geo'
 import { kakaoLinks } from '../lib/kakao'
@@ -104,7 +105,7 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
         <Modal.Footer>
           {onVisit && (
             <Button variant={visited ? 'success' : 'outline-success'} onClick={onVisit} aria-pressed={visited} data-testid="modal-visit">
-              <i className={`bi bi-${visited ? 'check-circle-fill' : 'check-circle'} me-1`} />{visited ? '가본 곳에서 빼기' : '가봤어요'}
+              <OreumMark filled={visited} size={20} className="me-1" style={{ verticalAlign: '-4px' }} />{visited ? '오른 오름에서 빼기' : '올랐어요'}
             </Button>
           )}
                     {onSave && <Button variant={saved ? 'outline-secondary' : 'outline-primary'} onClick={onSave} aria-pressed={saved} data-testid="modal-fav">

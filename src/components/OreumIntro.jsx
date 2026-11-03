@@ -14,9 +14,9 @@ const FORM_DESC = {
 }
 const USES = [
   ['bi-search', '오름 찾기', '형태·표고순·내 주변으로 골라 보세요'],
-  ['bi-check2-circle', '가본 곳 체크', '체크할 때마다 등반률이 오르고 칭호가 바뀌어요'],
-  ['bi-geo-alt', '3D 제주 지도', '가본 오름마다 깃발이 하나씩 꽂혀요'],
-  ['bi-chat-dots', 'AI 가이드', '"가장 높은 오름은?" 처럼 물어보세요'],
+  ['bi-flag-fill', '오른 오름 기록', '체크할 때마다 등반률이 오르고 칭호가 바뀌어요'],
+  ['bi-geo-alt', '3D 제주 지도', '오른 오름마다 귤이 하나씩 올라가요'],
+  ['bi-chat-dots', 'AI 가이드 오롬이', '"가장 높은 오름은?" 처럼 물어보세요'],
 ]
 
 export default function OreumIntro() {

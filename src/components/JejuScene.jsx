@@ -32,7 +32,7 @@ export function CitrusMark({ filled = false, size = 22, className = '' }) {
   )
 }
 
-// 돌하르방 캐릭터: 벙거지 모자 · 크고 둥근 눈 · 넓적한 코 · 미소 · 현무암 구멍 무늬 (AI 가이드의 얼굴)
+// 돌하르방 캐릭터: 벙거지 모자 · 크고 둥근 눈 · 넓적한 코 · 미소 · 현무암 구멍 무늬 (홈 히어로 장식. AI 가이드의 얼굴은 Oreumi.jsx)
 export function DolHareubang({ size = 40, className = '', ...rest }) {
   const stone = '#9b968e', stoneDark = '#77726b', stoneLight = '#aaa59c', ink = '#3b3733'
   return (

@@ -15,7 +15,7 @@ export const CATEGORIES = [
   { key: 'food', label: '음식점' },
   { key: 'cafe', label: '카페' },
   { key: 'saved', label: '가볼만한 곳' },   // 감귤로 담아 둔 곳 (예전 '내 즐겨찾기') — API 가 아니라 저장된 목록을 보여줌
-  { key: 'visited', label: '가본 곳' },     // '가봤어요'로 기록해 둔 곳 (Supabase visits) — 가볼만한 곳 옆, 저장된 목록을 보여줌
+  { key: 'visited', label: '오른 오름' },   // '올랐어요'로 기록해 둔 곳 (Supabase visits) — 가볼만한 곳 옆, 저장된 목록을 보여줌
 ]
 
 // '음식점' 안의 종류 선택: biz = 행정안전부 일반음식점의 '업태구분명', lcls = 관광공사 분류체계 코드 (한식=중분류 FD01, 그 밖은 소분류).

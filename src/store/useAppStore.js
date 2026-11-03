@@ -110,7 +110,7 @@ export const useAppStore = create(
           .order('created_at', { ascending: false })
         set({ visitLoading: false })
         // visits 테이블을 아직 안 만들었으면 알아볼 수 있게 안내 (README 의 SQL 로 만들기)
-        if (error) return get().toast(/visits/.test(error.message) && /(schema cache|does not exist)/.test(error.message) ? '가본 곳 기능에는 Supabase visits 테이블이 필요해요 — README 의 SQL 을 실행해 주세요' : error.message, 'warning')
+        if (error) return get().toast(/visits/.test(error.message) && /(schema cache|does not exist)/.test(error.message) ? '오른 오름 기능에는 Supabase visits 테이블이 필요해요 — README 의 SQL 을 실행해 주세요' : error.message, 'warning')
         set({ visits: data, visitLoaded: true })
       },
       addVisit: async ({ source, id, title }) => {
@@ -120,15 +120,15 @@ export const useAppStore = create(
         const { data, error } = await supabase.from('visits').insert(row).select().single()
         if (error) return get().toast(error.message, 'danger')
         set({ visits: [data, ...get().visits], lastVisit: { source, item_id: String(id), title, at: Date.now() } })
-        get().toast('가본 곳에 기록했어요')
+        get().toast('오른 오름에 기록했어요')
       },
       removeVisit: async (row) => {
         if (!supabase) return get().toast('Supabase 설정(.env.local)이 필요해요', 'warning')
         const { data, error } = await supabase.from('visits').delete().eq('id', row.id).select()
         if (error) return get().toast(error.message, 'danger')
-        if (!data?.length) return get().toast('가본 곳에서 빼지 못했어요 — Supabase visits 테이블에 delete 정책이 필요해요', 'danger')
+        if (!data?.length) return get().toast('오른 오름에서 빼지 못했어요 — Supabase visits 테이블에 delete 정책이 필요해요', 'danger')
         set({ visits: get().visits.filter((v) => v.id !== row.id) })
-        get().toast('가본 곳에서 뺐어요')
+        get().toast('오른 오름에서 뺐어요')
       },
       // '가봤어요' 버튼: 이미 기록돼 있으면 빼고, 아니면 기록
       toggleVisit: async (item) => {
