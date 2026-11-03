@@ -5,17 +5,15 @@ import ItemCard from '../components/ItemCard'
 import DetailModal from '../components/DetailModal'
 import { CitrusMark } from '../components/JejuScene'
 import OreumProgress from '../components/OreumProgress'
-import { FORM_GROUPS } from '../lib/oreumForms'
 import { Empty, ErrorAlert, Loading } from '../components/Status'
 import { fetchHeritage, fetchHeritageDetail, fetchNearby, fetchPlaceDetail, fetchPlaces, fetchRestaurantDetail, fetchRestaurants, fetchOreum, fetchOreumById, fetchVenueDetail } from '../api/client'
 import { TAG_RULES } from '../lib/placeTags'
-import { CATEGORIES, DEFAULT_CAT, MENU_WORDS, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf } from '../lib/placeCategories'
+import { CATEGORIES, DEFAULT_CAT, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import OreumArt from '../components/OreumArt'
 import { FEATURES } from '../lib/features'
 import VisitPhoto from '../components/VisitPhoto'
 import OreumMark from '../components/OreumMark'
-import FormPreview from '../components/FormPreview'
 import Pager from '../components/Pager'
 import { savedKey, useSavedPreviews } from '../lib/useSavedPreviews'
 import { pageCount } from '../lib/paging'
@@ -26,7 +24,10 @@ const ROWS = 12   // 한 번에 가져오는 개수 (더 보기로 다음 쪽)
 const CITY_HALL = { lat: 33.4996, lng: 126.5312 }   // 위치를 못 얻을 때 기준 (제주시청)
 // 가볼만한 곳(저장된 행)에 붙이는 종류 배지
 const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', venue: '공연장', rest: '일반음식점', oreum: '오름' }
-const SORTS = [{ key: '', label: '이름순' }, { key: 'elev', label: '표고 높은 순' }, { key: 'elev_asc', label: '표고 낮은 순' }]   // 오름 정렬 (내 주변을 켜면 가까운 순)
+const SORTS = [{ key: '', label: '추천순' }, { key: 'name', label: '이름순' }, { key: 'elev', label: '표고 높은 순' }, { key: 'elev_asc', label: '표고 낮은 순' }]   // 오름 정렬 ('' = 추천순이 기본, 내 주변을 켜면 가까운 순)
+// 화면에서만 뺀 테마 칩(규칙·AI 가이드의 검색 조건은 그대로): 오름의 '분화구·굼부리'
+const HIDDEN_TAGS = { oreum: ['crater'] }
+const serverSort = (so) => (so === '' ? 'recommend' : so === 'name' ? '' : so)   // 화면의 정렬 키 → 서버 정렬 값
 // 목록 항목 → 즐겨찾기 키 (favorites 테이블의 source·item_id 와 같은 규칙)
 const favOf = (it) => it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
   : it.kind === 'venue' ? { source: 'venue', id: it.id, title: it.title }
@@ -91,12 +92,15 @@ export default function Places() {
   const cat = valid(CATEGORIES, params.get('cat'), DEFAULT_CAT)   // 기본은 오름
   const subs = subsOf(cat)
   const sub = parseSub(cat, params.get('sub'))   // 음식점 종류(하나)
-  const canNear = NEAR_CATS.includes(cat)
+  const canNear = NEAR_CATS.includes(cat) && cat !== 'oreum'   // '내 주변' 반경은 음식점·카페에서만 (오름 찾기에서는 뺌)
   const radiusKm = canNear && RADII.includes(Number(params.get('r'))) ? Number(params.get('r')) : 0   // 0 = 내 주변을 안 씀(제주 전체)
   const nearOn = radiusKm > 0
-  const tags = nearOn && cat !== 'oreum' ? [] : parseTags(cat, params.get('t'))   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
-  const form = cat === 'oreum' && FORM_GROUPS.some((g) => g.key === params.get('fm')) ? params.get('fm') : ''   // 오름 형태 (원추형·원형·말굽형·복합형)
-  const sort = cat === 'oreum' && ['elev', 'elev_asc'].includes(params.get('so')) ? params.get('so') : ''                                    // 오름 정렬
+  // 오름 상세의 '근처 음식점·카페 더 보기'로 넘어오면 내 위치 대신 그 오름을 기준으로 가까운 순 (?ol=위도&og=경도&on=이름)
+  const oLat = Number(params.get('ol')), oLng = Number(params.get('og'))
+  const origin = (cat === 'food' || cat === 'cafe') && nearOn && params.get('ol') && isJejuCoord(oLat, oLng) ? { lat: oLat, lng: oLng, name: (params.get('on') || '').slice(0, 30) || '선택한 곳' } : null
+  const tags = nearOn ? [] : parseTags(cat, params.get('t')).filter((t) => !HIDDEN_TAGS[cat]?.includes(t))   // 테마 태그 (내 주변과는 함께 쓰지 않음)   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
+  const form = ''   // 형태 필터 칩은 없앰(카드의 형태 배지·소개 박스의 형태 카드로 대신함) — 주소의 ?fm= 도 쓰지 않음
+  const sort = cat === 'oreum' && ['name', 'elev', 'elev_asc'].includes(params.get('so')) ? params.get('so') : ''                                    // 오름 정렬
   const unvisited = FEATURES.visitedFilter && cat === 'oreum' && params.get('nv') === '1'                                                    // 안 가 본 오름만
 
   const [keyword, setKeyword] = useState('')
@@ -104,7 +108,8 @@ export default function Places() {
   const savedRows = cat === 'visited' ? visits : favorites
   const previews = useSavedPreviews(listMode ? savedRows : [])   // 가볼만한 곳·오른 오름 카드의 사진·형태·출처
   const savedItems = savedRows.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 검색어가 있으면 제목으로 거름
-  const [coords, setCoords] = useState(null)             // 내 주변 기준 좌표 { lat, lng, note? }
+  const originCoords = (o) => ({ lat: o.lat, lng: o.lng, note: `${o.name} 기준 · 가까운 순`, fromOrigin: true })
+  const [coords, setCoords] = useState(origin ? originCoords(origin) : null)             // 내 주변 기준 좌표 { lat, lng, note? }
   const [locating, setLocating] = useState(false)
   const [items, setItems] = useState([])                 // ① 데이터
   const [loading, setLoading] = useState(true)           // ② 로딩
@@ -124,25 +129,33 @@ export default function Places() {
   const reqId = useRef(0)                                // 분류를 빠르게 바꿀 때 늦게 온 이전 응답을 버리기 위한 번호
 
   // 현재 위치 → 제주 안이면 그 좌표, 아니면(권한 거부·제주 밖·미지원) 제주시청 기준
-  function locate() {
+  const originRef = useRef(origin)
+  originRef.current = origin
+  function locate(force = false) {   // force: '내 위치 기준으로 보기'처럼 오름 기준을 일부러 벗어날 때
     setLocating(true)
-    const fallback = (note) => { setCoords({ ...CITY_HALL, note }); setLocating(false) }
+    const skip = () => !force && originRef.current   // 오름 기준으로 열린 화면에서는 늦게 도착한 내 위치가 기준을 덮어쓰지 않게 함
+    const fallback = (note) => { if (!skip()) setCoords({ ...CITY_HALL, note }); setLocating(false) }
     if (!navigator.geolocation) return fallback('위치 기능을 쓸 수 없어 제주시청 기준이에요')
     navigator.geolocation.getCurrentPosition(
       ({ coords: c }) => {
-        if (isJejuCoord(c.latitude, c.longitude)) { setCoords({ lat: c.latitude, lng: c.longitude }); setLocating(false) }
+        if (isJejuCoord(c.latitude, c.longitude)) { if (!skip()) setCoords({ lat: c.latitude, lng: c.longitude }); setLocating(false) }
         else fallback('현재 위치가 제주 밖이라 제주시청 기준이에요')
       },
       () => fallback('위치 권한이 없어 제주시청 기준이에요'),
       { timeout: 8000 },
     )
   }
-  useEffect(() => { if (nearOn && !coords && !locating) locate() }, [nearOn])
+  // 오름 기준으로 들어오면 그 좌표를 쓰고, 그 기준이 사라졌는데(다른 탭으로 감) 좌표가 오름 것이면 비워서 내 위치를 다시 찾음
+  useEffect(() => {
+    if (origin) setCoords(originCoords(origin))
+    else setCoords((c) => (c?.fromOrigin ? null : c))
+  }, [origin?.lat, origin?.lng, origin?.name])
+  useEffect(() => { if (nearOn && !coords && !locating && !origin) locate() }, [nearOn, !!coords])
 
   // 오름 탭: 조건에 맞는 오름을 한 번에 받아(최대 400) 쪽으로 나눔 → 1·2·3… 쪽 번호로 바로 이동하거나, 더 보기로 다음 쪽을 이어 붙임
   //   p: 보여 줄 쪽, append: 더 보기(이어 붙이기) 여부
   async function loadOreum(p, { append = false, kw = keyword } = {}) {
-    const src = sourcesFor(cat, sub, nearOn, tags, { form, sort })[0]
+    const src = sourcesFor(cat, sub, nearOn, tags, { form, sort: serverSort(sort) })[0]
     const key = JSON.stringify([kw, form, tags, sort, nearOn ? [coords?.lat, coords?.lng, radiusKm] : 0])
     const id = append ? reqId.current : ++reqId.current
     append ? setMoreLoading(true) : setLoading(true)
@@ -174,7 +187,7 @@ export default function Places() {
     if (cat === 'saved' || cat === 'visited') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳·가본 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
     if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
     if (cat === 'oreum') return loadOreum(reset ? 1 : pageNo + 1, { append: !reset, kw })
-    const sources = sourcesFor(cat, sub, nearOn, tags, { form, sort })
+    const sources = sourcesFor(cat, sub, nearOn, tags, { form, sort: serverSort(sort) })
     const ctx = { keyword: kw, coords, radiusKm, unvisited, visitedKeys: new Set(visits.map((v) => `${v.source}:${v.item_id}`)) }
     const id = reset ? ++reqId.current : reqId.current
     let cur = reset ? { i: 0, page: 1 } : cursor.current
@@ -206,31 +219,32 @@ export default function Places() {
   // 분류·하위 선택·반경·기준 위치가 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
   useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, tags.join(','), form, sort, unvisited])
 
-  // 인기 메뉴 바로가기: 누르면 그 단어로 바로 검색, 다시 누르면 해제
-  function pickWord(w) {
-    const next = keyword === w ? '' : w
-    setKeyword(next)
-    load(true, next)
-  }
   function search(e) {
     e.preventDefault()                                   // 폼 제출 시 새로고침 막기
     load(true)
   }
   // 주소(?cat=&sub=&r=) 만들기: 반경(r)은 분류를 옮겨도 유지됨
-  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags, fm = form, so = sort, nv = unvisited }) => ({ ...(nv && c === 'oreum' && { nv: '1' }), ...(fm && c === 'oreum' && { fm }), ...(so && c === 'oreum' && { so }), ...(c !== DEFAULT_CAT && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
+  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags, fm = form, so = sort, nv = unvisited, or = origin }) => ({ ...(or && r > 0 && (c === 'food' || c === 'cafe') && { ol: String(or.lat), og: String(or.lng), on: or.name }), ...(nv && c === 'oreum' && { nv: '1' }), ...(fm && c === 'oreum' && { fm }), ...(so && c === 'oreum' && { so }), ...(c !== DEFAULT_CAT && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && c !== 'oreum' && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
   // 음식점·카페 등: 번호로 한 쪽만 보는 중이면 그 쪽의 카드만
   const shownItems = cat !== 'oreum' && viewPage ? items.slice(viewPage > 1 ? pageEnds[viewPage - 2] : 0, pageEnds[viewPage - 1]) : items
   const jumpTop = () => setTimeout(() => document.querySelector('[data-testid=place-list]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   const subOn = (key) => sub === key
   function pickCat(key) {
-    if (Object.values(MENU_WORDS).flat().includes(keyword)) setKeyword('')   // 인기 메뉴로 넣은 검색어는 다른 분류로 가져가지 않음
     setParams(urlOf({ c: key, sb: 'all', tg: [], fm: '', so: '', nv: false }))
   }
-  function pickForm(key) { setParams(urlOf({ fm: key === form ? '' : key })) }   // 켜진 형태를 다시 누르면 해제
   function pickSort(key) { setParams(urlOf({ so: key })) }
   function pickUnvisited() { setParams(urlOf({ nv: !unvisited })) }
   function pickTag(key) { setParams(urlOf({ tg: toggleTag(tags, key) })) }
   function pickSub(key) { setParams(urlOf({ sb: toggleSub(cat, sub, key) })) }
+  // 상세의 '근처 음식점·카페 더 보기': 그 오름을 기준으로 한 음식점·카페 탭(가까운 순)으로 이동
+  function goNear(kind, km, at) {
+    const r = RADII.includes(km) ? km : RADII.at(-1)
+    closeDetail()
+    setKeyword('')
+    setParams(urlOf({ c: kind, sb: 'all', tg: [], fm: '', so: '', nv: false, r, or: { lat: at.lat, lng: at.lng, name: at.name } }))
+    setTimeout(() => document.querySelector('[data-testid=home-places]')?.scrollIntoView({ behavior: 'smooth' }), 120)
+  }
+  function findMine() { setParams(urlOf({ or: null })); locate(true) }   // 오름 기준을 벗어나 내 위치 기준으로
   function pickRadius(km) { setParams(urlOf({ r: km === radiusKm ? 0 : km })) }   // 켜진 반경을 다시 누르면 해제
 
   // 카드 클릭 → 목록 정보를 먼저 보여주고 상세를 불러옴
@@ -286,6 +300,9 @@ export default function Places() {
     const recommend = mode && {
       mode, excludeId: b.kind === 'tour' ? b.id : undefined,
       onPick: (p) => openDetail({ ...p, kind: 'tour', key: `t-${p.id}` }, { fromRec: true }),
+      onMore: mode === 'spot' && Number.isFinite(Number(d?.lat ?? b.lat)) && Number.isFinite(Number(d?.lng ?? b.lng))
+        ? (kind, km) => goNear(kind, km, { lat: Number(d?.lat ?? b.lat), lng: Number(d?.lng ?? b.lng), name: d?.name ?? b.name ?? b.title ?? '' })
+        : undefined,
     }
     const common = {
       show: true, onHide: closeDetail, loading: !d && !detail.error, error: detail.error, badge: badgeOf({ ...b, type: d?.type ?? b.type }),
@@ -366,10 +383,13 @@ export default function Places() {
                 <i className="bi bi-geo-alt me-1" />
                 {locating ? '위치를 찾는 중...' : coords?.note ?? '내 현재 위치 기준 · 가까운 순'}
               </span>
-              <Button size="sm" variant="link" className="p-0" onClick={locate} disabled={locating}>내 위치 다시 찾기</Button>
+              <Button size="sm" variant="link" className="p-0" onClick={findMine} disabled={locating}>{origin ? '내 위치 기준으로 보기' : '내 위치 다시 찾기'}</Button>
             </>
           )}
         </div>
+      )}
+      {(cat === 'food' || cat === 'cafe') && !nearOn && (
+        <div className="small text-muted ps-1 mb-2" data-testid="food-link-note"><i className="bi bi-info-circle me-1" />제주 전체 {cat === 'food' ? '음식점이에요' : '카페예요'}. 오름 근처만 보려면 <strong>오름 카드를 열어 ‘근처 {cat === 'food' ? '음식점' : '카페'}’의 더 보기</strong>를 눌러 보세요.</div>
       )}
       {subs && (
         <div className="d-flex flex-wrap gap-2 mb-2 ps-1" role="group" aria-label="음식 종류">
@@ -380,41 +400,17 @@ export default function Places() {
         </div>
       )}
 
-      {cat === 'oreum' && (
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="오름 형태" data-testid="form-bar">
-          <span className="text-muted"><i className="bi bi-hexagon me-1" />형태</span>
-          {FORM_GROUPS.map((g) => (
-            <FormPreview key={g.key} group={g.key}>
-              <Button size="sm" className="rounded-pill px-2" variant={form === g.key ? 'info' : 'outline-info'}
-                aria-pressed={form === g.key} onClick={() => pickForm(g.key)}>{g.label}</Button>
-            </FormPreview>
-          ))}
-          {FEATURES.visitedFilter && (
-            <Button size="sm" className="rounded-pill px-2" variant={unvisited ? 'success' : 'outline-success'} aria-pressed={unvisited} onClick={pickUnvisited} data-testid="unvisited-toggle">
-              <OreumMark size={15} className="me-1" style={{ verticalAlign: '-3px' }} />안 오른 오름만
-            </Button>
-          )}
-          {!nearOn && (
-            <span className="ms-auto d-flex align-items-center gap-1" role="group" aria-label="정렬" data-testid="sort-bar">
-              <span className="text-muted"><i className="bi bi-sort-down me-1" />정렬</span>
-              {SORTS.map((o) => (
-                <Button key={o.key} size="sm" variant="link" className={`p-0 me-1 ${sort === o.key ? 'fw-bold' : 'text-muted'}`} aria-pressed={sort === o.key} onClick={() => pickSort(o.key)}>{o.label}</Button>
-              ))}
-            </span>
-          )}
-        </div>
-      )}
-
-      {TAG_RULES[cat] && (!nearOn || cat === 'oreum') && (
+      {TAG_RULES[cat] && !nearOn && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="테마" data-testid="tag-bar">
           <span className="text-muted"><i className="bi bi-tags me-1" />{cat === 'oreum' ? '소개글 특징(관광공사 등록 오름)' : '테마'}</span>
-          {TAG_RULES[cat].map((t) => (
+          {TAG_RULES[cat].filter((t) => !HIDDEN_TAGS[cat]?.includes(t.key)).map((t) => (
             <Button key={t.key} size="sm" className="rounded-pill px-2" variant={tags.includes(t.key) ? 'info' : 'outline-info'}
               aria-pressed={tags.includes(t.key)} onClick={() => pickTag(t.key)}>{t.label}</Button>
           ))}
           {tags.length > 0 && <Button size="sm" variant="link" className="p-0" onClick={() => setParams(urlOf({ tg: [] }))}>테마 해제</Button>}
         </div>
       )}
+
 
       {listMode && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
@@ -434,21 +430,34 @@ export default function Places() {
       {cat === 'visited' && <OreumProgress />}
 
       {(!nearOn || cat === 'oreum') && (
-        <Form onSubmit={search} className="mt-3 mb-4">
+        <Form onSubmit={search} className={`mt-3 ${cat === 'oreum' ? 'mb-2' : 'mb-4'}`}>
           <InputGroup>
             <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '담아둔 곳에서 검색' : cat === 'visited' ? '오른 오름에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
             <Button type="submit"><i className="bi bi-search" /></Button>
           </InputGroup>
-          {MENU_WORDS[cat] && (
-            <div className="d-flex flex-wrap align-items-center gap-2 mt-2 ps-1 small" role="group" aria-label="인기 메뉴" data-testid="menu-words">
-              <span className="text-muted">인기 메뉴</span>
-              {MENU_WORDS[cat].map((w) => (
-                <Button key={w} size="sm" className="rounded-pill px-2" variant={keyword === w ? 'info' : 'outline-info'}
-                  aria-pressed={keyword === w} onClick={() => pickWord(w)}>{w}</Button>
-              ))}
-            </div>
-          )}
         </Form>
+      )}
+      {cat === 'oreum' && (
+        <div className="mb-4">
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-1 ps-1 small" data-testid="form-bar">
+          {!nearOn && (
+            <span className="d-flex align-items-center gap-1" role="group" aria-label="정렬" data-testid="sort-bar">
+              <span className="text-muted"><i className="bi bi-sort-down me-1" />정렬</span>
+              {SORTS.map((o) => (
+                <Button key={o.key} size="sm" variant="link" className={`p-0 me-1 ${sort === o.key ? 'fw-bold' : 'text-muted'}`} aria-pressed={sort === o.key} onClick={() => pickSort(o.key)}>{o.label}</Button>
+              ))}
+            </span>
+          )}
+          {cat === 'oreum' && FEATURES.visitedFilter && (
+            <Button size="sm" className="rounded-pill px-2 ms-auto" variant={unvisited ? 'success' : 'outline-success'} aria-pressed={unvisited} onClick={pickUnvisited} data-testid="unvisited-toggle">
+              <OreumMark size={15} className="me-1" style={{ verticalAlign: '-3px' }} />안 오른 오름만
+            </Button>
+          )}
+          </div>
+      {cat === 'oreum' && !nearOn && sort === '' && !keyword.trim() && (
+        <div className="small text-muted ps-1 mb-0" data-testid="sort-note"><i className="bi bi-stars me-1" />추천순 — 널리 알려진 <strong>대표 오름 12곳</strong>이 먼저, 이어서 사진이 있고 <strong>가볍게 오를 수 있는(400m 이하)</strong> 오름 순이에요.</div>
+      )}
+        </div>
       )}
       {nearOn && cat !== 'oreum' && <div className="mb-3" />}
 

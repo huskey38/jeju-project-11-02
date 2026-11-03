@@ -7,7 +7,7 @@ import { RECOMMEND_GROUPS, RECOMMEND_RADII, fmtDist } from '../lib/placeCategori
 //   mode 'spot' → 근처 음식점 · 카페 / mode 'food' → 근처 관광지
 // onPick(item) 을 누르면 그 곳의 상세로 넘어감 (호출하는 쪽이 처리)
 // onData(markers, radiusKm): 불러온 추천을 지도 핀으로 그릴 수 있게 부모에게 넘김 (카카오 지도에 핀·반경 원으로 표시)
-export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }) {
+export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData, onMore }) {   // onMore(그룹키, 반경km): 그 그룹의 목록 탭(음식점·카페)을 이 곳 기준으로 열기
   const groups = RECOMMEND_GROUPS[mode] ?? []
   const [radius, setRadius] = useState(RECOMMEND_RADII[0])
   const [state, setState] = useState({ loading: true, lists: {}, errors: {} })
@@ -52,7 +52,12 @@ export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }
 
       {!state.loading && groups.map((g) => (
         <div key={g.key} className="mb-3" data-testid={`recs-${g.key}`}>
-          <div className="small fw-bold mb-2 text-body-secondary"><i className={`bi bi-${g.icon} me-1`} />{g.title}</div>
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="small fw-bold text-body-secondary"><i className={`bi bi-${g.icon} me-1`} />{g.title}</div>
+            {onMore && state.lists[g.key]?.length > 0 && (
+              <Button variant="link" size="sm" className="p-0" onClick={() => onMore(g.key, radius)} data-testid={`recs-more-${g.key}`}>{g.title.replace('근처 ', '')} 더 보기 <i className="bi bi-arrow-right" /></Button>
+            )}
+          </div>
           {state.errors[g.key] ? <div className="small text-danger">{state.errors[g.key]}</div>
             : !state.lists[g.key]?.length ? <div className="small text-muted">반경 {radius}km 안에는 없어요
                 {wider && total > 0 && <Button variant="outline-primary" size="sm" className="rounded-pill ms-2 py-0 px-2" onClick={() => setRadius(wider)}>{wider}km로 넓혀서 찾기</Button>}

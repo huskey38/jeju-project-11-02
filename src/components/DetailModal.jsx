@@ -97,7 +97,7 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
         {isJejuCoord(lat, lng) && <NearbyPoi key={`poi:${lat},${lng}`} lat={lat} lng={lng} onData={setPoiPins} />}
 
         {recommend && isJejuCoord(lat, lng) && (
-          <NearbyRecs key={`${recommend.mode}:${lat},${lng}`} lat={lat} lng={lng} mode={recommend.mode} excludeId={recommend.excludeId} onPick={recommend.onPick}
+          <NearbyRecs key={`${recommend.mode}:${lat},${lng}`} lat={lat} lng={lng} mode={recommend.mode} excludeId={recommend.excludeId} onPick={recommend.onPick} onMore={recommend.onMore}
             onData={(markers, radiusKm) => setPins({ markers, radiusKm })} />
         )}
       </Modal.Body>

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const { id, keyword = '', form = '', tags = '', sort = '', lat, lng, radius, page = '1', rows = '12' } = req.query;
     res.status(200).json(searchOreum({
       id, keyword, form: KEY.test(form) ? form : '', tags: String(tags).split(',').filter((t) => KEY.test(t)).slice(0, 6),
-      sort: ['elev', 'elev_asc'].includes(sort) ? sort : '', ...(lat !== undefined && { lat, lng, radius: Number(radius) || 0 }),
+      sort: ['recommend', 'elev', 'elev_asc'].includes(sort) ? sort : '', ...(lat !== undefined && { lat, lng, radius: Number(radius) || 0 }),
       page: Number(page) || 1, rows: Math.min(Number(rows) || 12, 400),
     }));
   } catch (e) {

@@ -538,3 +538,11 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .hero-cta { margin-top: 1rem; }
 /* 탭 줄: 앞 세 탭(찾아보기)과 뒤 두 탭(내 기록)을 가르는 작은 글씨 */
 .tab-group-label { align-self: center; margin: 0 -.1rem 0 .35rem; font-size: .78rem; font-weight: 700; color: var(--ink-3); white-space: nowrap; }
+
+/* 홈 '3D 지도는 이렇게 채워져요' 예시 */
+.fill-row { display: flex; align-items: center; gap: .5rem; }
+.fill-panel { flex: 1 1 0; min-width: 0; }
+.fill-panel svg { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: var(--sh-card); }
+.fill-panel figcaption { margin-top: .3rem; font-size: .78rem; text-align: center; }
+.fill-arrow { flex: 0 0 auto; color: #2f6b52; font-size: 1.1rem; }
+@media (min-width: 768px) { .fill-row { max-width: 40rem; } }

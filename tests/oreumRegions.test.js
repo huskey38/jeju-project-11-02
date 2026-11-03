@@ -49,3 +49,16 @@ describe('atmosphereAt — 등반률에 따른 하늘·바다 색', () => {
     expect(mid.skyTop).not.toBe(atmosphereAt(35).skyTop)
   })
 })
+
+describe('previewDots — 홈 예시 그림의 점 좌표', () => {
+  it('공식 368곳이 모두 그림 안에 찍히고, 서쪽 오름이 동쪽 오름보다 왼쪽에 있음', async () => {
+    const { previewDots, PREVIEW } = await import('../src/lib/oreumPreview.js')
+    const dots = previewDots(data.items)
+    expect(dots).toHaveLength(368)
+    expect(dots.every((d) => d.x >= 0 && d.x <= PREVIEW.w && d.y >= 0 && d.y <= PREVIEW.h)).toBe(true)
+    const west = previewDots([{ id: 'w', lat: 33.4, lng: 126.2 }])[0], east = previewDots([{ id: 'e', lat: 33.4, lng: 126.9 }])[0]
+    expect(west.x).toBeLessThan(east.x)
+    const north = previewDots([{ id: 'n', lat: 33.5, lng: 126.5 }])[0], south = previewDots([{ id: 's', lat: 33.25, lng: 126.5 }])[0]
+    expect(north.y).toBeLessThan(south.y)
+  })
+})

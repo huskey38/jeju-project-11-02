@@ -37,10 +37,23 @@ const view = (o, dist) => ({
   lat: o.lat, lng: o.lng, ...(o.tourId && { tourId: o.tourId }), ...photo(o), ...introOf(o.id), ...summaryOf(o.id), ...(dist !== undefined && { dist }),
 });
 
+// 추천순(처음 온 사람용): ① 널리 알려진 대표 오름(FEATURED, 이 순서대로) → ② 사진이 있고 가볍게 오를 수 있는(표고 400m 이하) 오름, 낮은 순 → ③ 그 밖에 사진이 있는 오름, 낮은 순 → ④ 나머지(공식 연번순)
+export const FEATURED = ['214', '289', '86', '255', '122', '56', '146', '170', '21', '201', '105', '243'];   // 새별·용눈이·다랑쉬·아부·따라비·금오름·물영아리·백약이·거문·산굼부리·도두봉·송악산
+export const EASY_M = 400;
+const rankOf = (o) => {
+  const f = FEATURED.indexOf(o.id);
+  if (f >= 0) return [0, f];
+  const hasPhoto = !!photo(o).image, elev = o.elev ?? Infinity;
+  if (hasPhoto && elev <= EASY_M) return [1, elev];
+  if (hasPhoto) return [2, elev];
+  return [3, 0];
+};
+const byRecommend = (a, b) => { const x = rankOf(a), y = rankOf(b); return x[0] - y[0] || x[1] - y[1]; };   // sort 는 안정 정렬이라 같은 순위는 공식 연번 순서를 지킴
+
 export const oreumInfo = () => ({ count: data.items.length, baseDate: data.baseDate, withCoords: data.items.filter((o) => isJejuCoord(o.lat, o.lng)).length, withTour: data.items.filter((o) => o.tourId).length });
 
 // keyword: 이름에 든 글자, form: 형태 묶음 키(cone·round·horseshoe·mixed·etc), tags: 소개글 특징 태그(관광공사에 등록된 오름만 해당),
-// sort: 'elev' 표고 높은 순, 'elev_asc' 낮은 순 (기본은 이름순·공식 연번순), lat·lng·radius(m): 그 반경 안을 가까운 순으로, id: 한 곳만
+// sort: 'recommend' 추천순(대표 오름 → 사진 있고 가벼운 오름 순), 'elev' 표고 높은 순, 'elev_asc' 낮은 순 (기본은 이름순·공식 연번순), lat·lng·radius(m): 그 반경 안을 가까운 순으로, id: 한 곳만
 export function searchOreum({ id, keyword = '', form = '', tags = [], sort = '', lat, lng, radius = 0, rows = 12, page = 1 } = {}) {
   if (id !== undefined && id !== '') { const o = data.items.find((x) => x.id === String(id)); return o ? [view(o)] : []; }
   const kw = String(keyword).trim();
@@ -54,6 +67,7 @@ export function searchOreum({ id, keyword = '', form = '', tags = [], sort = '',
       .filter((x) => x.dist <= Number(radius)).sort((a, b) => a.dist - b.dist);
     return list.slice((page - 1) * rows, page * rows).map((x) => view(x.o, x.dist));
   }
+  if (sort === 'recommend') list = [...list].sort(byRecommend);
   if (sort === 'elev') list = [...list].sort((a, b) => (b.elev ?? 0) - (a.elev ?? 0));
   if (sort === 'elev_asc') list = [...list].sort((a, b) => (a.elev ?? Infinity) - (b.elev ?? Infinity));   // 표고 모름은 맨 뒤
   return list.slice((page - 1) * rows, page * rows).map((o) => view(o));

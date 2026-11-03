@@ -6,6 +6,7 @@ import FormPreview from './FormPreview'
 import OreumMore from './OreumMore'
 import { FEATURES } from '../lib/features'
 import MyStepLine from './MyStepLine'
+import JejuFillPreview from './JejuFillPreview'
 
 // 메인 화면의 오름 소개: 오름이 무엇인지, 형태 네 가지, 이 사이트로 하는 3단계 (둘러보기 버튼은 히어로로 옮김)
 const STEPS = [
@@ -54,6 +55,7 @@ export default function OreumIntro() {
           <Col key={title}><div className="small"><i className={`bi ${icon} me-2 text-success`} /><strong>{title}</strong><br /><span className="text-muted">{desc}</span></div></Col>
         ))}
       </Row>
+      <div className="mb-3"><JejuFillPreview list={list} /></div>
       <OreumMore list={list} />
           </div>
         </div>

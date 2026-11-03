@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORIES, DEFAULT_CAT, NEAR_CATS, RADII, RECOMMEND_GROUPS, RECOMMEND_RADII, advance, badgeOf, fmtDist, recommendModeOf, sourcesFor, subsOf, subtitleOf, FOOD_TYPES, MENU_WORDS, todayKst, parseSub } from '../src/lib/placeCategories.js'
+import { CATEGORIES, DEFAULT_CAT, NEAR_CATS, RADII, RECOMMEND_GROUPS, RECOMMEND_RADII, advance, badgeOf, fmtDist, recommendModeOf, sourcesFor, subsOf, subtitleOf, FOOD_TYPES, todayKst, parseSub } from '../src/lib/placeCategories.js'
 
 describe('분류 버튼', () => {
   it('오름이 맨 앞·기본 분류, 음식점·카페, 그 뒤에 가볼만한 곳·가본 곳 (관광지·문화시설·축제·전체는 없음)', () => {
@@ -66,10 +66,6 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
     expect(sourcesFor('food', 'all', true)).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])
     expect(sourcesFor('cafe', 'chinese')).toEqual([{ api: 'tour', type: '39', lcls: 'FD05' }])   // 음식점 종류는 카페에 영향 없음
     for (const t of FOOD_TYPES.filter((x) => x.lcls)) expect(t.lcls).not.toMatch(/^FD05/)          // 카페 코드는 섞이지 않음
-  })
-  it('인기 메뉴 바로가기는 음식점·카페만', () => {
-    expect(Object.keys(MENU_WORDS)).toEqual(['food', 'cafe'])
-    for (const list of Object.values(MENU_WORDS)) expect(list.length).toBeGreaterThan(3)
   })
   it('내 주변을 켜면 분류별 유형 조건으로 위치 검색 (음식점은 카페 제외, 카페는 FD05만, 가볼만한 곳은 해당 없음)', () => {
     expect(sourcesFor('food', 'all', true)).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])
