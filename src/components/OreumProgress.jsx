@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { OverlayTrigger, Popover, ProgressBar } from 'react-bootstrap'
 import { fetchOreumAll } from '../api/client'
 import { TIERS, oreumProgress } from '../lib/oreumProgress'
+import { visitDates } from '../lib/oreumStats'
 import { useAppStore } from '../store/useAppStore'
 import { Loading } from './Status'
 import TierEmblem from './TierEmblem'
@@ -47,6 +48,7 @@ export default function OreumProgress() {
   }, [])
 
   const p = useMemo(() => oreumProgress(visits, oreums ?? []), [visits, oreums])
+  const dates = useMemo(() => visitDates(visits, oreums ?? []), [visits, oreums])   // 3D 지도의 오른 날짜 이름표
   const level = TIERS.indexOf(p.tier)   // 0(준비 중)~5(달인): 엠블럼·색이 등급을 따라감
 
   return (
@@ -76,13 +78,13 @@ export default function OreumProgress() {
         <>
           <div className="rounded-4 overflow-hidden border oreum-map">
             <Suspense fallback={<Loading text="3D 제주 지도를 불러오는 중..." />}>
-              <OreumJeju3D oreums={oreums} visitedIds={p.visitedIds} height={420} />
+              <OreumJeju3D oreums={oreums} visitedIds={p.visitedIds} height={420} percent={p.percent} dates={dates} />
             </Suspense>
           </div>
           <div className="small text-muted mt-2 d-flex flex-wrap gap-3">
             <span><span className="oreum-key oreum-key-done" />귤 올린 오름</span>
             <span><span className="oreum-key oreum-key-todo" />빈 자리(아직 안 오른 오름) {p.remaining}곳</span>
-            <span className="ms-auto">마우스로 돌리고 확대해 보세요 · 마크에 올리면 이름이 보여요</span>
+            <span className="ms-auto">지역 이름표를 누르면 그 지역으로 확대돼요 · 가까이 확대하면 오름 이름과 오른 날짜가 보여요</span>
           </div>
           {FEATURES.progressBreakdown && <div className="mt-4"><ProgressBreakdown /></div>}
           {FEATURES.stampBook && <StampBook />}

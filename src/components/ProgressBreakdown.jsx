@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { ProgressBar } from 'react-bootstrap'
 import { oreumProgress } from '../lib/oreumProgress'
-import { byCity, byForm } from '../lib/oreumStats'
+import { byForm } from '../lib/oreumStats'
+import { regionProgress } from '../lib/oreumRegions'
 import { useOreums } from '../lib/useOreums'
 import { useAppStore } from '../store/useAppStore'
 
@@ -30,7 +31,7 @@ export default function ProgressBreakdown() {
   return (
     <section className="breakdown mb-4" data-testid="progress-breakdown" aria-label="형태·지역별 진행률">
       <Bars title="형태별" rows={byForm(list, p.visitedIds)} testid="breakdown-form" />
-      <Bars title="지역별" rows={byCity(list, p.visitedIds)} testid="breakdown-city" />
+      <Bars title="지역별 (3D 지도의 지역 이름표)" rows={regionProgress(list, p.visitedIds).map((r) => ({ ...r, label: `${r.area} · ${r.label}` }))} testid="breakdown-city" />
     </section>
   )
 }
