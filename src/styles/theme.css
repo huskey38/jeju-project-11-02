@@ -571,3 +571,8 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 
 /* 사진이 없는 음식점·카페 카드의 대체 그림(FoodArt): 사진 칸보다 낮게 해서 빈 칸처럼 보이지 않게 */
 .item-card-img.food-art { height: 112px; }
+
+/* 오래 걸리는 목록의 '조금 걸려요' 안내: 1.2초 넘게 걸릴 때만 슬며시 나타남 */
+.slow-note { opacity: 0; animation: slow-note-in .4s ease 1.2s forwards; }
+@keyframes slow-note-in { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .slow-note { animation-duration: 0s; } }

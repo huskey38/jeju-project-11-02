@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchOreum } from '../api/client'
-import { advance, sourcesFor } from '../lib/placeCategories'
+import { sourcesFor } from '../lib/placeCategories'
 import { pageCount } from '../lib/paging'
-import { ROWS, favOf, fetchPage, serverSort } from '../lib/placeItems'
+import { ROWS, favOf, readNextPage, serverSort } from '../lib/placeItems'
 
 // 목록(오름·음식점·카페): 분류·조건이 바뀌면 다시 불러오고, 더 보기·쪽 이동을 처리 — Places 화면에서 분리했음
 //   입력: cat·sub·nearOn·radiusKm·tags·form·sort·unvisited·coords(내 주변 기준)·keyword·visits
@@ -15,10 +15,10 @@ export function usePlaceList({ cat, sub, nearOn, radiusKm, tags, form, sort, unv
   const [moreLoading, setMoreLoading] = useState(false)
   const [pageNo, setPageNo] = useState(1)                 // 오름 탭: 지금 보는(마지막으로 읽은) 쪽
   const [total, setTotal] = useState(0)                   // 오름 탭: 조건에 맞는 오름 전체 수 (쪽 번호용)
-  const [pageEnds, setPageEnds] = useState([])         // 음식점·카페 등: 쪽마다 '여기까지 읽음' 누적 개수 — 지금까지 읽은 쪽만 번호로 보여 줌
-  const [viewPage, setViewPage] = useState(null)          // 음식점·카페 등: 번호를 눌러 한 쪽만 보는 중이면 그 쪽, null 이면 읽은 것 전부
+  const [viewPage, setViewPage] = useState(1)             // 음식점·카페 등: 지금 보는 쪽(한 쪽 = 12장). 지금까지 읽은 쪽만 번호로 보임
   const itemsRef = useRef([])                              // 쪽 경계 계산용으로 최신 목록을 들고 있음
   const oreumAll = useRef({ key: '', list: [] })          // 오름 탭: 같은 조건이면 한 번 받은 전체 목록을 재사용 (쪽 이동이 즉시)
+  const bufferRef = useRef([])                             // 한 쪽을 채우려고 더 읽어서 남은 항목(다음 쪽에 먼저 씀)
   const cursor = useRef({ i: 0, page: 1 })               // 분류의 소스 목록에서 어디까지 읽었는지
   const reqId = useRef(0)                                // 분류를 빠르게 바꿀 때 늦게 온 이전 응답을 버리기 위한 번호
 
@@ -43,7 +43,7 @@ export function usePlaceList({ cat, sub, nearOn, radiusKm, tags, form, sort, unv
       const page = Math.min(Math.max(1, p), pages)
       const got = list.slice((page - 1) * ROWS, page * ROWS).map((o) => ({ ...o, kind: 'oreum', key: `o-${o.id}` }))
       setItems((prev) => (append ? [...prev, ...got.filter((n) => !prev.some((x) => x.key === n.key))] : got))
-      setPageNo(page); setTotal(list.length); setHasMore(page < pages); setPageEnds([]); setViewPage(null)
+      setPageNo(page); setTotal(list.length); setHasMore(page < pages)
       if (!append && p > 1) document.querySelector('[data-testid=oreum-list]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })   // 쪽을 옮기면 목록 맨 위로
     } catch (err) {
       if (id === reqId.current) setError(err.message)
@@ -56,42 +56,36 @@ export function usePlaceList({ cat, sub, nearOn, radiusKm, tags, form, sort, unv
   async function load(reset, kw = keyword) {
     if (cat === 'saved' || cat === 'visited') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳·가본 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
     if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
-    if (cat === 'oreum') return loadOreum(reset ? 1 : pageNo + 1, { append: !reset, kw })
+    if (cat === 'oreum') return loadOreum(reset ? 1 : pageNo + 1, { kw })   // 더 보기 = 다음 쪽(12장)으로 — 쪽 번호와 같은 동작이라 한 번에 12장씩만 보임
     const sources = sourcesFor(cat, sub, nearOn, tags, { form, sort: serverSort(sort) })
     const ctx = { keyword: kw, coords, radiusKm, unvisited, visitedKeys: new Set(visits.map((v) => `${v.source}:${v.item_id}`)) }
     const id = reset ? ++reqId.current : reqId.current
-    let cur = reset ? { i: 0, page: 1 } : cursor.current
     reset ? setLoading(true) : setMoreLoading(true)
     setError('')
     try {
-      let got = []
-      // 한 소스가 끝나면 다음 소스로 넘어가며, 한 번에 보여줄 개수(ROWS)가 찰 때까지 읽음
-      while (cur.i < sources.length && got.length < ROWS) {
-        const list = await fetchPage(sources[cur.i], ctx, cur.page)
-        got = [...got, ...list.filter((x) => !x.dup && !got.some((g) => g.key === x.key))]   // 관광공사 음식점과 같은 가게(일반음식점 쪽 중복)는 뺌. 쪽 계산(advance)은 거르기 전 개수로
-        cur = advance(cur, list.length, ROWS)
-      }
+      // 한 쪽(12장)을 정확히 채워 읽음: 한 소스가 끝나면 다음 소스로 넘어가고, 더 읽어서 남은 것은 다음 쪽에 먼저 씀
+      const prevItems = reset ? [] : itemsRef.current
+      const r = await readNextPage({ sources, ctx, cursor: reset ? { i: 0, page: 1 } : cursor.current, buffer: reset ? [] : bufferRef.current, prevItems })
       if (id !== reqId.current) return
-      cursor.current = cur
-      const base = reset ? [] : itemsRef.current
-      const next = [...base, ...got.filter((n) => !base.some((p) => p.key === n.key))]
+      cursor.current = r.cursor
+      bufferRef.current = r.buffer
+      const next = [...prevItems, ...r.page]
       itemsRef.current = next
       setItems(next)
-      setPageEnds((prev) => (reset ? [next.length] : [...prev, next.length]))
-      setViewPage(null)
-      setHasMore(cur.i < sources.length)
+      setViewPage(Math.max(1, Math.ceil(next.length / ROWS)))   // 새로 읽은 쪽을 보여 줌
+      setHasMore(r.hasMore)
     } catch (err) {
       if (id === reqId.current) setError(err.message)
     } finally {
       if (id === reqId.current) { setLoading(false); setMoreLoading(false) }
     }
   }
-
   // 분류·하위 선택·반경·기준 위치가 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
   useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, tags.join(','), form, sort, unvisited])
 
-  // 음식점·카페 등: 번호로 한 쪽만 보는 중이면 그 쪽의 카드만
-  const shownItems = cat !== 'oreum' && viewPage ? items.slice(viewPage > 1 ? pageEnds[viewPage - 2] : 0, pageEnds[viewPage - 1]) : items
+  // 음식점·카페 등: 지금 보는 쪽의 12장만 (오름은 쪽마다 12장씩 받아 옴)
+  const pages = cat === 'oreum' ? pageCount(total, ROWS) : Math.max(1, Math.ceil(items.length / ROWS))
+  const shownItems = cat === 'oreum' ? items : items.slice((viewPage - 1) * ROWS, viewPage * ROWS)
 
-  return { items, shownItems, loading, error, hasMore, moreLoading, pageNo, total, pageEnds, viewPage, setViewPage, load, loadOreum }
+  return { items, shownItems, loading, error, hasMore, moreLoading, pageNo, total, pages, viewPage, setViewPage, load, loadOreum }
 }

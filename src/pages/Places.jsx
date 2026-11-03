@@ -20,7 +20,7 @@ import Pager from '../components/Pager'
 import { savedKey, useSavedPreviews } from '../lib/useSavedPreviews'
 import { pageCount } from '../lib/paging'
 import { formGroupOf } from '../lib/oreumForms'
-import { CITY_HALL, HIDDEN_TAGS, ROWS, SOURCE_LABEL, favOf, valid } from '../lib/placeItems'
+import { CITY_HALL, HIDDEN_TAGS, ROWS, SOURCE_LABEL, favOf, tagsEnabled, valid } from '../lib/placeItems'
 import { useAppStore } from '../store/useAppStore'
 
 // 분류별 목록 화면(오름 찾기·음식점·카페·담아둔 곳·오른 오름).
@@ -50,7 +50,7 @@ export default function Places() {
   // 오름 상세의 '근처 음식점·카페 더 보기'로 넘어오면 내 위치 대신 그 오름을 기준으로 가까운 순 (?ol=위도&og=경도&on=이름)
   const oLat = Number(params.get('ol')), oLng = Number(params.get('og'))
   const origin = (cat === 'food' || cat === 'cafe') && nearOn && params.get('ol') && isJejuCoord(oLat, oLng) ? { lat: oLat, lng: oLng, name: (params.get('on') || '').slice(0, 30) || '선택한 곳' } : null
-  const tags = nearOn ? [] : parseTags(cat, params.get('t')).filter((t) => !HIDDEN_TAGS[cat]?.includes(t))   // 테마 태그 (내 주변과는 함께 쓰지 않음)   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
+  const tags = nearOn || !tagsEnabled(cat) ? [] : parseTags(cat, params.get('t')).filter((t) => !HIDDEN_TAGS[cat]?.includes(t))   // 테마 태그 (내 주변과는 함께 쓰지 않음)   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
   const form = ''   // 형태 필터 칩은 없앰(카드의 형태 배지·소개 박스의 형태 카드로 대신함) — 주소의 ?fm= 도 쓰지 않음
   const sort = cat === 'oreum' && ['name', 'elev', 'elev_asc'].includes(params.get('so')) ? params.get('so') : ''                                    // 오름 정렬
   const unvisited = FEATURES.visitedFilter && cat === 'oreum' && params.get('nv') === '1'                                                    // 안 가 본 오름만
@@ -60,6 +60,10 @@ export default function Places() {
   const savedRows = cat === 'visited' ? visits : favorites
   const previews = useSavedPreviews(listMode ? savedRows : [])   // 가볼만한 곳·오른 오름 카드의 사진·형태·출처
   const savedItems = savedRows.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 검색어가 있으면 제목으로 거름
+  const [savedPage, setSavedPage] = useState(1)   // 담아둔 곳·오른 오름도 12장씩 쪽으로 나눠 보여 줌
+  const savedPages = Math.max(1, pageCount(savedItems.length, ROWS))
+  const savedShown = savedItems.slice((Math.min(savedPage, savedPages) - 1) * ROWS, Math.min(savedPage, savedPages) * ROWS)
+  useEffect(() => { setSavedPage(1) }, [cat, keyword])
   const originCoords = (o) => ({ lat: o.lat, lng: o.lng, note: `${o.name} 기준 · 가까운 순`, fromOrigin: true })
   const [coords, setCoords] = useState(origin ? originCoords(origin) : null)             // 내 주변 기준 좌표 { lat, lng, note? }
   const [locating, setLocating] = useState(false)
@@ -89,7 +93,7 @@ export default function Places() {
   useEffect(() => { if (nearOn && !coords && !locating && !origin) locate() }, [nearOn, !!coords])
 
   // 목록(불러오기·더 보기·쪽 이동)과 상세(정보 카드)는 각각 훅으로 분리
-  const { items, shownItems, loading, error, hasMore, moreLoading, pageNo, total, pageEnds, viewPage, setViewPage, load, loadOreum } =
+  const { items, shownItems, loading, error, hasMore, moreLoading, pageNo, total, pages, viewPage, setViewPage, load, loadOreum } =
     usePlaceList({ cat, sub, nearOn, radiusKm, tags, form, sort, unvisited, coords, keyword, visits })
   const { detail, trail, openDetail, openSaved, closeDetail, goBack } = usePlaceDetail()
 
@@ -173,8 +177,9 @@ export default function Places() {
         (cat === 'visited' ? visitLoading : favLoading) ? <Loading /> : savedItems.length === 0
           ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 오른 오름이 없어요 — 오름 카드의 오름 버튼(올랐어요)을 눌러 기록해 보세요 — 둘레만 걸어도 괜찮아요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
           : (
+            <>
             <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'visited' ? 'visited-list' : 'saved-list'}>
-              {savedItems.map((f) => (
+              {savedShown.map((f) => (
                 <Col key={f.id}>
                   <ItemCard title={f.title} badge={previews[savedKey(f)]?.kind === 'oreum' ? badgeOf({ kind: 'oreum', form: previews[savedKey(f)].form }) : (SOURCE_LABEL[f.source] ?? f.source)}
                     image={previews[savedKey(f)]?.image || undefined} credit={previews[savedKey(f)]?.credit}
@@ -189,10 +194,17 @@ export default function Places() {
                 </Col>
               ))}
             </Row>
+            {savedItems.length > ROWS && (
+              <div className="mt-3" data-testid="saved-pager">
+                <Pager page={Math.min(savedPage, savedPages)} pages={savedPages} onPage={(n) => { setSavedPage(n); document.querySelector('[data-testid=saved-list], [data-testid=visited-list]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+                <div className="text-center small text-muted mt-1">{Math.min(savedPage, savedPages)} / {savedPages}쪽 · {cat === 'visited' ? '오른 오름' : '담아둔 곳'} {savedItems.length}곳</div>
+              </div>
+            )}
+            </>
           )
       ) : (
         <>
-          {loading ? <Loading /> : items.length === 0 ? <Empty /> : (
+          {loading ? <Loading text={cat === 'food' ? '음식점 정보를 불러오는 중이에요' : undefined} slowNote={cat === 'food' ? '조금 걸려요 — 공공데이터에서 가져오느라 몇 초 걸릴 수 있어요' : undefined} /> : items.length === 0 ? <Empty /> : (
             <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'oreum' ? 'oreum-list' : 'place-list'}>
               {shownItems.map((it) => (
                 <Col key={it.key}>
@@ -216,14 +228,14 @@ export default function Places() {
           {!loading && hasMore && (
             <div className="text-center mt-4">
               <Button variant="outline-primary" onClick={() => load(false)} disabled={moreLoading}>
-                {moreLoading ? '불러오는 중...' : '더 보기'}
+                {moreLoading ? (cat === 'food' ? '불러오는 중... 조금 걸려요' : '불러오는 중...') : '더 보기'}
               </Button>
             </div>
           )}
-          {cat !== 'oreum' && !loading && pageEnds.length > 1 && (
+          {cat !== 'oreum' && !loading && pages > 1 && (
             <div className="mt-3" data-testid="loaded-pager">
-              <Pager page={viewPage ?? pageEnds.length} pages={pageEnds.length} onPage={(n) => { setViewPage(n); jumpTop() }} disabled={moreLoading} />
-              <div className="text-center small text-muted mt-1">지금까지 {pageEnds.length}쪽 · {items.length}곳을 읽었어요{hasMore ? ' — 더 보기로 다음 쪽을 불러오면 번호가 늘어나요' : ''}</div>
+              <Pager page={viewPage} pages={pages} onPage={(n) => { setViewPage(n); jumpTop() }} disabled={moreLoading} />
+              <div className="text-center small text-muted mt-1">{viewPage} / {pages}쪽 · 지금까지 {items.length}곳을 읽었어요{hasMore ? ' — 더 보기로 다음 쪽을 불러오면 번호가 늘어나요' : ''}</div>
             </div>
           )}
           {cat === 'oreum' && !loading && total > ROWS && (

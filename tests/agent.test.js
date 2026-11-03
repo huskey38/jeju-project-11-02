@@ -45,6 +45,37 @@ describe('api/agent (Claude 모킹)', () => {
     expect(res.code).toBe(429)
     expect(res.body.error).toContain('사용량')
   })
+  it('잘못된 입력은 Claude 를 부르지 않고 400 (원문 오류 없음)', async () => {
+    const { default: h } = await import('../api/agent.js')
+    create.mockClear()
+    for (const body of [{}, { message: 12345 }, { message: '안녕', history: 'x' }, { message: 'a'.repeat(501) }]) {
+      const res = mkRes(); await h({ method: 'POST', body }, res)
+      expect(res.code).toBe(400)
+      expect(res.body.error).not.toMatch(/messages\.|Field required/)
+    }
+    expect(create).not.toHaveBeenCalled()
+  })
+  it('그 밖의 Claude 오류는 원문 대신 일반 문구 (500)', async () => {
+    create.mockRejectedValueOnce(Object.assign(new Error('messages.0.content: Field required request_id=req_123'), { status: 400 }))
+    const { default: h } = await import('../api/agent.js')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = mkRes(); await h({ method: 'POST', body: { message: '안녕' } }, res)
+    expect(res.code).toBe(500)
+    expect(res.body.error).toBe('잠시 후 다시 시도해 주세요')
+    expect(spy).toHaveBeenCalled(); spy.mockRestore()
+  })
+  it('같은 주소가 1분에 10번을 넘으면 429 + Retry-After', async () => {
+    const { default: h } = await import('../api/agent.js')
+    create.mockResolvedValue({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] })
+    const req = { method: 'POST', headers: { 'x-forwarded-for': '9.9.9.9' }, body: { message: '안녕' } }
+    const codes = []
+    let header
+    for (let i = 0; i < 11; i++) { const res = mkRes(); res.setHeader = (k, v) => { header = [k, v] }; await h(req, res); codes.push(res.code) }
+    expect(codes.slice(0, 10).every((c) => c === 200)).toBe(true)
+    expect(codes[10]).toBe(429)
+    expect(header[0]).toBe('Retry-After')
+    create.mockReset()
+  })
 })
 
 describe('api/agent — 위치 기반·축제 기간 도구', () => {

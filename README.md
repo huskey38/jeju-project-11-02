@@ -166,7 +166,7 @@ tests/      vitest 테스트
 | `GET /api/heritage?keyword=&page=&rows=` | 국가유산 검색 |
 | `GET /api/venue?keyword=&page=&rows=` / `?id=v1` | 공연장 목록(34건, 이름·주소 검색) / 상세. 없는 id 는 404 |
 | `GET /api/heritage?kdcd=&asno=&ctcd=` | 국가유산 상세: 설명·사진·지정일·소재지 (`SearchKindOpenapiDt`) |
-| `POST /api/agent` | Claude 에이전트 루프(최대 5턴(안내서 규칙)): 도구 8개(`search_oreum` 오름 검색 — 특징 태그·내 위치 반경, `search_restaurants`, `get_place_detail` 소개글 확인 포함, `search_tour_places`, `get_weather`, `search_heritage`, `search_nearby`(위치 기반·가까운 순), `search_festivals`(기간 검색)) 호출. 시스템 프롬프트에 오늘 날짜(KST)와 "숙박은 다루지 않는다" 규칙 포함 → 결과 전달 → 최종 답, 사용한 도구 기록(`steps`) 반환. 429 는 안내 메시지; `search_tour_places` 는 이름 검색에 더해 `lcls`(분류체계 코드, 예: VE02 테마공원·동물원·수족관)로도 찾음 — 이름에 '동물원'이 없는 화조원도 분류+소개글 확인으로 답함; **대화창에 에이전트가 호출한 도구를 답변 위 칩으로 표시**(`src/lib/agentSteps.js`: `장소 검색 · 해녀 → 2건 → 소개글 확인`, 마우스를 올리면 실제 함수 이름·인자) |
+| `POST /api/agent` | Claude 에이전트 루프(최대 5턴(안내서 규칙)): 도구 8개(`search_oreum` 오름 검색 — 특징 태그·내 위치 반경, `search_restaurants`, `get_place_detail` 소개글 확인 포함, `search_tour_places`, `get_weather`, `search_heritage`, `search_nearby`(위치 기반·가까운 순), `search_festivals`(기간 검색)) 호출. 시스템 프롬프트에 오늘 날짜(KST)와 "숙박은 다루지 않는다" 규칙 포함 → 결과 전달 → 최종 답, 사용한 도구 기록(`steps`) 반환. **입력 검사**(`server/agentInput.js`): 질문은 글자·500자 이내·비어 있지 않을 것, 대화 기록은 `{role, content}` 형식(최근 10개·한 개 2000자까지)이어야 하고 아니면 Claude 를 부르지 않고 400 + 한국어 안내; **같은 주소(IP) 1분 10회 제한**(초과 시 429 + `Retry-After`, 서버 함수 메모리 기준의 1차 방어선). Claude 오류는 원문(요청 번호 등)을 내보내지 않고 `잠시 후 다시 시도해 주세요`(500, 원문은 서버 로그에만), 429 는 안내 메시지; `search_tour_places` 는 이름 검색에 더해 `lcls`(분류체계 코드, 예: VE02 테마공원·동물원·수족관)로도 찾음 — 이름에 '동물원'이 없는 화조원도 분류+소개글 확인으로 답함; **대화창에 에이전트가 호출한 도구를 답변 위 칩으로 표시**(`src/lib/agentSteps.js`: `장소 검색 · 해녀 → 2건 → 소개글 확인`, 마우스를 올리면 실제 함수 이름·인자) |
 
 ### 화면
 | 경로 | 기능 |
@@ -185,20 +185,23 @@ tests/      vitest 테스트
 | **도감 칸 → 카드** | `오른 오름` 탭의 오름 도감 칸(`StampBook.jsx`)을 누르면(또는 포커스 후 Enter) **카드**(`StampCard.jsx`)가 떠서 **내가 올린 인증사진을 크게** 보여 줌(사진이 없으면 오름 그림). 방문일·형태·표고·행정시·소재지, `사진 바꾸기`/`지우기`(`VisitPhoto` 의 `showImage=false`), `자세한 정보 보기`(→ 그 오름의 정보 카드), `닫기`. 안 오른 오름 칸도 눌러 정보를 볼 수 있음 |
 | **오류 문구** | 배포에서는 서버·공공데이터의 원문 오류(예: `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`)를 화면에 보이지 않고 **"잠시 후 다시 시도해 주세요"**(`src/lib/friendlyError.js`, `client.js`). 사용량 한도(429)는 서버가 준 안내 그대로, 개발 중(`npm run dev`)에는 원인을 알 수 있게 원문. 원문은 브라우저 콘솔(`[api] 오류 …`)에 남김 |
 | **음식점 사진 보완** | 횟집·식육·구이 칩은 관광공사 분류 코드가 없어 사진 없는 일반음식점만 나오던 문제를 보완: ① 칩마다 **이름 검색어**(`FOOD_TYPES` 의 `kws` — 횟집: 횟집 / 식육·구이: 흑돼지·갈비·구이·고기)로 **사진 있는 관광공사 음식점을 먼저** 보여 주고 그 뒤에 일반음식점을 이어 붙임(사용자가 검색어를 쓰면 함께 걸 수 없어 이 소스는 건너뜀, 카페·중복은 거름). ② 사진이 없는 음식점·카페 카드는 회색 빈 칸 대신 **업태별 그림**(`FoodArt.jsx`: 한식 밥그릇·횟집 물고기·식육 석쇠·분식 떡볶이·일식 초밥·중식 면·치킨·양식 접시·카페 컵)과 낮은 사진 칸으로 표시. 일반음식점 공공데이터에는 사진 필드가 없음(웹 사진은 저작권 때문에 쓰지 않음) |
+| **모든 목록 12장씩·음식점 로딩** | **오름 찾기·음식점·카페·담아둔 곳·오른 오름 모두 한 화면에 카드 12장씩**: 음식점·카페처럼 여러 소스를 이어 붙이는 목록은 `readNextPage`(`lib/placeItems.js`)가 **한 쪽을 정확히 12장으로 채워** 읽고(더 받은 것은 남겨 두었다가 다음 쪽에 먼저 씀), `더 보기`와 쪽 번호는 모두 **다음 쪽(12장)으로 이동**(오름도 `더 보기`가 목록에 이어 붙지 않고 다음 쪽으로 넘어감), 담아둔 곳·오른 오름은 쪽 번호(`saved-pager`)로 12장씩. 음식점은 공공데이터 원본이 2~10초라 ① `/api/restaurant` 응답에 `Cache-Control: public, s-maxage=21600, stale-while-revalidate=86400`(CDN 이 6시간 기억, 오류는 `no-store`) ② 로딩 중 `음식점 정보를 불러오는 중이에요` + 1.2초 넘으면 `조금 걸려요 — 공공데이터에서 가져오느라 몇 초 걸릴 수 있어요`(더 보기 버튼도 `불러오는 중... 조금 걸려요`) |
+| **음식점 테마 칩 삭제** | `음식점` 탭의 테마 칩 줄(흑돼지·해산물·국수·면·고기·구이·향토음식·뷔페·분위기·가족·단체)을 화면에서 뺌(`NO_TAG_CATS`, `lib/placeItems.js`). 예전 주소의 `?t=` 는 쓰지 않아 보이지 않는 필터가 걸리지 않음. 음식 **종류 칩**(전체·한식·횟집…)과 오름·카페의 특징/테마 칩은 그대로, 에이전트 도구 규칙(`TAG_RULES`)도 그대로 |
 | `/my` | 예전 주소 → `/?cat=saved` 로 이동 (`pages/My.jsx` 는 없어짐) |
 | (담아둔 곳 감귤) | 카드 오른쪽 아래 감귤 버튼(홈의 관광·문화), 상세 모달 아래: 윤곽선 = 아직 안 담음, 주황 = 담음. 누르면 담기 ↔ 빼기(`toggleFavorite`). 앱 시작·닉네임 변경 시 즐겨찾기를 불러와(0.4초 지연) 어느 화면에서나 담김 표시. 같은 종류(`source`)·id 만 같은 항목으로 취급해 중복 저장 방지 |
 | 그 외 | 404 |
 
 ## 테스트 결과
 
-### 자동 (`npm test`, vitest — **282개 통과**, 파일 28개)
+### 자동 (`npm test`, vitest — **299개 통과**, 파일 29개)
 | 파일 | 검증 내용 |
 |---|---|
 | `tests/geo.test.js` | 좌표 변환 방향, 유효 좌표 판별, 한라산 최고점 |
 | `tests/server.test.js` | tour(엔드포인트 선택·정규화·빈 결과·비JSON 에러), weather(슬롯 묶기·6개·격자), heritage(XML 파싱·빈 결과) — `fetch` 모킹 |
 | `tests/api.test.js` | hello 키 비노출, tour/weather/heritage 인자 전달, 예외 시 500 |
 | `tests/favorites.test.js` | 즐겨찾기 스토어(가짜 Supabase): 담기·빼기·토글, 종류·id 구분, 미로딩 시 중복 방지, delete 정책 없음(0건) 안내, 닉네임 전환·익명 |
-| `tests/agent.test.js` | 405, 도구 호출→결과→답 루프와 steps, 429 메시지, 도구 오류 시 루프 계속, **루프 상한 5회**, 도구별 인자 전달 — Anthropic SDK 모킹 |
+| `tests/agentInput.test.js` | 에이전트 입력 검사(형식·길이·대화기록 정리), IP 추출, 호출 제한(시간 주입) |
+| `tests/agent.test.js` | 405, 잘못된 입력 400(Claude 미호출), 원문 오류 숨김, 호출 제한 429, 도구 호출→결과→답 루프와 steps, 429 메시지, 도구 오류 시 루프 계속, **루프 상한 5회**, 도구별 인자 전달 — Anthropic SDK 모킹 |
 | `tests/oreumRecommend.test.js` · `oreumRegions.test.js` | 오름 추천순(대표 12곳 → 가벼운 오름 순), 6지역 분류·달성률, 3D 지도 분위기·예시 점 좌표 |
 | `tests/categories.test.js` · `visits.test.js` | 분류별 데이터 소스 규칙, 가본 곳 스토어·닉네임 만들기(새로 만들면 안내 창) |
 | `tests/friendlyError.test.js` | 배포에서는 원문 오류 대신 "잠시 후 다시 시도해 주세요", 429 는 안내 그대로, 개발 중에는 원문 |
@@ -236,7 +239,7 @@ tests/      vitest 테스트
 - ✅ **AI 에이전트**: 배포 화면에서 "내일 제주시 날씨 보고 비 오면 갈 만한 실내 문화시설" → `get_weather` → `search_tour_places` **서로 다른 도구 2개 연속 호출**, 답변 위에 호출 내역(어느 공공 API 인지) 칩 표시, 도구가 못 준 "내일 날씨"는 지어내지 않고 "확인되지 않았다"고 답함 ([agent-ui-test.md](docs/verification/agent-ui-test.md)). 없는 오름("마법의별오름")을 물으면 도구로 검색해 "찾지 못했어요"라고 답함 ([deploy-check.md](docs/verification/deploy-check.md) 3번)
 - ✅ **Supabase 정책 검토**: 인증사진은 본인만 접근(보호 확인), 즐겨찾기·가본 곳은 실습용 열린 정책임을 확인 → [supabase-policy-review.md](docs/verification/supabase-policy-review.md) (개선안 A·B·C 정리, 아직 미적용)
 - ⚠ **아직 확인하지 못한 것**: Supabase 에 실제로 저장·조회되는 동작을 이 문서용으로 새로 캡처하지는 못함(자동 테스트는 가짜 Supabase 로 통과), 배포 화면 캡처 이미지(`docs/verification/agent-ui.png`)는 직접 캡처해 넣을 것
-- 알려진 한계: 행정안전부 일반음식점 API 가 원본(공공데이터포털)에서 **2~10초** 걸림(조건과 상관없이 느림, 우리 코드가 아니라 상류 응답 시간) — 개선안은 아래 '남은 과제'
+- 알려진 한계: 행정안전부 일반음식점 API 가 원본(공공데이터포털)에서 **2~10초** 걸림(조건과 상관없이 느림, 우리 코드가 아니라 상류 응답 시간) — CDN 캐시(`s-maxage`)와 '조금 걸려요' 안내로 완화했고, 더 줄이려면 아래 '남은 과제'
 
 ## 버전
 - `v1` 태그 / `main`: 단색 지형 3D 지도 (이후 3D 지도 코드는 현재 작업본에서 제거됨, 이전 버전은 git 에 남아 있음)
@@ -266,7 +269,7 @@ tests/      vitest 테스트
 `vercel.json` 이 `/api` 를 제외한 모든 경로를 `index.html` 로 보내(SPA) 라우팅이 동작한다. Vercel 프로젝트 환경변수에는 환경변수 표의 **✅ 6개**를 등록한다(`VISITJEJU_API_KEY` 는 불필요). 배포 주소: **https://jeju-project-11-02.vercel.app** (카카오 JavaScript SDK 도메인에도 등록). 배포 후 `node scripts/verify-deploy.mjs` 로 API 응답과 키 비노출을 확인한다.
 
 ### 남은 과제 (알려진 개선점)
-- 음식점(행안부) API 지연: 응답에 `Cache-Control: s-maxage` 로 CDN 캐시, 로딩 안내 문구, 필요하면 제주 음식점 목록을 파일로 미리 받아 두는 방식(공연장처럼)
+- 음식점(행안부) API 지연: CDN 캐시·로딩 안내는 적용함. 첫 요청(캐시 없음)은 여전히 느려서, 필요하면 제주 음식점 목록을 파일로 미리 받아 두는 방식(공연장처럼)을 검토
 - Supabase 정책: `favorites`·`visits` 를 실습용 열린 정책에서 개선(안은 `docs/verification/supabase-policy-review.md`)
 - 에이전트: 단기예보가 오늘 시간대만 조회되어 "내일 날씨"에는 한계를 밝히며 답함
 

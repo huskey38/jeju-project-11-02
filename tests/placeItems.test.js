@@ -4,7 +4,7 @@ vi.mock('../src/api/client', () => ({
   fetchRestaurants: vi.fn(), fetchOreum: vi.fn(), fetchNearby: vi.fn(), fetchPlaces: vi.fn(),
 }))
 const client = await import('../src/api/client')
-const { ROWS, favOf, fetchPage, oreumExtraRows, serverSort, valid } = await import('../src/lib/placeItems.js')
+const { ROWS, favOf, fetchPage, oreumExtraRows, readNextPage, serverSort, tagsEnabled, valid } = await import('../src/lib/placeItems.js')
 const { foodKindOf } = await import('../src/components/FoodArt.jsx')
 
 beforeEach(() => vi.clearAllMocks())
@@ -108,5 +108,40 @@ describe('foodKindOf — 업태 → 대체 그림', () => {
     expect(foodKindOf('경양식')).toBe('plate')
     expect(foodKindOf('')).toBe('plate')
     expect(foodKindOf('cafe')).toBe('cafe')
+  })
+})
+
+describe('readNextPage — 한 쪽은 항상 12장', () => {
+  const mk = (n, tag) => Array.from({ length: n }, (_, i) => ({ key: `${tag}${i}`, id: `${tag}${i}` }))
+  const sources = [{ api: 'a' }, { api: 'b' }]
+  it('첫 소스가 10장뿐이면 다음 소스에서 이어 받아 12장을 채우고, 더 받은 것은 남겨 둠', async () => {
+    const calls = []
+    const fetcher = async (src, ctx, page) => { calls.push(`${src.api}${page}`); return src.api === 'a' ? mk(10, 'a') : mk(12, 'b') }
+    const r = await readNextPage({ sources, ctx: {}, cursor: { i: 0, page: 1 }, fetcher })
+    expect(r.page).toHaveLength(ROWS)                       // 22장을 받았어도 보여 주는 건 12장
+    expect(r.buffer).toHaveLength(10)                       // 나머지 10장은 다음 쪽 몫
+    expect(calls).toEqual(['a1', 'b1'])
+    expect(r.hasMore).toBe(true)
+  })
+  it('다음 쪽은 남은 항목부터 쓰고, 모자랄 때만 새로 받음 (API 호출 절약)', async () => {
+    const fetcher = vi.fn(async () => mk(12, 'c'))
+    const r = await readNextPage({ sources, ctx: {}, cursor: { i: 1, page: 1 }, buffer: mk(12, 'x'), prevItems: mk(12, 'a'), fetcher })
+    expect(fetcher).not.toHaveBeenCalled()                  // 남은 12장으로 한 쪽이 이미 참
+    expect(r.page.map((x) => x.key)).toEqual(mk(12, 'x').map((x) => x.key))
+    expect(r.buffer).toHaveLength(0)
+  })
+  it('중복(dup)·이미 보여 준 항목은 빼고, 소스를 모두 읽으면 hasMore=false (마지막 쪽은 12장 미만)', async () => {
+    const fetcher = async (src) => (src.api === 'a' ? [{ key: 'k1', dup: true }, { key: 'k2' }, { key: 'seen' }] : [{ key: 'k3' }])
+    const r = await readNextPage({ sources, ctx: {}, cursor: { i: 0, page: 1 }, prevItems: [{ key: 'seen' }], fetcher })
+    expect(r.page.map((x) => x.key)).toEqual(['k2', 'k3'])
+    expect(r.hasMore).toBe(false)
+  })
+})
+
+describe('tagsEnabled — 테마(특징) 칩을 쓰는 분류', () => {
+  it('음식점은 테마 칩을 뺌, 오름·카페는 그대로', () => {
+    expect(tagsEnabled('food')).toBe(false)
+    expect(tagsEnabled('oreum')).toBe(true)
+    expect(tagsEnabled('cafe')).toBe(true)
   })
 })

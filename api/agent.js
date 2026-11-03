@@ -1,3 +1,4 @@
+import { clientIp, createLimiter, parseAgentInput } from '../server/agentInput.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { getTourDetail, searchFestivals, searchNearby, searchTour } from '../server/tour.js';
 import { BIZ_TYPES, searchRestaurants } from '../server/restaurants.js';
@@ -150,10 +151,19 @@ const systemPrompt = () => `너의 이름은 "오롬이"이고, 제주 오름 �
 - 비가 오거나 강수확률이 높으면 실내 대안을 함께 제안한다.
 - 답은 한국어로, 5문장 이내로 짧게.`;
 
+const limiter = createLimiter({ max: 10, windowMs: 60_000 });   // 같은 주소가 1분에 10번까지 (키는 하나라 공용 예산을 지키는 1차 방어선)
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  const { message, history = [] } = req.body ?? {};
-  const messages = [...history.slice(-10), { role: 'user', content: message }]; // 최근 10개만 보내 비용 절약
+  // ① 호출 제한 ② 입력 검사(형식·길이) — Claude 를 부르기 전에 걸러 비용과 원문 오류 노출을 막음
+  const ip = clientIp(req);
+  if (ip) {
+    const hit = limiter(ip);
+    if (!hit.ok) { res.setHeader?.('Retry-After', String(hit.retryAfterSec)); return res.status(429).json({ error: '질문이 너무 많아요. 1분 뒤 다시 시도해 주세요.' }); }
+  }
+  const input = parseAgentInput(req.body);
+  if (!input.ok) return res.status(400).json({ error: input.error });
+  const messages = [...input.history, { role: 'user', content: input.message }]; // 최근 10개만 보내 비용 절약
   const steps = []; // 화면에 "에이전트가 무엇을 했는지" 보여주기용
 
   try {
@@ -186,7 +196,9 @@ export default async function handler(req, res) {
     }
     res.status(200).json({ answer: '도구 호출이 너무 많아 중단했어요. 질문을 좁혀 주세요.', steps });
   } catch (e) {
-    // 429 = 호출 한도 초과, 401 = 키 오류
-    res.status(e.status ?? 500).json({ error: e.status === 429 ? '사용량이 많아요. 1분 뒤 다시 시도하세요.' : e.message });
+    // 429 = Claude 호출 한도 초과. 그 밖의 오류(키 오류·잘못된 요청 등)는 원문(요청 번호 등)을 내보내지 않고 일반 문구로, 원문은 서버 로그에만
+    console.error('[agent]', e.status, e.message);
+    if (e.status === 429) return res.status(429).json({ error: '사용량이 많아요. 1분 뒤 다시 시도하세요.' });
+    res.status(500).json({ error: '잠시 후 다시 시도해 주세요' });
   }
 }

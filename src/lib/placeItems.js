@@ -1,3 +1,4 @@
+import { advance } from './placeCategories'
 import { fetchNearby, fetchOreum, fetchPlaces, fetchRestaurants } from '../api/client'
 
 // 목록 화면(Places)이 쓰는 값과 순수 함수 모음 — 화면 파일에서 분리했음
@@ -8,6 +9,9 @@ export const SOURCE_LABEL = { tour: '관광·문화', heritage: '국가유산', 
 export const SORTS = [{ key: '', label: '추천순' }, { key: 'name', label: '이름순' }, { key: 'elev', label: '표고 높은 순' }, { key: 'elev_asc', label: '표고 낮은 순' }]   // 오름 정렬 ('' = 추천순이 기본, 내 주변을 켜면 가까운 순)
 // 화면에서만 뺀 테마 칩(규칙·AI 가이드의 검색 조건은 그대로): 오름의 '분화구·굼부리'
 export const HIDDEN_TAGS = { oreum: ['crater'] }
+// 테마(특징) 칩을 화면에서 아예 뺀 분류: 음식점 (규칙·AI 가이드의 검색 조건은 그대로)
+export const NO_TAG_CATS = ['food']
+export const tagsEnabled = (cat) => !NO_TAG_CATS.includes(cat)
 export const serverSort = (so) => (so === '' ? 'recommend' : so === 'name' ? '' : so)   // 화면의 정렬 키 → 서버 정렬 값
 // 목록 항목 → 즐겨찾기 키 (favorites 테이블의 source·item_id 와 같은 규칙)
 export const favOf = (it) => it.kind === 'heritage' ? { source: 'heritage', id: it.name, title: it.name }
@@ -58,3 +62,19 @@ export const oreumExtraRows = (b, usesIntro) => [
   { label: '관리', value: b.org ? `${b.org}${b.tel ? ` (${b.tel})` : ''}` : '' },
   ...(usesIntro && b.intro ? [{ label: '소개 출처', value: INTRO_SOURCE }] : []),
 ]
+
+// 한 쪽(ROWS=12장)을 정확히 채워 읽음 — 음식점·카페 등 여러 소스를 이어 붙이는 목록용
+//   cursor: 소스 목록에서 읽은 위치 { i, page } | buffer: 지난번에 더 읽어서 남은 항목 | prevItems: 이미 보여 준 항목(중복 방지)
+//   반환: { page: 이번 쪽(최대 12장), buffer: 남은 항목, cursor, hasMore } — 남은 항목은 다음 쪽에 먼저 쓰므로 쪽마다 12장이 맞음
+export async function readNextPage({ sources, ctx, cursor, buffer = [], prevItems = [], fetcher = fetchPage }) {
+  let cur = cursor, pool = [...buffer]
+  while (pool.length < ROWS && cur.i < sources.length) {
+    const list = await fetcher(sources[cur.i], ctx, cur.page)
+    // 관광공사 음식점과 같은 가게(dup)·이미 읽은 항목은 뺌. 다음 위치(advance)는 거르기 전 개수로 계산
+    const fresh = list.filter((x) => !x.dup && !pool.some((g) => g.key === x.key) && !prevItems.some((p) => p.key === x.key))
+    pool = [...pool, ...fresh]
+    cur = advance(cur, list.length, ROWS)
+  }
+  const rest = pool.slice(ROWS)
+  return { page: pool.slice(0, ROWS), buffer: rest, cursor: cur, hasMore: cur.i < sources.length || rest.length > 0 }
+}

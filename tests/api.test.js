@@ -8,7 +8,8 @@ vi.mock('../server/weather.js', () => ({ getWeather: vi.fn(async (a) => [{ place
 vi.mock('../server/heritage.js', () => ({ searchHeritage: vi.fn(async (a) => [{ name: 'H', args: a }]) }))
 
 const mkRes = () => {
-  const res = { code: 0, body: null }
+  const res = { code: 0, body: null, headers: {} }
+  res.setHeader = (k, v) => { res.headers[k] = v; return res }
   res.status = (c) => { res.code = c; return res }
   res.json = (b) => { res.body = b; return res }
   return res
@@ -50,6 +51,11 @@ describe('api handlers', () => {
     expect(list.body[0]).toEqual({ keyword: '흑돼지', biz: '횟집', page: 2, rows: 100 })
     const one = mkRes(); await h({ query: { id: '6510000-1' } }, one)
     expect(one.body).toEqual({ got: '6510000-1' })
+  })
+  it('restaurant: 성공 응답은 CDN 이 6시간 기억(s-maxage) — 공공데이터가 느려서', async () => {
+    const { default: h } = await import('../api/restaurant.js')
+    const ok = mkRes(); await h({ query: { keyword: '국수' } }, ok)
+    expect(ok.headers['Cache-Control']).toBe('public, s-maxage=21600, stale-while-revalidate=86400')
   })
   it('poi: 좌표·카테고리·반경 전달, 잘못된 카테고리는 400', async () => {
     const { default: h } = await import('../api/poi.js')

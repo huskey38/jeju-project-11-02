@@ -1,7 +1,7 @@
 import { Button } from 'react-bootstrap'
 import { TAG_RULES } from '../../lib/placeTags'
 import { RADII } from '../../lib/placeCategories'
-import { HIDDEN_TAGS } from '../../lib/placeItems'
+import { HIDDEN_TAGS, tagsEnabled } from '../../lib/placeItems'
 
 // 분류 아래의 필터 줄: 내 주변 반경 · 전체 목록 안내 · 음식 종류 · 테마(특징) 칩 — Places 화면에서 분리했음
 //   값은 Places 가 주소(URL)에서 읽어 넘기고, 눌렀을 때의 동작(pick…)도 Places 가 넘김
@@ -41,7 +41,7 @@ export default function PlaceFilters({ cat, canNear, nearOn, radiusKm, locating,
         </div>
       )}
 
-      {TAG_RULES[cat] && !nearOn && (
+      {TAG_RULES[cat] && tagsEnabled(cat) && !nearOn && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="테마" data-testid="tag-bar">
           <span className="text-muted"><i className="bi bi-tags me-1" />{cat === 'oreum' ? '소개글 특징(관광공사 등록 오름)' : '테마'}</span>
           {TAG_RULES[cat].filter((t) => !HIDDEN_TAGS[cat]?.includes(t.key)).map((t) => (
