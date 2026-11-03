@@ -36,7 +36,7 @@ const tierPopover = (p) => (
 )
 
 // 오른 오름 탭 맨 위: 오름 등반률(오른 오름 ÷ 등록된 오름)과, 오른 오름마다 돌탑 위에 귤이 하나씩 올라가는 3D 제주 지도
-export default function OreumProgress() {
+export default function OreumProgress({ onOpenDetail }) {   // onOpenDetail(오름): 도감 카드의 '자세한 정보 보기'
   const visits = useAppStore((s) => s.visits)
   const [oreums, setOreums] = useState(null)
   const [error, setError] = useState('')
@@ -87,7 +87,7 @@ export default function OreumProgress() {
             <span className="ms-auto">지역 이름표를 누르면 그 지역으로 확대돼요 · 가까이 확대하면 오름 이름과 오른 날짜가 보여요</span>
           </div>
           {FEATURES.progressBreakdown && <div className="mt-4"><ProgressBreakdown /></div>}
-          {FEATURES.stampBook && <StampBook />}
+          {FEATURES.stampBook && <StampBook onOpenDetail={onOpenDetail} />}
         </>
       )}
     </section>

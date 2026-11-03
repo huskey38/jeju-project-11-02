@@ -4,7 +4,7 @@ import { usePhotoStore } from '../store/usePhotoStore'
 
 // [오름 인증사진 — 1단계: 본인만 보기] 가본 오름에 내 사진 한 장 올리기·바꾸기·지우기. features.js 의 visitPhoto
 //   기본: 정보 카드용(사진 미리보기 + 버튼) / compact: 도감 칸 모서리의 작은 카메라 버튼
-export default function VisitPhoto({ oreumId, compact = false }) {
+export default function VisitPhoto({ oreumId, compact = false, showImage = true }) {   // showImage=false: 큰 사진을 다른 곳(도감 카드)에서 이미 보여 줄 때
   const id = String(oreumId)
   const photo = usePhotoStore((s) => s.photos[id])
   const busy = usePhotoStore((s) => s.busy[id])
@@ -34,7 +34,7 @@ export default function VisitPhoto({ oreumId, compact = false }) {
         <strong className="small"><i className="bi bi-camera-fill me-1 text-warning" />내 인증사진</strong>
         <span className="small text-muted"><i className="bi bi-lock-fill me-1" />나만 볼 수 있어요</span>
       </div>
-      {photo && <img src={photo.url} alt="내 인증사진" className="visit-photo-img" data-testid="visit-photo-img" />}
+      {photo && showImage && <img src={photo.url} alt="내 인증사진" className="visit-photo-img" data-testid="visit-photo-img" />}
       <div className="d-flex gap-2 mt-2">
         <Button size="sm" variant={photo ? 'outline-success' : 'success'} className="rounded-pill px-3" disabled={busy} onClick={() => input.current?.click()} data-testid="photo-upload">
           {busy ? <><Spinner size="sm" className="me-1" />처리 중...</> : photo ? '사진 바꾸기' : '인증사진 올리기'}

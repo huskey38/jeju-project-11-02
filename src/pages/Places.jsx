@@ -427,7 +427,7 @@ export default function Places() {
       )}
 
       {/* 오른 오름: 닉네임 줄이 탭 바로 밑에 있어 담아둔 곳과 같은 자리에서 보이고 바꿀 수 있음 (등반률 카드는 그 아래) */}
-      {cat === 'visited' && <OreumProgress />}
+      {cat === 'visited' && <OreumProgress onOpenDetail={(o) => openDetail({ ...o, kind: 'oreum', key: `o-${o.id}` })} />}
 
       {(!nearOn || cat === 'oreum') && (
         <Form onSubmit={search} className={`mt-3 ${cat === 'oreum' ? 'mb-2' : 'mb-4'}`}>

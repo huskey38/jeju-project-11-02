@@ -9,17 +9,19 @@ import { FEATURES } from '../lib/features'
 import { usePhotoStore } from '../store/usePhotoStore'
 import OreumArt from './OreumArt'
 import VisitPhoto from './VisitPhoto'
+import StampCard from './StampCard'
 
 // [기능 1] 오름 도감(스탬프 북): 공식 오름을 한 칸씩 — 가본 오름은 컬러 그림 + 방문일 스탬프, 안 간 오름은 회색 윤곽. features.js 의 stampBook
 const PAGE = 24
 const FILTERS = [['all', '전체'], ['done', '오른 오름'], ['todo', '안 오른 오름']]
 
-export default function StampBook() {
+export default function StampBook({ onOpenDetail }) {   // onOpenDetail(오름): 카드의 '자세한 정보 보기' → 정보 카드(상세)
   const visits = useAppStore((s) => s.visits)
   const { list } = useOreums()
   const photos = usePhotoStore((s) => s.photos)   // 내 인증사진 (visitPhoto 스위치)
   const [filter, setFilter] = useState('all')
   const [shown, setShown] = useState(PAGE)
+  const [open, setOpen] = useState(null)   // 카드로 띄운 도감 칸의 오름
 
   const p = useMemo(() => oreumProgress(visits, list ?? []), [visits, list])
   const dates = useMemo(() => visitDates(visits, list ?? []), [visits, list])
@@ -44,7 +46,9 @@ export default function StampBook() {
             const done = p.visitedIds.has(String(o.id))
             const form = formGroupOf(o.form)
             return (
-              <div key={o.id} className={`stamp-tile${done ? ' is-done' : ''}`} data-testid={done ? 'stamp-done' : 'stamp-todo'}>
+              <div key={o.id} className={`stamp-tile${done ? ' is-done' : ''}`} data-testid={done ? 'stamp-done' : 'stamp-todo'}
+                role="button" tabIndex={0} aria-label={`${o.name} 카드 열기`} onClick={() => setOpen(o)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o) } }}>
                 {FEATURES.visitPhoto && done && photos[o.id]
                   ? <img src={photos[o.id].url} alt={`${o.name} 인증사진`} className="stamp-art stamp-photo" data-testid="stamp-photo" />
                   : <OreumArt form={o.form} elev={o.elev} className="stamp-art" />}
@@ -61,6 +65,8 @@ export default function StampBook() {
           })}
         </div>
       )}
+      <StampCard oreum={open} done={open ? p.visitedIds.has(String(open.id)) : false} date={open ? dates.get(String(open.id)) : undefined}
+        onHide={() => setOpen(null)} onDetail={onOpenDetail ? (o) => { setOpen(null); onOpenDetail(o) } : undefined} />
       {rows.length > shown && (
         <div className="text-center mt-3"><Button size="sm" variant="outline-secondary" className="rounded-pill px-4" onClick={() => setShown((n) => n + PAGE)}>더 보기 ({rows.length - shown}쪽 남음)</Button></div>
       )}
