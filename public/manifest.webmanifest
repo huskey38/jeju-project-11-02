@@ -1,0 +1,15 @@
+{
+  "name": "오름 한 걸음",
+  "short_name": "오름 한 걸음",
+  "description": "제주 오름 368곳을 한 걸음씩 오르는 탐방 기록장.",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#1F4D3A",
+  "background_color": "#FDF3DF",
+  "icons": [
+    { "src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
