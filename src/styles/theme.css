@@ -166,7 +166,7 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .hero > *:not(.hero-scene) { position: relative; z-index: 1; }
 .hero-greet { display: inline-block; margin-bottom: .6rem; padding: .15rem .8rem; border-radius: 999px; background: rgba(232, 137, 43, .14); color: #a85a0c; font-weight: 700; font-size: .9rem; letter-spacing: .04em; }   /* 제주 방언 인사 '혼저옵서예'(어서 오세요) */
 .hero h1 { font-size: 2rem; font-weight: 800; color: var(--ink); }
-.hero-intent { max-width: 24rem; margin: -.4rem 0 .2rem; font-size: .92rem; color: var(--ink-3); }
+.hero-intent { max-width: 32rem; margin: -.4rem 0 .2rem; font-size: .92rem; color: var(--ink-3); }
 .hero .lead { color: var(--ink-2); font-size: 1.05rem; max-width: 34rem; }
 .hero-scene { position: absolute; right: 0; top: 0; width: min(62%, 520px); height: 220px; pointer-events: none; opacity: .95; }
 @media (max-width: 575.98px) { .hero-scene { width: 100%; opacity: .45; } }
@@ -494,3 +494,31 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .near-label.is-todo { background: rgba(255,255,255,.82); color: #4a4d54; border: 1px dashed #e8892b; }
 .map-reset { position: absolute; top: 12px; left: 12px; border: 0; border-radius: 999px; padding: .3rem .8rem; background: rgba(255,255,255,.92); color: #2f6b52; font-weight: 700; font-size: .82rem; box-shadow: 0 1px 6px rgba(0,0,0,.3); }
 .map-reset:hover { background: #2f6b52; color: #fff; }
+
+/* 홈 풍경 움직임: 산 위로 부는 바람 · 언덕의 억새(마우스에 살랑) · 갈매기 */
+.hero-scene .wind { opacity: 0; animation: wind-blow 9s linear infinite; }
+.hero-scene .wind-b { animation-duration: 11s; animation-delay: -4s; }
+.hero-scene .wind-c { animation-duration: 10s; animation-delay: -7s; }
+@keyframes wind-blow { 0% { transform: translateX(60px); opacity: 0; } 15% { opacity: .85; } 80% { opacity: .85; } 100% { transform: translateX(470px); opacity: 0; } }
+.hero-scene .grass-lean { transform: rotate(var(--lean, 0deg)); transform-origin: 0 0; transition: transform .35s ease-out; }
+.hero-scene .grass-sway { transform-origin: 0 0; animation: grass-sway 3.2s ease-in-out infinite; }
+@keyframes grass-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(7deg); } }
+.hero-scene .gull { animation: gull-drift 8s ease-in-out infinite alternate; }
+.hero-scene .gull-b { animation-duration: 10s; animation-delay: -3s; }
+@keyframes gull-drift { 0% { transform: translate(0, 0); } 50% { transform: translate(12px, -5px); } 100% { transform: translate(24px, 2px); } }
+.hero-scene .gull-wing { transform-box: fill-box; transform-origin: 50% 100%; animation: gull-flap 2.6s ease-in-out infinite; }
+.hero-scene .gull-b .gull-wing { animation-delay: -1.2s; }
+@keyframes gull-flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.55); } }
+@media (prefers-reduced-motion: reduce) { .hero-scene .wind, .hero-scene .grass-sway, .hero-scene .gull, .hero-scene .gull-wing { animation: none; } .hero-scene .wind { opacity: 0; } .hero-scene .grass-lean { transition: none; } }
+/* 파도: 물결 한 마디(80)만큼 옆으로 흐르며 위아래로 출렁임 (이음매가 보이지 않음) */
+.hero-scene .wave { animation: wave-flow 7s linear infinite; }
+.hero-scene .wave-b { animation-name: wave-flow-rev; animation-duration: 9s; }
+.hero-scene .wave path { animation: wave-bob 3.6s ease-in-out infinite; }
+.hero-scene .wave-b path { animation-duration: 4.4s; animation-delay: -1.5s; }
+@keyframes wave-flow { to { transform: translateX(80px); } }
+@keyframes wave-flow-rev { from { transform: translateX(80px); } to { transform: translateX(0); } }
+@keyframes wave-bob { 0%, 100% { transform: translateY(-1.6px); } 50% { transform: translateY(1.8px); } }
+@media (prefers-reduced-motion: reduce) { .hero-scene .wave, .hero-scene .wave path { animation: none; } }
+.hero-cta { margin-top: 1rem; }
+/* 탭 줄: 앞 세 탭(찾아보기)과 뒤 두 탭(내 기록)을 가르는 작은 글씨 */
+.tab-group-label { align-self: center; margin: 0 -.1rem 0 .35rem; font-size: .78rem; font-weight: 700; color: var(--ink-3); white-space: nowrap; }

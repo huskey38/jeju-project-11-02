@@ -11,10 +11,10 @@ import { TAG_RULES } from './placeTags.js'
 export const DEFAULT_CAT = 'oreum'
 
 export const CATEGORIES = [
-  { key: 'oreum', label: '오름' },       // 제주 오름 현황(공식 368곳) — 서버 파일에서 찾음(외부 호출 없음), 형태·표고순·내 주변(가까운 오름 순)·테마 칩(관광공사 등록 오름만) 지원
+  { key: 'oreum', label: '오름 찾기' },       // 제주 오름 현황(공식 368곳) — 서버 파일에서 찾음(외부 호출 없음), 형태·표고순·내 주변(가까운 오름 순)·테마 칩(관광공사 등록 오름만) 지원
   { key: 'food', label: '음식점' },
   { key: 'cafe', label: '카페' },
-  { key: 'saved', label: '가볼만한 곳' },   // 감귤로 담아 둔 곳 (예전 '내 즐겨찾기') — API 가 아니라 저장된 목록을 보여줌
+  { key: 'saved', label: '담아둔 곳' },   // 감귤로 담아 둔 곳 (예전 '내 즐겨찾기') — API 가 아니라 저장된 목록을 보여줌
   { key: 'visited', label: '오른 오름' },   // '올랐어요'로 기록해 둔 곳 (Supabase visits) — 가볼만한 곳 옆, 저장된 목록을 보여줌
 ]
 

@@ -34,7 +34,7 @@ export default function NicknameDialog() {
           <Modal.Title className="fs-5">{nickname ? '닉네임 바꾸기' : '나만의 닉네임 만들기'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {pending && <div className="small text-muted mb-2">닉네임을 만들면 방금 누른 {pending.kind === 'visit' ? '‘올랐어요’' : '‘가볼만한 곳’ 담기'}가 이어서 처리돼요.</div>}
+          {pending && <div className="small text-muted mb-2">닉네임을 만들면 방금 누른 {pending.kind === 'visit' ? '‘올랐어요’' : '‘담아둔 곳’ 담기'}가 이어서 처리돼요.</div>}
           {nickname && <div className="small mb-2">지금 닉네임: <strong>{nickname}</strong></div>}
           <Form.Control autoFocus value={text} maxLength={NAME_MAX + 5} placeholder="예: 오름러버" aria-label="닉네임"
             onChange={(e) => { setText(e.target.value); setError('') }} isInvalid={!!error} />

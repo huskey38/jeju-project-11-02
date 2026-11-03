@@ -109,7 +109,7 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
             </Button>
           )}
                     {onSave && <Button variant={saved ? 'outline-secondary' : 'outline-primary'} onClick={onSave} aria-pressed={saved} data-testid="modal-fav">
-            <CitrusMark filled={saved} size={20} className="citrus-inline" />{saved ? '가볼만한 곳에서 빼기' : '가볼만한 곳에 담기'}
+            <CitrusMark filled={saved} size={20} className="citrus-inline" />{saved ? '담아둔 곳에서 빼기' : '담아둔 곳에 담기'}
           </Button>}
         </Modal.Footer>
       )}

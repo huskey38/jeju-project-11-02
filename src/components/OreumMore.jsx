@@ -1,8 +1,8 @@
 import { OverlayTrigger, Popover } from 'react-bootstrap'
 import { oreumFacts } from '../lib/oreumFacts'
 
-// 메인 '오름이란?' 블록 오른쪽 아래의 "오름에 대해 더 자세히 알고 싶어요!" — 마우스를 올리거나 포커스(터치)하면 오름 소개를 말풍선으로 보여 줌
-// list: 공식 오름 목록(숫자는 여기서 계산, 없으면 숫자 없는 문장으로 대신)
+// 메인 '오름이란?' 블록 아래의 "오름에 대해 더 자세히 알고 싶어요!" — 마우스를 올리거나 포커스(터치)하면 오름 소개를 말풍선으로 보여 줌
+// 소개 박스와 겹치는 내용(오름 설명·형태 4종·일출/억새)은 뺌. list: 공식 오름 목록(숫자는 여기서 계산, 없으면 숫자 없는 문장으로 대신)
 const num = (n) => n.toLocaleString('ko-KR')
 
 export default function OreumMore({ list }) {
@@ -13,15 +13,7 @@ export default function OreumMore({ list }) {
       <Popover.Body className="oreum-more-body">
         <section>
           <h3>이름의 뜻</h3>
-          <p>‘오름’은 제주 말로 산을 뜻하는 <strong>‘오롬’</strong>에서 왔어요. 한라산 둘레와 바닷가까지, 오래전 화산 활동으로 생긴 작은 화산(기생화산)들이 제주 곳곳에 솟아 있어요.</p>
-        </section>
-        <section>
-          <h3>모양은 네 가지</h3>
-          <p>
-            {f
-              ? <>분화구 모양에 따라 {f.byForm.map((g) => `${g.label} ${num(g.count)}곳`).join(' · ')}으로 나눠요. <strong>{f.mostForm.label}</strong>이 가장 많아요.</>
-              : '분화구 모양에 따라 원추형·원형·말굽형·복합형으로 나눠요.'}
-          </p>
+          <p>‘오름’은 제주 말로 산을 뜻하는 <strong>‘오롬’</strong>에서 왔어요. 오래전 화산 활동으로 생긴 ‘기생화산’이라 불러요.</p>
         </section>
         <section>
           <h3>얼마나 높을까요?</h3>
@@ -30,10 +22,6 @@ export default function OreumMore({ list }) {
               ? <>표고는 {num(f.lowest.elev)}m({f.lowest.name})부터 {num(f.highest.elev)}m({f.highest.name})까지예요. 공식 {num(f.total)}곳 중 <strong>{num(f.easy)}곳({f.easyPercent}%)</strong>은 300m 이하라서 비교적 가볍게 오를 수 있어요.</>
               : '대부분 낮은 언덕이라 비교적 가볍게 오를 수 있어요.'}
           </p>
-        </section>
-        <section>
-          <h3>어떤 점이 좋을까요?</h3>
-          <p>정상에서 보는 일출·일몰, 가을 억새, 분화구와 부드러운 능선, 바다까지 이어지는 탁 트인 전망이 매력이에요.</p>
         </section>
         <section>
           <h3>오를 때 알아두세요</h3>

@@ -75,7 +75,7 @@ export const useAppStore = create(
         const { data, error } = await supabase.from('favorites').insert(row).select().single()
         if (error) return get().toast(error.message, 'danger')
         set({ favorites: [data, ...get().favorites] })
-        get().toast('가볼만한 곳에 담았어요', 'citrus')
+        get().toast('담아둔 곳에 담았어요', 'citrus')
       },
       // 가볼만한 곳에서 빼기: favorites 행(id 필요) 하나를 지움
       removeFavorite: async (row) => {
@@ -83,9 +83,9 @@ export const useAppStore = create(
         const { data, error } = await supabase.from('favorites').delete().eq('id', row.id).select()
         if (error) return get().toast(error.message, 'danger')
         // RLS 에 delete 정책이 없으면 오류 없이 0건만 지워짐 → 사용자에게 원인을 알려줌
-        if (!data?.length) return get().toast('가볼만한 곳에서 빼지 못했어요 — Supabase favorites 테이블에 delete 정책이 필요해요', 'danger')
+        if (!data?.length) return get().toast('담아둔 곳에서 빼지 못했어요 — Supabase favorites 테이블에 delete 정책이 필요해요', 'danger')
         set({ favorites: get().favorites.filter((f) => f.id !== row.id) })
-        get().toast('가볼만한 곳에서 뺐어요', 'citrus')
+        get().toast('담아둔 곳에서 뺐어요', 'citrus')
       },
       // 감귤 아이콘 클릭: 이미 담겨 있으면 빼고, 아니면 담음
       toggleFavorite: async (item) => {

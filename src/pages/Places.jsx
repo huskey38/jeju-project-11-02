@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button, Col, Form, InputGroup, Row } from 'react-bootstrap'
 import ItemCard from '../components/ItemCard'
@@ -338,7 +338,9 @@ export default function Places() {
     <>
       <div className="d-flex flex-wrap gap-2 mb-2" role="group" aria-label="분류">
         {CATEGORIES.map((c) => (
-          <Button key={c.key} className="rounded-pill px-3" variant={cat === c.key ? 'primary' : 'outline-primary'}
+          <Fragment key={c.key}>
+          {c.key === 'saved' && <span className="tab-group-label" data-testid="tab-group-label">내 기록 ▸</span>}
+          <Button className="rounded-pill px-3" variant={cat === c.key ? 'primary' : 'outline-primary'}
             aria-pressed={cat === c.key} onClick={() => pickCat(c.key)}>
             {c.key === 'saved' && <CitrusMark filled size={16} className="citrus-inline" />}
             {c.key === 'visited' && <OreumMark filled size={17} className="me-1" style={{ verticalAlign: '-3px' }} />}
@@ -346,6 +348,7 @@ export default function Places() {
             {c.key === 'saved' && favorites.length > 0 && <span className="count-chip" data-testid="saved-count">{favorites.length}</span>}
             {c.key === 'visited' && visits.length > 0 && <span className="count-chip" data-testid="visited-count">{visits.length}</span>}
           </Button>
+          </Fragment>
         ))}
       </div>
       {canNear && (
@@ -418,7 +421,7 @@ export default function Places() {
       {listMode && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
           <span className="text-muted">
-            {cat === 'visited' ? `오른 오름 ${visits.length}곳 · 카드의 오름 버튼을 누르면 빠져요` : `가볼만한 곳 ${favorites.length}곳 · 카드의 감귤을 누르면 빠져요`}
+            {cat === 'visited' ? `오른 오름 ${visits.length}곳 · 카드의 오름 버튼을 누르면 빠져요` : `담아둔 곳 ${favorites.length}곳 · 카드의 감귤을 누르면 빠져요`}
           </span>
           <span className="ms-auto" data-testid="my-nickname">
             {nickname
@@ -432,7 +435,7 @@ export default function Places() {
       {(!nearOn || cat === 'oreum') && (
         <Form onSubmit={search} className="mt-3 mb-4">
           <InputGroup>
-            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '가볼만한 곳에서 검색' : cat === 'visited' ? '오른 오름에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
+            <Form.Control value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={cat === 'saved' ? '담아둔 곳에서 검색' : cat === 'visited' ? '오른 오름에서 검색' : cat === 'oreum' ? '오름 이름으로 검색 (예: 새별, 다랑쉬, 용눈이)' : cat === 'food' ? '가게 이름이나 음식 종류로 검색 (예: 흑돼지, 국수)' : cat === 'cafe' ? '가게 이름이나 메뉴로 검색 (예: 커피, 한라봉)' : '검색어'} />
             <Button type="submit"><i className="bi bi-search" /></Button>
           </InputGroup>
           {MENU_WORDS[cat] && (

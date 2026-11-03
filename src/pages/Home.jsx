@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Col, Form, Row } from 'react-bootstrap'
+import { Button, Card, Col, Form, Row } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 import { ping } from '../api/client'
 import { isSupabaseReady, supabase } from '../lib/supabase'
 import { useAppStore } from '../store/useAppStore'
@@ -13,6 +14,11 @@ const SHOW_CHECKS = false
 const SHOW_NICKNAME = false   // 닉네임 입력칸도 숨김 (저장된 닉네임은 가볼만한 곳의 주인 이름으로 계속 쓰임, 비어 있으면 '익명')
 
 export default function Home() {
+  const navigate = useNavigate()
+  const toPlaces = (cat) => {   // 히어로 버튼: [오름 찾기] 탭(또는 내 기록 탭)으로 바꾸고 부드럽게 내려감
+    navigate(`/?cat=${cat}`)
+    setTimeout(() => document.querySelector('[data-testid=home-places]')?.scrollIntoView({ behavior: 'smooth' }), 80)
+  }
   const nickname = useAppStore((s) => s.nickname)
   const setNickname = useAppStore((s) => s.setNickname)
   const [db, setDb] = useState(isSupabaseReady
@@ -38,8 +44,12 @@ export default function Home() {
         <HallaScene className="hero-scene" />
         <div className="hero-greet">혼저옵서예</div>
         <h1 className="fw-bold">오름 한 걸음</h1>
-        <p className="lead">제주의 오름을 한 걸음씩 채워 가는 탐방 길잡이 — 공공데이터와 AI 가이드 오롬이와 함께</p>
-        <p className="hero-intent">가까운 오름, 일출·억새·가볍게 걷기 좋은 오름까지 — 오름 앞뒤로 들를 맛집·카페·날씨를 한 번에.</p>
+        <p className="lead">제주 오름 368곳을 한 걸음씩 오르고, 3D 제주 지도에 귤을 채워 가는 탐방 기록장</p>
+        <p className="hero-intent">오름을 찾고 · 올랐다고 기록하고 · 앞뒤로 들를 맛집·카페·날씨까지 한 번에. 궁금한 건 AI 가이드 오롬이에게 물어보세요.</p>
+        <div className="hero-cta d-flex flex-wrap gap-2" data-testid="hero-cta">
+          <Button variant="success" onClick={() => toPlaces('oreum')}>오름 둘러보기 <i className="bi bi-arrow-down ms-1" /></Button>
+          <Button variant="outline-success" onClick={() => toPlaces('visited')}>내 오름 기록 보기</Button>
+        </div>
       </section>
 
       <OreumIntro />
