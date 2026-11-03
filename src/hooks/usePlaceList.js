@@ -68,7 +68,7 @@ export function usePlaceList({ cat, sub, nearOn, radiusKm, tags, form, sort, unv
       // 한 소스가 끝나면 다음 소스로 넘어가며, 한 번에 보여줄 개수(ROWS)가 찰 때까지 읽음
       while (cur.i < sources.length && got.length < ROWS) {
         const list = await fetchPage(sources[cur.i], ctx, cur.page)
-        got = [...got, ...list.filter((x) => !x.dup)]   // 관광공사 음식점과 같은 가게(일반음식점 쪽 중복)는 뺌. 쪽 계산(advance)은 거르기 전 개수로
+        got = [...got, ...list.filter((x) => !x.dup && !got.some((g) => g.key === x.key))]   // 관광공사 음식점과 같은 가게(일반음식점 쪽 중복)는 뺌. 쪽 계산(advance)은 거르기 전 개수로
         cur = advance(cur, list.length, ROWS)
       }
       if (id !== reqId.current) return

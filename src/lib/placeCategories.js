@@ -23,8 +23,8 @@ export const CATEGORIES = [
 export const FOOD_TYPES = [
   { key: 'all', label: '전체' },
   { key: 'korean', label: '한식', lcls: 'FD01', biz: '한식' },
-  { key: 'raw', label: '횟집', biz: '횟집' },
-  { key: 'grill', label: '식육·구이', biz: '식육(숯불구이)' },
+  { key: 'raw', label: '횟집', biz: '횟집', kws: ['횟집'] },   // kws: 관광공사 분류 코드가 없는 칩은 이름 검색어로 사진 있는 관광공사 음식점을 먼저 보여 줌
+  { key: 'grill', label: '식육·구이', biz: '식육(숯불구이)', kws: ['흑돼지', '갈비', '구이', '고기'] },
   { key: 'snack', label: '분식', lcls: 'FD030400', biz: '분식' },
   { key: 'japanese', label: '일식', lcls: 'FD020200', biz: '일식' },
   { key: 'chinese', label: '중식', lcls: 'FD020100', biz: '중국식' },
@@ -83,7 +83,7 @@ export function sourcesFor(cat, sub = 'all', near = false, tags = [], opts = {})
     const lcls = foodType?.lcls ?? ''   // (태그는 관광공사 음식점에만 있음)
     return [{ api: 'tagged', tab: cat, tags, lcls }]
   }
-  if (foodType) return [...(foodType.lcls ? [{ api: 'tour', type: '39', lcls: foodType.lcls }] : []), ...(foodType.biz ? [{ api: 'rest', biz: foodType.biz }] : [])]
+  if (foodType) return [...(foodType.lcls ? [{ api: 'tour', type: '39', lcls: foodType.lcls }] : []), ...(foodType.kws ?? []).map((keyword) => ({ api: 'tour', type: '39', keyword, artBiz: foodType.biz })), ...(foodType.biz ? [{ api: 'rest', biz: foodType.biz }] : [])]
   switch (cat) {
     case 'food': return [...FOOD_LCLS.map((lcls) => ({ api: 'tour', type: '39', lcls })), REST]   // 관광공사 음식점(사진 있음) 뒤에 일반음식점 이어 붙임
     case 'cafe': return [{ api: 'tour', type: '39', lcls: 'FD05' }]

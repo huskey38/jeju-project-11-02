@@ -59,7 +59,10 @@ describe('sourcesFor — 분류별 데이터 소스', () => {
     expect(parseSub('food', 'xx')).toBe('all')
     expect(sourcesFor('food', 'korean')).toEqual([{ api: 'tour', type: '39', lcls: 'FD01' }, { api: 'rest', biz: '한식' }])
     expect(sourcesFor('food', 'japanese')).toEqual([{ api: 'tour', type: '39', lcls: 'FD020200' }, { api: 'rest', biz: '일식' }])
-    expect(sourcesFor('food', 'raw')).toEqual([{ api: 'rest', biz: '횟집' }])       // 업태만 있는 칩
+    expect(sourcesFor('food', 'raw')).toEqual([{ api: 'tour', type: '39', keyword: '횟집', artBiz: '횟집' }, { api: 'rest', biz: '횟집' }])   // 분류 코드가 없는 칩: 이름 검색어로 사진 있는 관광공사 음식점을 먼저, 그 뒤 일반음식점
+    expect(sourcesFor('food', 'grill')).toEqual([
+      ...['흑돼지', '갈비', '구이', '고기'].map((keyword) => ({ api: 'tour', type: '39', keyword, artBiz: '식육(숯불구이)' })), { api: 'rest', biz: '식육(숯불구이)' },
+    ])
     expect(sourcesFor('food', 'all')).toHaveLength(4)
     expect(sourcesFor('food', 'snack', true)).toEqual([{ api: 'near', type: '39', lcls: 'FD030400' }])   // 위치 검색은 관광공사 데이터만
     expect(sourcesFor('food', 'raw', true)).toEqual([{ api: 'near', type: '39', xlcls: 'FD05' }])        // 업태만 있는 칩은 위치 검색에 반영 안 됨

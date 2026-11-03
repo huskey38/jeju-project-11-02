@@ -5,6 +5,7 @@ vi.mock('../src/api/client', () => ({
 }))
 const client = await import('../src/api/client')
 const { ROWS, favOf, fetchPage, oreumExtraRows, serverSort, valid } = await import('../src/lib/placeItems.js')
+const { foodKindOf } = await import('../src/components/FoodArt.jsx')
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -77,5 +78,35 @@ describe('oreumExtraRows — 오름 정보 카드의 공식 보강 줄', () => {
     expect(labels(true)).toEqual(['이름·특징', '특징 출처', '편의시설', '주차', '관리', '소개 출처'])
     expect(labels(false)).not.toContain('소개 출처')
     expect(oreumExtraRows(b, false).find((r) => r.label === '주차').value).toBe('15대')
+  })
+})
+
+describe('fetchPage — 이름 검색어로 찾는 관광공사 음식점(횟집·식육 칩)', () => {
+  it('검색어(keyword)로 관광공사 음식점을 찾고, 카페(FD05)는 dup 표시로 거름', async () => {
+    client.fetchPlaces.mockResolvedValue([{ id: '1', title: '횟집A', lcls: 'FD010', type: '39', image: 'a.jpg' }, { id: '2', title: '카페B', lcls: 'FD05', type: '39' }])
+    const r = await fetchPage({ api: 'tour', type: '39', keyword: '횟집' }, { keyword: '' }, 1)
+    expect(client.fetchPlaces).toHaveBeenCalledWith('횟집', '39', 1, ROWS, '')
+    expect(r.find((x) => x.id === '1').dup).toBeUndefined()
+    expect(r.find((x) => x.id === '2').dup).toBe(true)
+  })
+  it('사용자가 검색어를 쓰면 이 소스는 건너뜀(함께 걸 수 없음) — API 를 부르지 않음', async () => {
+    const r = await fetchPage({ api: 'tour', type: '39', keyword: '횟집' }, { keyword: '성산' }, 1)
+    expect(r).toEqual([])
+    expect(client.fetchPlaces).not.toHaveBeenCalled()
+  })
+})
+
+describe('foodKindOf — 업태 → 대체 그림', () => {
+  it('업태 이름에 맞는 그림을 고르고, 모르는 업태는 접시', () => {
+    expect(foodKindOf('한식')).toBe('bowl')
+    expect(foodKindOf('횟집')).toBe('fish')
+    expect(foodKindOf('식육(숯불구이)')).toBe('grill')
+    expect(foodKindOf('분식')).toBe('snack')
+    expect(foodKindOf('일식')).toBe('sushi')
+    expect(foodKindOf('중국식')).toBe('noodle')
+    expect(foodKindOf('통닭(치킨)')).toBe('chicken')
+    expect(foodKindOf('경양식')).toBe('plate')
+    expect(foodKindOf('')).toBe('plate')
+    expect(foodKindOf('cafe')).toBe('cafe')
   })
 })

@@ -38,6 +38,10 @@ export async function fetchPage(src, ctx, page) {
   }
   if (src.api === 'near') {
     list = await fetchNearby({ ...ctx.coords, radius: ctx.radiusKm * 1000, type: src.type, lcls: src.lcls, xlcls: src.xlcls, page, rows: ROWS })
+  } else if (src.keyword) {   // 이름 검색어로 찾는 관광공사 음식점(횟집·식육 칩): 사용자가 검색어를 쓰면 함께 걸 수 없어 건너뜀. 카페(FD05)는 dup 표시로 거름
+    if (ctx.keyword) return []
+    list = await fetchPlaces(src.keyword, src.type, page, ROWS, '')
+    return list.map((p) => ({ ...p, kind: 'tour', key: `t-${p.id}`, ...(src.artBiz && { artBiz: src.artBiz }), ...(p.lcls === 'FD05' && { dup: true }) }))
   } else {
     list = await fetchPlaces(ctx.keyword, src.type, page, ROWS, src.lcls)
   }

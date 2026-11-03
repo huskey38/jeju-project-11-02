@@ -13,6 +13,7 @@ import { usePlaceDetail } from '../hooks/usePlaceDetail'
 import { CATEGORIES, DEFAULT_CAT, NEAR_CATS, parseTags, toggleTag, RADII, badgeOf, parseSub, subsOf, toggleSub, subtitleOf } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import OreumArt from '../components/OreumArt'
+import FoodArt from '../components/FoodArt'
 import { FEATURES } from '../lib/features'
 import OreumMark from '../components/OreumMark'
 import Pager from '../components/Pager'
@@ -200,7 +201,9 @@ export default function Places() {
                     subtitle={subtitleOf(it)}
                     image={it.image} badge={badgeOf(it)}
                     tag={it.kind === 'oreum' && formGroupOf(it.form).key !== 'etc' ? { label: formGroupOf(it.form).label, tone: formGroupOf(it.form).key } : undefined}
-                    art={it.kind === 'oreum' ? <OreumArt form={it.form} elev={it.elev} className="item-card-img w-100 d-block" /> : undefined}
+                    art={it.kind === 'oreum' ? <OreumArt form={it.form} elev={it.elev} className="item-card-img w-100 d-block" />
+                      : it.kind === 'rest' ? <FoodArt biz={it.biz} className="item-card-img food-art w-100 d-block" />
+                      : it.kind === 'tour' && String(it.type) === '39' ? <FoodArt kind={it.lcls === 'FD05' ? 'cafe' : undefined} biz={it.artBiz} className="item-card-img food-art w-100 d-block" /> : undefined}
                     onClick={() => openDetail(it)}
                     saved={isSaved(it)} onSave={() => toggleFavorite(favOf(it))}
                     credit={it.kind === 'oreum' ? it.imageCredit : undefined}
