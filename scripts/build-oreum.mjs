@@ -6,6 +6,7 @@
 import { writeFile } from 'node:fs/promises'
 import index from '../server/data/placeIndex.js'
 import { isJejuCoord } from '../src/lib/geo.js'
+import { applyFix } from './oreum-fix.mjs'
 
 const SOURCE = 'https://api.odcloud.kr/api/15043497/v1/uddi:e2b01efa-220d-4773-be00-ae6d34628a0c'   // 오름현황 20251231
 const OUT = 'server/data/oreum.js'
@@ -82,5 +83,6 @@ await Promise.all(Array.from({ length: 4 }, async () => {
 console.log('좌표 출처', stats, '| 좌표 실패', failed.length, failed.join(', '))
 console.log('관광공사와 맞춘 곳', out.filter((x) => x.tourId).length, '/ 관광공사 오름', tour.length, '→ 못 맞춘 관광공사 오름:', tour.filter((t) => !used.has(t.id)).map((t) => t.title).join(', '))
 
+console.log('좌표 검증 수정표 적용:', applyFix(out).join(', '))   // scripts/oreum-fix.mjs
 await writeFile(OUT, `// scripts/build-oreum.mjs 가 만든 파일 — 직접 고치지 마세요.\n// 제주특별자치도_오름현황(2025-12-31, 공공데이터포털 15043497) ${out.length}곳 + 좌표(관광공사 또는 카카오 지오코딩) + 관광공사 오름과의 연결(tourId)\nexport default ${JSON.stringify({ source: '제주특별자치도_오름현황', baseDate: '2025-12-31', items: out })}\n`)
 console.log(`완료: ${OUT}`)

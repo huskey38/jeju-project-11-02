@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TOOL_LABEL, stepText, stepsText } from '../src/lib/agentSteps.js'
+import { TOOL_API, TOOL_LABEL, apiOf, stepText, stepsText } from '../src/lib/agentSteps.js'
 
 describe('agentSteps — 호출한 도구를 읽기 쉽게', () => {
   it('도구 이름은 한글 라벨로, 핵심 인자와 건수를 함께', () => {
@@ -26,5 +26,16 @@ describe('agentSteps — 호출한 도구를 읽기 쉽게', () => {
       .toBe('날씨 조회 · 제주시 → 6건 → 장소 검색 · 박물관 → 3건')
     expect(stepsText([])).toBe('')
     for (const name of ['search_tour_places', 'search_nearby', 'search_festivals', 'search_heritage', 'search_restaurants', 'get_weather', 'get_place_detail']) expect(TOOL_LABEL[name]).toBeTruthy()
+  })
+})
+
+describe('apiOf — 도구가 쓰는 검색 API 이름', () => {
+  it('모든 도구에 API 이름이 있고, 도구별로 맞는 출처를 돌려줌', () => {
+    expect(Object.keys(TOOL_API).sort()).toEqual(Object.keys(TOOL_LABEL).sort())
+    expect(apiOf({ tool: 'search_oreum' })).toBe('제주 오름현황(공공데이터)')
+    expect(apiOf({ tool: 'get_weather' })).toBe('기상청 단기·중기예보')
+    expect(apiOf({ tool: 'search_restaurants' })).toBe('행정안전부 일반음식점')
+    expect(apiOf({ tool: 'search_nearby' })).toBe('한국관광공사 TourAPI')
+    expect(apiOf({ tool: 'unknown' })).toBe('')
   })
 })

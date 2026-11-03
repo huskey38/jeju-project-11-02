@@ -7,8 +7,10 @@ import VisitButton from './VisitButton'
 // onSave 를 주면 감귤 즐겨찾기 버튼이 생기고, saved 로 담김 여부를 표시합니다. onVisit 를 주면 그 밑에 '가봤어요' 버튼(visited 로 가본 여부)이 생깁니다
 // art 를 주면 사진이 없을 때 빈 이미지 대신 그 그림(예: 오름 형태 일러스트)을 보여줍니다
 // tag 를 주면({ label, tone }) 사진 왼쪽 위에 색 표식이 붙습니다 (오름 형태)
+// flag 를 주면 사진 오른쪽 위에 '가본 오름' 표식이 붙습니다 (features.js 의 visitedFilter)
+// credit 을 주면 사진 맨 아래에 '사진 · 출처' 한 줄이 붙습니다
 // status 를 주면(축제) 기간 진행률 막대와 상태 칩이 붙습니다: { pct, label, tone }
-export default function ItemCard({ title, subtitle, image, badge, status, saved = false, onSave, visited = false, onVisit, onClick, art, tag }) {
+export default function ItemCard({ title, subtitle, image, badge, status, saved = false, onSave, visited = false, onVisit, onClick, art, tag, flag = false, credit }) {
   return (
     <Card className={`h-100 item-card${onClick ? ' clickable' : ''}`} onClick={onClick} role={onClick ? 'button' : undefined}>
       {onSave && <FavButton saved={saved} onClick={onSave} />}
@@ -17,6 +19,8 @@ export default function ItemCard({ title, subtitle, image, badge, status, saved 
         {image
           ? <Card.Img variant="top" src={image} alt={title} className="item-card-img" loading="lazy" />
           : art ?? <div className="item-card-img placeholder-img"><i className="bi bi-image" /></div>}
+        {credit && image && <span className="photo-credit" data-testid="photo-credit">사진 · {credit.replace(/\(.*\)/, '')}</span>}
+        {flag && <span className="visited-flag" data-testid="visited-flag">🚩 가본 오름</span>}
         {tag && <span className={`form-tag form-tag-${tag.tone}`} data-testid="form-tag">{tag.label}</span>}
       </div>
       <Card.Body className={`d-flex flex-column${onSave || onVisit ? ' has-fav' : ''}`}>

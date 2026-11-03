@@ -14,7 +14,7 @@ import { kakaoLinks } from '../lib/kakao'
 // visitFrom: 날씨의 방문일 기본값(축제 시작일 등)
 // recommend: { mode: 'spot'|'food', excludeId, onPick(item) } — 있으면 아래에 "근처 추천"을 보여줌
 // onBack / backLabel: 추천에서 넘어온 경우 이전 장소로 돌아가는 버튼
-export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, visitFrom, saved = false, onSave, visited = false, onVisit, recommend, onBack, backLabel }) {
+export default function DetailModal({ show, onHide, title, subtitle, badge, loading, error, images = [], rows = [], homepage, text, lat, lng, visitFrom, saved = false, onSave, visited = false, onVisit, recommend, onBack, backLabel, imageCredit, extra }) {
   const bodyRef = useRef(null)
   const [pins, setPins] = useState({ markers: [], radiusKm: null })   // 근처 추천을 지도 위 핀으로 (NearbyRecs 가 채움)
   const [poiPins, setPoiPins] = useState([])                         // 주변 편의시설(편의점·주차장) 핀 (NearbyPoi 가 채움)
@@ -52,6 +52,7 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
             ))}
           </Carousel>
         )}
+        {images.length > 0 && imageCredit && <div className="small text-muted mb-3 mt-n2" data-testid="image-credit">사진: {imageCredit}</div>}
 
         {rows.length > 0 && (
           <ListGroup variant="flush" className="mb-3 small">
@@ -69,6 +70,8 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
             )}
           </ListGroup>
         )}
+
+        {extra}
 
         {text && <p className="mb-3" style={{ whiteSpace: 'pre-wrap' }}>{text}</p>}
 

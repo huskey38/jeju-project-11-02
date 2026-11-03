@@ -17,7 +17,7 @@ const variants = (name) => {
   const b = base.replace(/오름$/, '')
   return [...new Set([base, b + '오름', b, ...inner.map((x) => x.replace(/오름$/, '') + '오름')])].filter((x) => x.length >= 2)
 }
-const save = () => writeFile(OUT, `// scripts/fill-oreum-images.mjs 가 만든 파일 — 공식 오름현황에 사진이 없는 오름의 보완 사진\n// by: 'tour' 관광공사 / 'kakao' 카카오 이미지 검색(블로그·카페 글, link 는 원문)\nexport default ${JSON.stringify(found)}\n`)
+const save = () => writeFile(OUT, `// scripts/fill-oreum-images.mjs 가 만든 파일 — 공식 오름현황에 사진이 없는 오름의 보완 사진(관광공사 TourAPI 만)\nexport default ${JSON.stringify(found)}\n`)
 const missing = data.items.filter((o) => !o.image && !found[o.id]).slice(0, Number(process.env.LIMIT) || 9999)
 const pool = async (list, n, fn) => { const q = [...list]; await Promise.all(Array.from({ length: n }, async () => { for (let x; (x = q.shift());) await fn(x) })) }
 

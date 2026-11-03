@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom'
 import { Container, Toast, ToastContainer } from 'react-bootstrap'
 import ChatWidget from '../components/ChatWidget'
 import NicknameDialog from '../components/NicknameDialog'
+import VisitEffect from '../components/VisitEffect'
+import { FEATURES } from '../lib/features'
 import { useAppStore } from '../store/useAppStore'
 import { isSupabaseReady } from '../lib/supabase'
 
@@ -38,6 +40,7 @@ export default function RootLayout() {
       {/* 어느 페이지에서나 따라다니는 AI 가이드 원형 버튼 + 대화창 */}
       <ChatWidget />
       <NicknameDialog />
+      {FEATURES.visitEffect && <VisitEffect />}
 
       {/* 스토어의 toast() 로 띄운 알림 */}
       <ToastContainer position="bottom-end" className="p-3 position-fixed">

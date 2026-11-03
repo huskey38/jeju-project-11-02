@@ -12,6 +12,8 @@ import { TAG_RULES } from '../lib/placeTags'
 import { CATEGORIES, DEFAULT_CAT, MENU_WORDS, NEAR_CATS, parseTags, toggleTag, RADII, advance, badgeOf, parseSub, recommendModeOf, sourcesFor, subsOf, toggleSub, subtitleOf } from '../lib/placeCategories'
 import { isJejuCoord } from '../lib/geo'
 import OreumArt from '../components/OreumArt'
+import { FEATURES } from '../lib/features'
+import VisitPhoto from '../components/VisitPhoto'
 import { formGroupOf } from '../lib/oreumForms'
 import { useAppStore } from '../store/useAppStore'
 
@@ -39,6 +41,11 @@ async function fetchPage(src, ctx, page) {
   let list
   if (src.api === 'oreum') {
     const near = src.near && ctx.coords ? { lat: ctx.coords.lat, lng: ctx.coords.lng, radius: ctx.radiusKm * 1000 } : {}   // 내 위치 반경 안을 가까운 순으로
+    if (ctx.unvisited) {   // 안 가 본 오름만: 같은 조건으로 전부 받아 가본 곳을 빼고 쪽을 직접 나눔
+      const all = await fetchOreum({ keyword: ctx.keyword, form: src.form, tags: src.tags, sort: src.sort, ...near, page: 1, rows: 400 })
+      const todo = all.filter((o) => { const f = favOf({ ...o, kind: 'oreum' }); return !ctx.visitedKeys.has(`${f.source}:${f.id}`) })
+      return todo.slice((page - 1) * ROWS, page * ROWS).map((o) => ({ ...o, kind: 'oreum', key: `o-${o.id}` }))
+    }
     const list = await fetchOreum({ keyword: ctx.keyword, form: src.form, tags: src.tags, sort: src.sort, ...near, page, rows: ROWS })
     return list.map((o) => ({ ...o, kind: 'oreum', key: `o-${o.id}` }))
   }
@@ -49,6 +56,15 @@ async function fetchPage(src, ctx, page) {
   }
   return list.map((p) => ({ ...p, kind: 'tour', key: `t-${p.id}` }))
 }
+
+// 오름 정보 카드의 공식 보강 정보(관내 관광지데이터): 편의시설·주차·관리기관, 그리고 소개글을 쓰는 경우의 출처 (소개글은 관광공사 소개가 없을 때만 보여 줌)
+const INTRO_SOURCE = '제주특별자치도 관내 관광지데이터(2025-12-31)'
+const oreumExtraRows = (b, usesIntro) => [
+  { label: '편의시설', value: b.facilities?.join(', ') },
+  { label: '주차', value: b.parking ? `${b.parking}대` : '' },
+  { label: '관리', value: b.org ? `${b.org}${b.tel ? ` (${b.tel})` : ''}` : '' },
+  ...(usesIntro && b.intro ? [{ label: '소개 출처', value: INTRO_SOURCE }] : []),
+]
 
 export default function Places() {
   const toggleFavorite = useAppStore((s) => s.toggleFavorite)   // 감귤 아이콘: 즐겨찾기 담기 ↔ 빼기
@@ -74,6 +90,7 @@ export default function Places() {
   const tags = nearOn && cat !== 'oreum' ? [] : parseTags(cat, params.get('t'))   // 테마 태그 (오름 외에는 내 주변과 함께 쓰지 않음)
   const form = cat === 'oreum' && FORM_GROUPS.some((g) => g.key === params.get('fm')) ? params.get('fm') : ''   // 오름 형태 (원추형·원형·말굽형·복합형)
   const sort = cat === 'oreum' && ['elev', 'elev_asc'].includes(params.get('so')) ? params.get('so') : ''                                    // 오름 정렬
+  const unvisited = FEATURES.visitedFilter && cat === 'oreum' && params.get('nv') === '1'                                                    // 안 가 본 오름만
 
   const [keyword, setKeyword] = useState('')
   const listMode = cat === 'saved' || cat === 'visited'                  // 가볼만한 곳·가본 곳은 저장된 목록(스토어)을 보여줌
@@ -112,7 +129,7 @@ export default function Places() {
     if (cat === 'saved' || cat === 'visited') { setLoading(false); setHasMore(false); return }   // 가볼만한 곳·가본 곳은 저장된 목록(스토어)이라 API 를 부르지 않음
     if (nearOn && !coords) return                // 위치를 얻은 뒤에 검색
     const sources = sourcesFor(cat, sub, nearOn, tags, { form, sort })
-    const ctx = { keyword: kw, coords, radiusKm }
+    const ctx = { keyword: kw, coords, radiusKm, unvisited, visitedKeys: new Set(visits.map((v) => `${v.source}:${v.item_id}`)) }
     const id = reset ? ++reqId.current : reqId.current
     let cur = reset ? { i: 0, page: 1 } : cursor.current
     reset ? setLoading(true) : setMoreLoading(true)
@@ -136,7 +153,7 @@ export default function Places() {
     }
   }
   // 분류·하위 선택·반경·기준 위치가 바뀌면 다시 검색 (처음 한 번 자동 검색 포함)
-  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, tags.join(','), form, sort])
+  useEffect(() => { load(true) }, [cat, sub, radiusKm, coords, tags.join(','), form, sort, unvisited])
 
   // 인기 메뉴 바로가기: 누르면 그 단어로 바로 검색, 다시 누르면 해제
   function pickWord(w) {
@@ -149,14 +166,15 @@ export default function Places() {
     load(true)
   }
   // 주소(?cat=&sub=&r=) 만들기: 반경(r)은 분류를 옮겨도 유지됨
-  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags, fm = form, so = sort }) => ({ ...(fm && c === 'oreum' && { fm }), ...(so && c === 'oreum' && { so }), ...(c !== DEFAULT_CAT && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
+  const urlOf = ({ c = cat, sb = sub, r = radiusKm, tg = tags, fm = form, so = sort, nv = unvisited }) => ({ ...(nv && c === 'oreum' && { nv: '1' }), ...(fm && c === 'oreum' && { fm }), ...(so && c === 'oreum' && { so }), ...(c !== DEFAULT_CAT && { cat: c }), ...(sb !== 'all' && { sub: sb }), ...(r > 0 && NEAR_CATS.includes(c) && { r: String(r) }), ...(tg.length > 0 && { t: tg.join(',') }) })
   const subOn = (key) => sub === key
   function pickCat(key) {
     if (Object.values(MENU_WORDS).flat().includes(keyword)) setKeyword('')   // 인기 메뉴로 넣은 검색어는 다른 분류로 가져가지 않음
-    setParams(urlOf({ c: key, sb: 'all', tg: [], fm: '', so: '' }))
+    setParams(urlOf({ c: key, sb: 'all', tg: [], fm: '', so: '', nv: false }))
   }
   function pickForm(key) { setParams(urlOf({ fm: key === form ? '' : key })) }   // 켜진 형태를 다시 누르면 해제
   function pickSort(key) { setParams(urlOf({ so: key })) }
+  function pickUnvisited() { setParams(urlOf({ nv: !unvisited })) }
   function pickTag(key) { setParams(urlOf({ tg: toggleTag(tags, key) })) }
   function pickSub(key) { setParams(urlOf({ sb: toggleSub(cat, sub, key) })) }
   function pickRadius(km) { setParams(urlOf({ r: km === radiusKm ? 0 : km })) }   // 켜진 반경을 다시 누르면 해제
@@ -231,12 +249,15 @@ export default function Places() {
       <DetailModal {...common} badge={badgeOf(b)}
         title={b.title} subtitle={b.addr}
         images={d?.images?.length ? d.images : b.image ? [b.image] : []}
+        extra={FEATURES.visitPhoto && isVisited(b) ? <VisitPhoto oreumId={b.id} /> : undefined}
+        imageCredit={d?.images?.length ? '한국관광공사' : b.imageCredit}   // 상세 사진은 관광공사 TourAPI
         rows={[
           { label: '행정시', value: b.city }, { label: '표고', value: b.elev != null ? `${b.elev}m` : '' },
           { label: '비고(比高)', value: b.rel != null ? `${b.rel}m` : '' }, { label: '면적', value: b.area != null ? `${b.area.toLocaleString('ko-KR')}㎡` : '' },
           { label: '형태', value: b.form }, ...(d?.info ?? []),
+          ...oreumExtraRows(b, !d?.overview),
         ].filter((r) => r.value)}
-        homepage={d?.homepage} text={d?.overview}
+        homepage={d?.homepage} text={d?.overview || b.intro}
         lat={b.lat} lng={b.lng}
         saved={isSaved(b)} onSave={() => toggleFavorite(favOf(b))} />
     ) : b.kind === 'rest' ? (
@@ -309,6 +330,11 @@ export default function Places() {
             <Button key={g.key} size="sm" className="rounded-pill px-2" variant={form === g.key ? 'info' : 'outline-info'}
               aria-pressed={form === g.key} onClick={() => pickForm(g.key)}>{g.label}</Button>
           ))}
+          {FEATURES.visitedFilter && (
+            <Button size="sm" className="rounded-pill px-2" variant={unvisited ? 'success' : 'outline-success'} aria-pressed={unvisited} onClick={pickUnvisited} data-testid="unvisited-toggle">
+              <i className="bi bi-flag me-1" />안 가 본 오름만
+            </Button>
+          )}
           {!nearOn && (
             <span className="ms-auto d-flex align-items-center gap-1" role="group" aria-label="정렬" data-testid="sort-bar">
               <span className="text-muted"><i className="bi bi-sort-down me-1" />정렬</span>
@@ -400,6 +426,8 @@ export default function Places() {
                     art={it.kind === 'oreum' ? <OreumArt form={it.form} elev={it.elev} className="item-card-img w-100 d-block" /> : undefined}
                     onClick={() => openDetail(it)}
                     saved={isSaved(it)} onSave={() => toggleFavorite(favOf(it))}
+                    credit={it.kind === 'oreum' ? it.imageCredit : undefined}
+                    flag={FEATURES.visitedFilter && it.kind === 'oreum' && isVisited(it)}
                     visited={isVisited(it)} onVisit={cat === 'food' || cat === 'cafe' ? undefined : () => toggleVisit(favOf(it))} />
                 </Col>
               ))}

@@ -10,6 +10,18 @@ export const TOOL_LABEL = {
   get_weather: '날씨 조회',
   get_place_detail: '소개글 확인',
 }
+// 도구가 실제로 부르는 검색 API(데이터 출처) — 대화창 칩에 함께 보여 "무슨 API 로 찾았는지" 알 수 있게 함
+export const TOOL_API = {
+  search_tour_places: '한국관광공사 TourAPI',
+  get_place_detail: '한국관광공사 TourAPI',
+  search_nearby: '한국관광공사 TourAPI',
+  search_festivals: '한국관광공사 TourAPI',
+  search_oreum: '제주 오름현황(공공데이터)',
+  search_restaurants: '행정안전부 일반음식점',
+  get_weather: '기상청 단기·중기예보',
+  search_heritage: '국가유산청 Open API',
+}
+export const apiOf = (step) => TOOL_API[step.tool] ?? ''
 const NO_COUNT = new Set(['get_place_detail'])   // 결과가 목록이 아닌 도구는 건수를 표시하지 않음
 
 // 인자 중 사람이 알아볼 핵심 한 가지 (검색어 · 지역 · 분류 · 유형 · 시작일)

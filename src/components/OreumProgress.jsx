@@ -5,6 +5,10 @@ import { TIERS, oreumProgress } from '../lib/oreumProgress'
 import { useAppStore } from '../store/useAppStore'
 import { Loading } from './Status'
 import TierEmblem from './TierEmblem'
+import { FEATURES } from '../lib/features'
+import NextStep from './NextStep'
+import ProgressBreakdown from './ProgressBreakdown'
+import StampBook from './StampBook'
 
 // three.js 는 용량이 커서 '가본 곳' 탭을 열 때만 불러옴
 const OreumJeju3D = lazy(() => import('./OreumJeju3D'))
@@ -66,6 +70,7 @@ export default function OreumProgress() {
         </div>
       </div>
       <ProgressBar now={p.percent} className="oreum-bar mb-3" aria-label="오름 등반률" />
+      {FEATURES.nextStep && <NextStep />}
 
       {error ? <div className="small text-muted">오름 목록을 불러오지 못했어요 ({error})</div> : !oreums ? <Loading text="오름 목록을 불러오는 중..." /> : (
         <>
@@ -79,6 +84,8 @@ export default function OreumProgress() {
             <span><span className="oreum-key oreum-key-todo" />빈 깃대(아직 안 간 오름) {p.remaining}곳</span>
             <span className="ms-auto">마우스로 돌리고 확대해 보세요 · 마크에 올리면 이름이 보여요</span>
           </div>
+          {FEATURES.progressBreakdown && <div className="mt-4"><ProgressBreakdown /></div>}
+          {FEATURES.stampBook && <StampBook />}
         </>
       )}
     </section>

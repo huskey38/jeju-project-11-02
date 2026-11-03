@@ -1,4 +1,4 @@
-# 제주 오름 길잡이
+# 오름 한 걸음
 
 제주의 **오름**을 소개하는 웹앱. 공공데이터 API와 그 API들을 도구로 쓰는 **AI 에이전트**로 오름을 찾고, 오름 앞뒤로 들를 음식점·카페·날씨까지 안내한다.
 
@@ -28,6 +28,7 @@ npm run build                  # 배포용 빌드
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase 연결 | 브라우저 |
 | `DATA_GO_KR_KEY` | 공공데이터포털 키 (Decoding 키) | 서버 전용 |
 | `ANTHROPIC_API_KEY` | AI 에이전트 | 서버 전용 |
+| `VISITJEJU_API_KEY` | 비짓제주 관광정보 OPEN API(제주관광공사, `https://api.visitjeju.net/vsjApi/contents/searchList` — 안내서의 http 는 연결이 끊겨 https 로 호출) 인증키 — 요청의 `apiKey` 파라미터로 전달. Vercel 에도 같은 이름으로 등록 | 서버 전용 |
 | `VITE_KAKAO_JS_KEY` | 카카오 지도(JavaScript 키). 카카오 개발자 콘솔의 **JavaScript SDK 도메인**에 `http://localhost:5173`·`http://localhost:5174`·배포 주소를 등록해야 동작(등록 안 된 주소는 `domain mismatched`). 배포 시 Vercel 환경변수에 넣고 **재배포** | 브라우저(공개되는 키, 도메인 등록이 보호 장치) |
 | `KAKAO_REST_KEY` | 공연장 주소→좌표 변환 스크립트. 카카오 앱에서 **카카오맵(OPEN_MAP_AND_LOCAL) 서비스 사용 설정**이 켜져 있어야 함 | 스크립트 전용 (`VITE_` 금지) |
 
@@ -64,6 +65,37 @@ create policy "delete all" on favorites for delete using (true);
 create policy "anon delete" on public.favorites for delete to anon using (true);
 ```
 
+### 오름 인증사진(`visit_photos` + Storage) — 본인만 보기 (Supabase 설정 필요)
+가본 오름에 내 사진 한 장을 붙이는 기능(`features.js` 의 `visitPhoto`)입니다. 로그인 대신 **Supabase 익명 로그인**(기기마다 고유 번호)으로 본인만 접근하게 하며, 닉네임 기반인 즐겨찾기·가본 곳과는 로그인 저장 위치가 다른 별도 클라이언트(`src/lib/visitPhotos.js`)를 써서 서로 영향이 없습니다.
+1. **Authentication → Providers → Anonymous** 를 켭니다 (꺼져 있으면 "익명 로그인을 켜 주세요" 안내가 뜸).
+2. SQL Editor 에서 아래를 한 번 실행합니다.
+```sql
+create table if not exists public.visit_photos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  oreum_id text not null,                       -- 공식 오름 연번
+  path text not null,                           -- Storage 경로 '<user_id>/<오름 id>.jpg'
+  created_at timestamptz not null default now(),
+  unique (user_id, oreum_id)                    -- 오름당 한 장(다시 올리면 교체)
+);
+alter table public.visit_photos enable row level security;
+create policy "photos select own" on public.visit_photos for select to authenticated using (auth.uid() = user_id);
+create policy "photos insert own" on public.visit_photos for insert to authenticated with check (auth.uid() = user_id);
+create policy "photos update own" on public.visit_photos for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "photos delete own" on public.visit_photos for delete to authenticated using (auth.uid() = user_id);
+
+-- 비공개 버킷(장당 1MB, JPEG 만) + 본인 폴더만 접근
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('oreum-photos', 'oreum-photos', false, 1048576, array['image/jpeg'])
+on conflict (id) do nothing;
+create policy "photo files select own" on storage.objects for select to authenticated using (bucket_id = 'oreum-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "photo files insert own" on storage.objects for insert to authenticated with check (bucket_id = 'oreum-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "photo files update own" on storage.objects for update to authenticated using (bucket_id = 'oreum-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "photo files delete own" on storage.objects for delete to authenticated using (bucket_id = 'oreum-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+```
+- **동작**: 가본 오름의 정보 카드(`내 인증사진` 블록)와 오름 도감 칸(카메라 버튼)에서 올리기·바꾸기·지우기. 올리기 전에 브라우저에서 긴 변 1,024px JPEG 로 다시 그려 크기를 줄이고 사진 속 위치(EXIF)를 지웁니다. 사진을 안 올린 사람에게는 익명 로그인을 만들지 않습니다.
+- **한계**: 기기·브라우저 데이터를 지우면 내 사진에 접근할 수 없고(다른 기기로 따라가지 않음), 공개·위치 검증(2단계)은 아직 없습니다.
+
 ## 구조와 기능
 
 ```
@@ -90,8 +122,10 @@ tests/      vitest 테스트
 | `server/restaurants.js` · `api/restaurant.js` | **행정안전부 일반음식점 조회서비스**(`apis.data.go.kr/1741000/general_restaurants/info`, 제주 영업 중 약 1만 5천 곳). 음식점 탭에서 **관광공사 음식점(사진 있음) 뒤에 이어 붙임**(사진 없는 카드는 아이콘, 배지 `음식점·횟집`, 부제목 주소·전화). 조건: 영업 상태 `01` + 도로명주소 `제주특별자치도`, 이름 `LIKE`, 업태 `EQ`(쪽당 최대 100건). 좌표는 중부원점 TM(EPSG:5174)이라 `proj4` 로 위경도 변환. 관광공사 음식점과 이름이 같고 300m 안이면 `dup` 표시해 목록에서 뺌. 상세는 관리번호로 조회(업태·전화·지번 주소·허가일·영업 상태 + 지도·날씨·근처 관광지 추천). 에이전트 도구 `search_restaurants`. 한계: 사진·소개글 없음, 테마 태그 없음(관광공사 음식점만), 내 주변(위치 검색)에는 포함 안 됨, 카페는 대상 아님 |
 | `server/poi.js` · `api/poi.js` · `NearbyPoi.jsx` | **주변 편의시설**: 정보 카드 지도 아래 `주변 편의시설` 칩(**편의점 CS2 · 주차장 PK6 · 주유소 OL7**) — 누르면 이 곳 좌표 주변(500m/1km)을 가까운 순으로 목록(이름·거리·주소·전화·카카오맵 링크)과 같은 지도의 핀(편의점 하늘색·주차장 보라·공영주차장 초록·주유소 벽돌색, 핀을 누르면 카카오맵 장소 페이지)으로 보여줌. 카카오 로컬 API 카테고리 검색(`dapi.kakao.com/v2/local/search/category.json`)을 서버가 `KAKAO_REST_KEY` 로 호출 (`GET /api/poi?lat=&lng=&cat=&radius=`, 반경 100~2000m, 한 번에 최대 15곳). **주차장은 공영주차장을 먼저**(카카오 하위 분류 `공영주차장` 또는 이름의 '공영', 이름 검색+카테고리 2쪽을 합쳐 공영→민간 순, 각각 가까운 순, `공영` 배지). 영업시간·리뷰는 없음. 칩을 누를 때만 호출 |
 | `src/lib/placeTags.js` · `server/tags.js` · `scripts/build-tags.mjs` | **소개글 테마 태그**: `placeTags.js` 의 규칙(탭마다 태그 → 단어 목록)으로 이름+소개글에서 태그를 뽑음. `build-tags.mjs`(`node --env-file=.env scripts/build-tags.mjs`, 이어하기 가능)가 TourAPI 목록과 소개글(detailCommon2)을 받아 `server/data/placeIndex.js`(태그만 저장, 소개글 본문은 저장 안 함)를 만듦. `server/tags.js` 가 색인에서 탭·태그(AND)·분류·이름으로 조회, `GET /api/tour?mode=tagged&tab=&tags=` (축제는 기간 검색 결과를 태그로 거름). 일일 호출 한도에 걸려 소개글을 못 받은 곳은 이름만으로 태그가 붙으니, 한도가 풀린 뒤 스크립트를 다시 돌리면 채워짐. 국가유산은 색인에 없어 태그 분류에서 빠짐 |
+| **채워 가는 느낌 기능 6가지** (`src/lib/features.js` 스위치로 하나씩 켜고 끔) | ① **오름 도감** `StampBook.jsx`(가본 곳 탭: 오름마다 한 쪽, 가본 곳은 컬러 그림+방문일 스탬프·안 간 곳은 회색 윤곽, 전체/가본/안 간 보기) ② **형태·지역별 진행률** `ProgressBreakdown.jsx` ③ **다음 한 걸음** `NextStep.jsx`(다음 등급까지 N곳, 내 주변 안 가 본 오름 3곳) ④ **깃발 꽂는 순간 연출** `VisitEffect.jsx`(N번째 오름 정상 도착, 등급 UP 시 엠블럼·색종이, 스토어 `lastVisit` 로 동작) ⑤ **카드 가본 표시·안 간 오름만** 필터(`ItemCard` `flag`, 주소 `?nv=1`) ⑥ 메인 소개의 **내 걸음** `MyStepLine.jsx`. ⑦ **오름 인증사진**(본인만 보기, 익명 로그인) `VisitPhoto.jsx`·`visitPhotos.js`·`usePhotoStore.js` — 위 'Supabase 설정' 참고. 공용 계산은 `src/lib/oreumStats.js`(테스트 `oreumStats.test.js`), 오름 목록 훅 `useOreums.js`. 빼려면 스위치를 false 로 → 컴포넌트 파일 삭제 → 연결 지점 줄 삭제 |
+| **오름 좌표 검증 + 소개 보강** | ① `scripts/verify-oreum-coords.mjs`: 오름 368곳 좌표를 카카오 역지오코딩해 공식 소재지의 동·리와 비교 → 366곳 일치, 확실한 7곳(가세오름·군산·두산봉·물오름·민오름·밝은오름·소수산봉)만 `scripts/oreum-fix.mjs` 수정표로 바로잡음(관광공사와 이름만 같은 다른 오름이던 3곳은 연결 해제). 불확실한 2곳(보롬이·통오름)은 그대로. ② `scripts/build-oreum-intro.mjs`: **제주특별자치도_관내_관광지데이터**(공공데이터포털 15111742, 2025-12-31, 1,046곳)와 이름·좌표가 안전하게 일치한 **79곳**(이름 같음 + 2.5km 이내 + 후보 하나 + 한 행은 한 오름에만 + 1km 초과는 동·리까지 일치)의 소개글·편의시설·주차·관리기관을 `server/data/oreumIntro.js` 로 저장. 정보 카드에 표시(관광공사 소개가 없을 때만 소개글, 출처 표기), 에이전트 `search_oreum` 결과에도 포함. 숙박 정보는 쓰지 않음 |
 | **메인 오름 소개** | `OreumIntro.jsx`: 히어로 아래에 "오름이란?" 소개(공식 오름 수는 데이터에서 읽음), 형태 4종 설명과 곳 수(원추 102·원형 53·말굽 174·복합 39), 사이트 사용법 4줄, "오름 둘러보기" 버튼(아래 목록으로 스크롤) |
-| **오름 탭** | 기본 분류. **제주특별자치도_오름현황(2025-12-31, 공식 368곳)** 을 `scripts/build-oreum.mjs`(odcloud 수집 → 소재지를 카카오 지오코딩으로 좌표화 → 관광공사 오름 79곳과 이름으로 연결해 `tourId`·사진 부여, 별칭 4건)가 `server/data/oreum.js` 로 저장. 외부 호출 없이 즉시 표시. 카드: 이름·행정시·**표고**·**형태**(사진 왼쪽 위에 형태별 색 표식 — 원추 주황·원형 초록·말굽 파랑·복합 보라), 필터: **형태**(원추형·원형·말굽형·복합형 — 방향 표기는 묶음), **정렬**(이름순·표고 높은 순·표고 낮은 순), **내 주변**(반경 1·3·5km 가까운 순), 이름 검색, **소개글 특징 칩**(일출·일몰 등 7개, 관광공사 등록 오름만). 정보 카드: 행정시·표고·비고(比高)·면적·형태 + 관광공사 등록 오름은 사진·소개글. **사진은 관광공사(공공데이터) 것만 사용**(76곳, 나머지는 빈 이미지) — 블로그·웹 검색 사진은 저작권 문제로 쓰지 않음. 사진 없는 카드는 **형태·표고를 반영한 일러스트**(`OreumArt.jsx`)를 보여줌. 기록 키: 관광공사 등록 오름은 예전처럼 `source=tour`+관광공사 id(기존 가본 곳·가볼만한 곳 그대로 이어짐), 그 밖은 `source=oreum`+공식 연번. `GET /api/oreum?keyword=&form=&tags=&sort=elev&lat=&lng=&radius=&page=&rows=(최대 400)` / `?id=` |
+| **오름 탭** | 기본 분류. **제주특별자치도_오름현황(2025-12-31, 공식 368곳)** 을 `scripts/build-oreum.mjs`(odcloud 수집 → 소재지를 카카오 지오코딩으로 좌표화 → 관광공사 오름 79곳과 이름으로 연결해 `tourId`·사진 부여, 별칭 4건)가 `server/data/oreum.js` 로 저장. 외부 호출 없이 즉시 표시. 카드: 이름·행정시·**표고**·**형태**(사진 왼쪽 위에 형태별 색 표식 — 원추 주황·원형 초록·말굽 파랑·복합 보라), 필터: **형태**(원추형·원형·말굽형·복합형 — 방향 표기는 묶음), **정렬**(이름순·표고 높은 순·표고 낮은 순), **내 주변**(반경 1·3·5km 가까운 순), 이름 검색, **소개글 특징 칩**(일출·일몰 등 7개, 관광공사 등록 오름만). 정보 카드: 행정시·표고·비고(比高)·면적·형태 + 관광공사 등록 오름은 사진·소개글. **사진은 관광공사(공공데이터)·비짓제주(제주관광공사) 것만 사용**(112곳 — 비짓제주 39곳은 `scripts/build-oreum-photos.mjs` 로 이름·좌표가 안전하게 일치한 곳에 보완, 오름 사진에는 모두 출처 표기 — 카드 사진 맨 아래 '사진 · 한국관광공사 / 비짓제주'(`ItemCard` `credit`), 정보 카드 사진 밑 '사진: 한국관광공사 / 비짓제주(제주관광공사)'. 나머지는 형태 일러스트) — 블로그·웹 검색 사진은 저작권 문제로 쓰지 않음. 사진 없는 카드는 **형태·표고를 반영한 일러스트**(`OreumArt.jsx`)를 보여줌. 기록 키: 관광공사 등록 오름은 예전처럼 `source=tour`+관광공사 id(기존 가본 곳·가볼만한 곳 그대로 이어짐), 그 밖은 `source=oreum`+공식 연번. `GET /api/oreum?keyword=&form=&tags=&sort=elev&lat=&lng=&radius=&page=&rows=(최대 400)` / `?id=` |
 | `src/components/NearbyRecs.jsx` | 상세 모달 아래 **"이 근처 추천"**: 보는 곳 좌표 주변을 가까운 순으로(반경 3km, 비어 있으면 "10km로 넓히기"). 관광·문화 계열(관광지·국가유산·문화시설·축제·레포츠) → 근처 **음식점(카페 제외) 4곳 + 카페 4곳**, 음식점·카페 → 근처 **관광지 6곳**. 추천 카드(사진·이름·거리)를 누르면 그 곳의 상세로 이동하고 "○○(으)로 돌아가기"로 되돌아옴. 규칙은 `placeCategories.js` 의 `recommendModeOf`·`RECOMMEND_GROUPS`. 공연장도 좌표가 채워져 추천을 받음(`recommendModeOf`) |
 | `src/components/DetailModal.jsx` | 상세 팝업(사진 캐러셀·이용정보·소개·지도·**카카오맵 링크**·근처 추천). 관광·국가유산·공연장이 공유. 좌표가 없으면 지도 대신 안내 문구 |
 | `src/components/PlaceMap.jsx` → `KakaoMap.jsx` / `LeafletMap.jsx` | **카카오 지도가 기본**(`VITE_KAKAO_JS_KEY` 가 있을 때): 이 곳 핀 + 줌 컨트롤 + 일반/스카이뷰 전환, **근처 추천을 같은 지도에 핀으로**(음식점 감귤·카페 갈색·관광지 초록 점, 마우스를 올리면 이름 표시, 핀을 누르면 그 곳 상세로 이동) + **반경 원**(점선)과 영역 자동 맞춤. 키가 없거나 SDK 를 못 불러오면(도메인 미등록·광고 차단 등) 자동으로 Leaflet(OpenStreetMap) 지도로 대신함 |
@@ -127,7 +161,7 @@ tests/      vitest 테스트
 |---|---|
 | `/` | 소개(히어로) → **관광·문화 UI**(분류 버튼·검색·내 주변·축제 기간·상세·감귤 즐겨찾기가 모두 홈에서 동작, `Places` 를 그대로 삽입, 분류는 `/?cat=cafe` 처럼 주소에 유지) → 동작 체크(React / Supabase / `/api`, 지금은 숨김 — `Home.jsx` 의 `SHOW_CHECKS` 로 켬) + 닉네임 칸(숨김 — `Home.jsx` 의 `SHOW_NICKNAME`) |
 | `/places` | **분류 버튼**(**오름(기본)**·음식점·카페·가볼만한 곳·가본 곳) + 각 분류 밑 **내 주변 반경(1·3·5km)** + **음식점 종류 칩**(전체·한식·횟집·식육·구이·분식·일식·중식·양식 — 관광공사 분류체계 코드와 일반음식점 '업태'를 합쳐서 거름, 횟집·식육은 일반음식점만, 내 주변에서는 관광공사 코드가 있는 칩만 반영) + **인기 메뉴 바로가기**(음식점: 흑돼지·해물·국수·갈치·전복·보말 / 카페: 커피·베이커리·감귤·한라봉·말차·디저트 — 누르면 그 단어로 검색, 가게 **이름**에 든 단어로 찾음) + **테마 칩**(관광지·문화시설·축제·행사·음식점·카페 탭마다, 소개글에서 뽑은 태그, 여러 개 선택 = 모두 가진 곳만, 주소 `?t=sea,family`, 내 주변과는 함께 쓰지 않음) + ·오름 제외 — 이름에 '오름'이 든 곳을 뺌, 여러 개 선택 가능한 구조). 선택은 주소(`?cat=cafe`, `?cat=spot&sub=no-oreum`, `?cat=cafe&r=5`)에 유지. **축제·행사**: 기간(시작일 기본 오늘~종료일) 입력, 카드에 행사 기간 표시. **내 주변**(분류 버튼이 아니라 각 분류 밑 반경 버튼, 다시 누르면 해제, 분류를 옮겨도 반경 유지): 브라우저 위치(제주 안이면)·아니면 제주시청 기준, 그 분류의 유형만 거리순 카드(`286m ·` 표시), 검색창·축제 기간 입력 숨김(위치 API는 검색어·기간을 받지 않음), 관광지는 TourAPI 관광지만(국가유산은 위치 검색이 없음). 숙박은 어디에도 나오지 않음. 검색어(비우면 전체), 카드, 더 보기(12건씩, 분류의 소스를 순서대로 이어 붙임), 즐겨찾기. **카드 클릭 → 상세 모달**(사진·이용정보·소개·홈페이지·2D 지도). 국가유산 카드는 `국가유산·보물` 같은 배지. (국가유산 별도 메뉴/`/heritage` 페이지는 없어짐) **공연장 34건은 문화시설(TourAPI 97건 뒤)과 전체에 합쳐짐**: `공연장·공공/민간` 배지, 상세(소재지·시설구분·공연 형태·개관일·자료 기준일), 좌표가 없으면 지도 대신 안내 문구. 내 주변에는 좌표가 생긴 뒤에 추가 가능 |
-| (모든 화면) | **플로팅 AI 가이드**(`ChatWidget`): 오른쪽 아래 원형 버튼이 페이지를 옮겨도 따라다니고, 누르면 대화창이 열림(Esc·× 로 닫기, 모바일은 가로 전체). 대화가 비어 있으면 예시 질문 칩 3개, 도구 호출 내역(`search_nearby(...) → 2건`) 표시. 대화는 전역 store 에 있어 닫았다 열거나 페이지를 옮겨도 유지(새로고침하면 초기화). `ChatPanel` 을 `/agent` 페이지와 공유 |
+| (모든 화면) | **플로팅 AI 가이드**(`ChatWidget`): 오른쪽 아래 원형 버튼이 페이지를 옮겨도 따라다니고, 누르면 대화창이 열림(Esc·× 로 닫기, 모바일은 가로 전체). 대화가 비어 있으면 예시 질문 칩 3개, 도구 호출 내역(`search_nearby(...) → 2건`) 표시. 대화는 전역 store 에 있어 닫았다 열거나 페이지를 옮겨도 유지(새로고침하면 초기화). `ChatPanel` 을 `/agent` 페이지와 공유 에이전트 답변 위에는 호출한 도구 칩이 `오름 검색 · 표고 높은 순 → 10건 │ 제주 오름현황(공공데이터)`처럼 **어떤 검색 API 로 찾았는지**(`TOOL_API`: 한국관광공사 TourAPI·제주 오름현황·행정안전부 일반음식점·기상청 예보·국가유산청)와 함께 표시됨 |
 | `/agent` | 전체 화면 AI 가이드 채팅 (메뉴에서는 빠졌고 주소로만 접속, 이 페이지에서는 플로팅 버튼을 숨김) |
 | 분류 버튼 **가볼만한 곳** | 예전 "내 즐겨찾기". 홈(관광·문화) 분류 버튼 줄 맨 끝(감귤 아이콘 + 담은 개수 칩)에 들어감 — Supabase `favorites`(닉네임별)를 보여줌: 닉네임 입력, 제목 검색, 종류 배지(관광·문화/국가유산/공연장), 카드를 누르면 상세(관광지·공연장은 id 로, 국가유산은 이름으로 다시 찾아 열림), **감귤을 누르면 가볼만한 곳에서 빠짐**. 주소 `/?cat=saved` |
 | 분류 버튼 **가본 곳** | 가볼만한 곳 바로 옆. 카드 오른쪽 아래 **체크 버튼(`가봤어요`)**(감귤 밑)과 정보 카드 아래 `가봤어요` 버튼으로 기록 ↔ 빼기, 기록한 곳은 이 탭에 모임(담은 개수 칩, 제목 검색, 눌러서 상세). Supabase `visits` 테이블(가볼만한 곳과 별도). 주소 `/?cat=visited`. 가본 곳 탭의 카드에서도 감귤로 가볼만한 곳에 담을 수 있음 |

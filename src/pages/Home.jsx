@@ -37,8 +37,8 @@ export default function Home() {
       <section className="hero rounded-4 p-4 p-md-5 mb-4">
         <HallaScene className="hero-scene" />
         <div className="hero-greet">혼저옵서예</div>
-        <h1 className="fw-bold">제주 오름 길잡이</h1>
-        <p className="lead">제주의 오름을 공공데이터와 AI 가이드로 쉽고 편하게 찾아가는 탐방 길잡이</p>
+        <h1 className="fw-bold">오름 한 걸음</h1>
+        <p className="lead">제주의 오름을 한 걸음씩 채워 가는 탐방 길잡이 — 공공데이터와 AI 가이드와 함께</p>
         <p className="hero-intent">가까운 오름, 일출·억새·가볍게 걷기 좋은 오름까지 — 오름 앞뒤로 들를 맛집·카페·날씨를 한 번에.</p>
       </section>
 

@@ -403,3 +403,57 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .map-hud { position: absolute; left: 12px; bottom: 12px; padding: .25rem .75rem; border-radius: 999px; background: rgba(255,255,255,.88); box-shadow: 0 1px 6px rgba(0,0,0,.25); font-size: .9rem; pointer-events: none; }
 .map-hud strong { color: #e8892b; font-size: 1.05rem; }
 .map-hud span { color: #777; font-size: .78rem; }
+
+/* ---- 채워 가는 느낌 기능들 (src/lib/features.js 로 하나씩 끌 수 있음) ---- */
+/* [1] 오름 도감 */
+.stampbook { border-top: 1px dashed var(--line); padding-top: 1rem; }
+.stamp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+.stamp-tile { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+.stamp-art { display: block; width: 100%; height: 78px; }
+.stamp-tile:not(.is-done) .stamp-art { filter: grayscale(1) opacity(.35); }
+.stamp-tile:not(.is-done) { background: #faf8f2; border-style: dashed; }
+.stamp-info { padding: .35rem .55rem .5rem; }
+.stamp-name { font-weight: 700; font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stamp-meta { font-size: .72rem; color: #777; }
+.stamp-tile:not(.is-done) .stamp-name, .stamp-tile:not(.is-done) .stamp-meta { color: #aaa; }
+.stamp-no { position: absolute; top: 6px; left: 8px; font-size: .68rem; color: #aaa; font-weight: 700; }
+.stamp-mark { position: absolute; top: 8px; right: 8px; width: 50px; height: 50px; border-radius: 50%; border: 2px solid #d9561e; color: #d9561e; background: rgba(255,255,255,.7); transform: rotate(-14deg); display: flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 800; text-align: center; line-height: 1.1; box-shadow: 0 0 0 2px rgba(217,86,30,.18) inset; }
+/* [2] 형태·지역별 진행률 */
+.breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem 1.5rem; }
+.breakdown-title { font-weight: 700; font-size: .85rem; margin-bottom: .35rem; }
+.breakdown-row + .breakdown-row { margin-top: .5rem; }
+.breakdown-bar { height: 8px; border-radius: 999px; background: #efe6d2; margin-top: 2px; }
+.form-tone-cone .progress-bar { background: #e8892b; } .form-tone-round .progress-bar { background: #4f8f5a; }
+.form-tone-horseshoe .progress-bar { background: #3b7fb0; } .form-tone-mixed .progress-bar { background: #8a6bb5; }
+.form-tone-etc .progress-bar, .form-tone-city .progress-bar { background: #8b8e96; }
+/* [3] 다음 한 걸음 */
+.nextstep { background: #f3f7ec; border-radius: 14px; padding: .7rem .9rem; }
+.nextstep-list { list-style: none; margin: .5rem 0 0; padding: 0; font-size: .9rem; }
+.nextstep-list li { padding: .2rem 0; border-bottom: 1px dashed #d9e4cf; }
+.nextstep-list li:last-child { border-bottom: 0; }
+/* [4] 깃발 꽂는 순간 */
+.visit-fx { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2000; display: flex; align-items: center; gap: .8rem; padding: .7rem 1.2rem; border-radius: 18px; background: #fffdf6; border: 2px solid #e8892b; box-shadow: 0 8px 24px rgba(0,0,0,.25); animation: fx-pop .45s cubic-bezier(.2, 1.4, .4, 1); cursor: pointer; max-width: calc(100vw - 24px); }
+.visit-fx.is-up { border-color: #e6b422; background: linear-gradient(135deg, #fff8dd, #fffdf6); }
+.fx-title { font-weight: 800; } .fx-sub { font-size: .85rem; color: #666; }
+.visit-fx.is-up .fx-sub strong { color: #b4630a; }
+@keyframes fx-pop { from { transform: translate(-50%, 40px) scale(.8); opacity: 0; } to { transform: translate(-50%, 0) scale(1); opacity: 1; } }
+.fx-confetti { position: absolute; inset: -6px 0 0; pointer-events: none; overflow: visible; }
+.fx-confetti span { position: absolute; top: 0; left: calc(var(--i) * 6.4%); width: 8px; height: 12px; border-radius: 2px; background: hsl(calc(25 + var(--i) * 17), 90%, 55%); animation: fx-fall 1.6s ease-in calc(var(--i) * 0.05s) both; }
+@keyframes fx-fall { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(-90px) rotate(260deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .visit-fx, .fx-confetti span { animation: none; } }
+/* [5] 카드 가본 표시 */
+.visited-flag { position: absolute; top: 10px; right: 10px; padding: .2rem .6rem; border-radius: 999px; background: #e8892b; color: #fff; font-size: .75rem; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+/* [6] 메인 내 걸음 */
+.mystep { background: rgba(255,255,255,.7); border-radius: 12px; padding: .6rem .8rem; }
+
+.msg-tool-api { margin-left: .4rem; padding-left: .45rem; border-left: 1px solid rgba(47, 107, 82, .3); font-weight: 500; opacity: .8; }
+
+/* 사진 출처 한 줄 (카드 사진 맨 아래) */
+.photo-credit { position: absolute; left: 0; right: 0; bottom: 0; padding: .12rem .6rem; font-size: .68rem; color: #fff; background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0)); pointer-events: none; }
+
+/* [7] 오름 인증사진 */
+.visit-photo { border: 1px dashed var(--line); border-radius: 14px; padding: .7rem .8rem; background: #fffdf6; }
+.visit-photo-img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; display: block; }
+.stamp-photo { object-fit: cover; }
+.stamp-cam { position: absolute; left: 8px; bottom: 54px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: .8rem; display: flex; align-items: center; justify-content: center; padding: 0; }
+.stamp-cam:disabled { opacity: .6; }

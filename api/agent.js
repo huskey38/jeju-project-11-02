@@ -15,7 +15,7 @@ const OREUM_TAGS = TAG_RULES.oreum.map((t) => t.key);
 const tools = [
   {
     name: 'search_oreum',
-    description: '제주 오름 현황(제주특별자치도 공식 368곳: 이름·행정시·소재지·표고·형태·면적·비고, 모두 좌표 있음)에서 오름을 찾는다. 오름 질문은 search_tour_places 보다 먼저 이 도구를 쓴다. 이름(keyword)·형태(form)로 거르고 sort=elev 로 표고 높은 순·sort=elev_asc 로 낮은 순, 기준 좌표(lat·lng)와 radius_m 을 주면 그 반경 안의 오름을 가까운 순으로 준다("근처 오름"은 기준 장소를 search_tour_places 로 먼저 찾아 좌표를 얻는다). tag(일출·일몰, 억새·꽃, 정상 전망, 분화구, 가볍게 걷기, 가족, 숲길)는 관광공사 소개글에서 뽑은 특징이라 관광공사에 등록된 약 80곳에만 있다. 결과에 tour_id 가 있으면 get_place_detail 로 사진·소개글 설명을 확인할 수 있다(없는 오름은 공식 정보만 있음)',
+    description: '제주 오름 현황(제주특별자치도 공식 368곳: 이름·행정시·소재지·표고·형태·면적·비고, 모두 좌표 있음)에서 오름을 찾는다. 오름 질문은 search_tour_places 보다 먼저 이 도구를 쓴다. 이름(keyword)·형태(form)로 거르고 sort=elev 로 표고 높은 순·sort=elev_asc 로 낮은 순, 기준 좌표(lat·lng)와 radius_m 을 주면 그 반경 안의 오름을 가까운 순으로 준다("근처 오름"은 기준 장소를 search_tour_places 로 먼저 찾아 좌표를 얻는다). tag(일출·일몰, 억새·꽃, 정상 전망, 분화구, 가볍게 걷기, 가족, 숲길)는 관광공사 소개글에서 뽑은 특징이라 관광공사에 등록된 약 80곳에만 있다. 결과에 tour_id 가 있으면 get_place_detail 로 사진·소개글 설명을 확인할 수 있다. intro·facilities(편의시설)·parking(주차 대수)가 있으면 공식 관광지데이터의 소개·시설이니 그대로 안내에 쓰고, 없으면 공식 정보(표고·형태 등)만 있는 것이다',
     input_schema: {
       type: 'object',
       properties: {
@@ -118,7 +118,7 @@ const runTool = {
     return searchOreum({
       keyword, form, sort, tags: OREUM_TAGS.includes(tag) ? [tag] : [], rows: 10,
       ...(near && { lat, lng, radius: Math.min(Math.max(Number(radius_m) || 5000, 100), 30000) }),
-    }).map(({ id, name, city, addr, elev, form: f, lat: la, lng: ln, dist, tourId }) => ({ id, title: name, city, addr, elev, form: f, lat: la, lng: ln, ...(dist !== undefined && { dist }), ...(tourId && { tour_id: tourId }) }))
+    }).map(({ id, name, city, addr, elev, form: f, lat: la, lng: ln, dist, tourId, intro, facilities, parking }) => ({ id, title: name, city, addr, elev, form: f, lat: la, lng: ln, ...(dist !== undefined && { dist }), ...(tourId && { tour_id: tourId }), ...(intro && { intro: intro.slice(0, 220) }), ...(facilities && { facilities }), ...(parking && { parking }) }))
   },
   search_restaurants: async ({ keyword = '', biz = '' } = {}) =>
     (await searchRestaurants({ keyword, biz, rows: 15 })).map(({ id, title, biz: b, addr, tel, lat, lng, dup }) => ({ id, title, biz: b, addr, tel, lat, lng, ...(dup && { dup }) })),

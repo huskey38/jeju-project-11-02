@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Form, InputGroup, Spinner } from 'react-bootstrap'
 import { useAppStore } from '../store/useAppStore'
-import { stepText } from '../lib/agentSteps'
+import { apiOf, stepText } from '../lib/agentSteps'
 
 // 대화가 비어 있을 때 누르면 바로 질문이 되는 예시 (에이전트의 도구: 장소·날씨·국가유산·주변·축제)
 const EXAMPLES = [
@@ -55,6 +55,7 @@ export default function ChatPanel({ autoFocus = false, height }) {
                 {m.steps.map((s, k) => (
                   <span key={k} className="msg-tool" title={`${s.tool}(${JSON.stringify(s.args)})`}>
                     {k > 0 && <i className="bi bi-arrow-right-short" />}{stepText(s)}
+                    {apiOf(s) && <span className="msg-tool-api" data-testid="tool-api">{apiOf(s)}</span>}
                   </span>
                 ))}
               </div>

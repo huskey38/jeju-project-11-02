@@ -99,6 +99,7 @@ export const useAppStore = create(
       visits: [],
       visitLoading: false,
       visitLoaded: false,
+      lastVisit: null,   // 방금 가본 곳에 기록한 한 건 { source, item_id, title, at } — 연출(VisitEffect)이 씀
       loadVisits: async () => {
         if (!supabase) return get().toast('Supabase 설정(.env.local)이 필요해요', 'warning')
         if (!get().nickname) return set({ visits: [], visitLoaded: true })
@@ -118,7 +119,7 @@ export const useAppStore = create(
         const row = { nickname: get().nickname, source, item_id: String(id), title }
         const { data, error } = await supabase.from('visits').insert(row).select().single()
         if (error) return get().toast(error.message, 'danger')
-        set({ visits: [data, ...get().visits] })
+        set({ visits: [data, ...get().visits], lastVisit: { source, item_id: String(id), title, at: Date.now() } })
         get().toast('가본 곳에 기록했어요')
       },
       removeVisit: async (row) => {

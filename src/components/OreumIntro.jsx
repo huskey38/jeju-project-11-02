@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Button, Col, Row } from 'react-bootstrap'
 import { fetchOreumAll } from '../api/client'
 import { FORM_GROUPS, formGroupOf } from '../lib/oreumForms'
+import { FEATURES } from '../lib/features'
+import MyStepLine from './MyStepLine'
 
 // 메인 화면의 오름 소개: 오름이 무엇인지, 형태 네 가지, 이 사이트로 할 수 있는 일
 const FORM_DESC = {
@@ -44,6 +46,7 @@ export default function OreumIntro() {
           <Col key={title}><div className="small"><i className={`bi ${icon} me-2 text-success`} /><strong>{title}</strong> — {desc}</div></Col>
         ))}
       </Row>
+      {FEATURES.homeProgress && <div className="mb-3"><MyStepLine oreums={list} /></div>}
       <Button size="sm" variant="success" onClick={() => document.querySelector('[data-testid=home-places]')?.scrollIntoView({ behavior: 'smooth' })}>
         오름 둘러보기 <i className="bi bi-arrow-down ms-1" />
       </Button>
