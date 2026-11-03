@@ -1,4 +1,4 @@
-import { getTourDetail, searchFestivals, searchNearby, searchTour } from '../server/tour.js';
+import { getTourDetail, getTourPreview, searchFestivals, searchNearby, searchTour } from '../server/tour.js';
 import { filterByTags, searchTagged } from '../server/tags.js';
 
 const LCLS = /^[A-Z]{2}\d{2}(\d{4})?$/;   // 분류체계 중분류(FD05) 또는 소분류(FD020100) 형식
@@ -9,14 +9,15 @@ const okLcls = (v) => (LCLS.test(v) ? v : '');
 
 // GET /api/tour?keyword=&type=&lcls=&page=&rows=                      → 목록 (lcls = 분류체계 중분류, 예: FD05 카페)
 // GET /api/tour?id=130857                                              → 상세 (소개·이용정보·사진·좌표)
+// GET /api/tour?id=130857&preview=1                                    → 목록 카드용 미리보기 (대표 사진 한 장만, 호출 1회)
 // GET /api/tour?mode=near&lat=&lng=&radius=&type=&lcls=&xlcls=&page=&rows=  → 주변 검색 (가까운 순, dist 는 미터)
 // GET /api/tour?mode=festival&from=&to=&keyword=&tags=&page=&rows=    → 축제 기간 검색 (from 기본 오늘, tags = 테마 태그로 거름)
 // GET /api/tour?mode=tagged&tab=&tags=a,b&lcls=&keyword=&page=&rows=  → 테마 태그 검색 (소개글에서 뽑은 태그, 색인에서 찾음). tab=oreum 은 lat·lng·radius(미터)로 가까운 오름 순
 export default async function handler(req, res) {
   try {
-    const { id, mode, keyword = '', type, lcls = '', xlcls = '', lat, lng, radius, from, to, tab = '', tags = '', page = '1', rows = '10' } = req.query;
+    const { id, preview, mode, keyword = '', type, lcls = '', xlcls = '', lat, lng, radius, from, to, tab = '', tags = '', page = '1', rows = '10' } = req.query;
     const paging = { page: Number(page) || 1, rows: Math.min(Number(rows) || 10, mode === 'tagged' ? 100 : 50) };   // 색인 조회는 오름 전체(91곳)를 한 번에 받을 수 있게 100 까지
-    if (id) return res.status(200).json(await getTourDetail({ id }));
+    if (id) return res.status(200).json(preview === '1' ? await getTourPreview({ id }) : await getTourDetail({ id }));
     if (mode === 'near') {
       return res.status(200).json(await searchNearby({
         lat, lng, radius: Number(radius) || 3000, contentTypeId: type ?? '', lclsSystm2: okLcls(lcls), lclsExclude: okLcls(xlcls), ...paging,

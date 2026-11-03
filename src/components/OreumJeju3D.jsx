@@ -112,25 +112,35 @@ function peakOf(x, z) {
   return [bx, bz, by]
 }
 
-// 아직 안 오른 오름 = 빈 돌받침: 납작한 흰 돌받침을 한 번에(InstancedMesh) 그려 돌릴 때 가볍게. 오르면 이 자리에 귤이 올라감
-const BASE_H = 0.035
+// 아직 안 오른 오름 = 귤 윤곽 자리: 땅에 놓인 주황 고리(+ 아주 옅은 속) — 귤이 올라갈 빈 자리. 한 번에(InstancedMesh) 그려 돌릴 때 가볍고, 지형 위에서 튀지 않으면서 '비어 있음'이 보임
+const BASE_H = 0.035   // 마우스를 올렸을 때 이름표 높이 기준
+const LIFT = 0.012     // 땅 위로 살짝 띄움(지형과 겹쳐 깜빡이지 않게)
 function Dots({ pts, onHover }) {
-  const bases = useRef()
+  const rings = useRef(), fills = useRef()
   useLayoutEffect(() => {
-    const m = bases.current
-    if (!m) return
     const d = new THREE.Object3D()
-    pts.forEach((p, i) => { d.position.set(p.x, p.y + BASE_H / 2, p.z); d.updateMatrix(); m.setMatrixAt(i, d.matrix) })
-    m.count = pts.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere()
+    d.rotation.set(-Math.PI / 2, 0, 0)   // 땅에 눕힘
+    pts.forEach((p, i) => {
+      d.position.set(p.x, p.y + LIFT, p.z); d.updateMatrix()
+      rings.current?.setMatrixAt(i, d.matrix); fills.current?.setMatrixAt(i, d.matrix)
+    })
+    for (const m of [rings.current, fills.current]) if (m) { m.count = pts.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere() }
   }, [pts])
   if (!pts.length) return null
+  const flat = { transparent: true, depthWrite: false, side: THREE.DoubleSide }
   return (
-    <instancedMesh ref={bases} args={[undefined, undefined, pts.length]}
-      onPointerMove={(e) => { e.stopPropagation(); onHover(pts[e.instanceId] ?? null); document.body.style.cursor = 'pointer' }}
-      onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}>
-      <cylinderGeometry args={[0.05, 0.062, BASE_H, 10]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
-    </instancedMesh>
+    <>
+      <instancedMesh ref={rings} args={[undefined, undefined, pts.length]} raycast={() => null}>
+        <ringGeometry args={[0.052, 0.092, 28]} />
+        <meshBasicMaterial color="#e8892b" opacity={0.78} {...flat} />
+      </instancedMesh>
+      <instancedMesh ref={fills} args={[undefined, undefined, pts.length]}
+        onPointerMove={(e) => { e.stopPropagation(); onHover(pts[e.instanceId] ?? null); document.body.style.cursor = 'pointer' }}
+        onPointerOut={() => { onHover(null); document.body.style.cursor = '' }}>
+        <circleGeometry args={[0.092, 24]} />
+        <meshBasicMaterial color="#e8892b" opacity={0.14} {...flat} />
+      </instancedMesh>
+    </>
   )
 }
 

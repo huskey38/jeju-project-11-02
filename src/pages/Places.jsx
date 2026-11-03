@@ -17,6 +17,7 @@ import VisitPhoto from '../components/VisitPhoto'
 import OreumMark from '../components/OreumMark'
 import FormPreview from '../components/FormPreview'
 import Pager from '../components/Pager'
+import { savedKey, useSavedPreviews } from '../lib/useSavedPreviews'
 import { pageCount } from '../lib/paging'
 import { formGroupOf } from '../lib/oreumForms'
 import { useAppStore } from '../store/useAppStore'
@@ -100,7 +101,9 @@ export default function Places() {
 
   const [keyword, setKeyword] = useState('')
   const listMode = cat === 'saved' || cat === 'visited'                  // 가볼만한 곳·가본 곳은 저장된 목록(스토어)을 보여줌
-  const savedItems = (cat === 'visited' ? visits : favorites).filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 검색어가 있으면 제목으로 거름
+  const savedRows = cat === 'visited' ? visits : favorites
+  const previews = useSavedPreviews(listMode ? savedRows : [])   // 가볼만한 곳·오른 오름 카드의 사진·형태·출처
+  const savedItems = savedRows.filter((f) => !keyword.trim() || f.title.includes(keyword.trim()))   // 검색어가 있으면 제목으로 거름
   const [coords, setCoords] = useState(null)             // 내 주변 기준 좌표 { lat, lng, note? }
   const [locating, setLocating] = useState(false)
   const [items, setItems] = useState([])                 // ① 데이터
@@ -454,7 +457,10 @@ export default function Places() {
             <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'visited' ? 'visited-list' : 'saved-list'}>
               {savedItems.map((f) => (
                 <Col key={f.id}>
-                  <ItemCard title={f.title} badge={SOURCE_LABEL[f.source] ?? f.source}
+                  <ItemCard title={f.title} badge={previews[savedKey(f)]?.kind === 'oreum' ? badgeOf({ kind: 'oreum', form: previews[savedKey(f)].form }) : (SOURCE_LABEL[f.source] ?? f.source)}
+                    image={previews[savedKey(f)]?.image || undefined} credit={previews[savedKey(f)]?.credit}
+                    tag={previews[savedKey(f)]?.kind === 'oreum' && formGroupOf(previews[savedKey(f)].form).key !== 'etc' ? { label: formGroupOf(previews[savedKey(f)].form).label, tone: formGroupOf(previews[savedKey(f)].form).key } : undefined}
+                    art={previews[savedKey(f)]?.kind === 'oreum' && !previews[savedKey(f)].image ? <OreumArt form={previews[savedKey(f)].form} elev={previews[savedKey(f)].elev} className="item-card-img w-100 d-block" /> : undefined}
                     subtitle={`${new Date(f.created_at).toLocaleDateString('ko-KR')}에 ${cat === 'visited' ? '기록' : '담음'}`}
                     onClick={() => openSaved(f)}
                     saved={cat === 'visited' ? favorites.some((x) => x.source === f.source && x.item_id === f.item_id) : true}

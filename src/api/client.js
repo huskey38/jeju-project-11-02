@@ -64,6 +64,8 @@ export const fetchHeritage = (keyword = '', page = 1, rows = 10) =>
 
 // 상세 정보 (카드 클릭 시)
 export const fetchPlaceDetail = (id) => get(`/api/tour?id=${encodeURIComponent(id)}`)
+// 목록 카드용 미리보기(대표 사진 한 장) — 가볼만한 곳·오른 오름 목록이 씀
+export const fetchPlacePreview = (id) => get(`/api/tour?id=${encodeURIComponent(id)}&preview=1`)
 export const fetchHeritageDetail = ({ kdcd, asno, ctcd }) =>
   get(`/api/heritage?kdcd=${encodeURIComponent(kdcd)}&asno=${encodeURIComponent(asno)}&ctcd=${encodeURIComponent(ctcd)}`)
 

@@ -122,6 +122,14 @@ const INTRO_FIELDS = {
   39: [['대표메뉴', 'firstmenu'], ['취급메뉴', 'treatmenu'], ['영업시간', 'opentimefood'], ['휴무일', 'restdatefood'], ['문의', 'infocenterfood'], ['주차', 'parkingfood']],
 };
 
+// 목록 카드용 미리보기: 대표 사진 한 장만 (detailCommon2 한 번 — 상세 전체보다 호출이 3분의 1)
+export async function getTourPreview({ id } = {}) {
+  if (!id) throw new Error('id 가 필요해요');
+  const [c] = await callDetail('detailCommon2', { contentId: id });
+  if (!c || isLodging(c)) throw new Error('장소를 찾을 수 없어요');
+  return { id: c.contentid, type: String(c.contenttypeid), title: c.title, addr: c.addr1 ?? '', image: https(c.firstimage) };
+}
+
 export async function getTourDetail({ id } = {}) {
   if (!id) throw new Error('id 가 필요해요');
   const [c] = await callDetail('detailCommon2', { contentId: id });
