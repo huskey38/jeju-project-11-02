@@ -54,8 +54,8 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
 
         {rows.length > 0 && (
           <ListGroup variant="flush" className="mb-3 small">
-            {rows.map((r) => (
-              <ListGroup.Item key={r.label} className="d-flex gap-3">
+            {rows.map((r, i) => (
+              <ListGroup.Item key={`${r.label}-${i}`} className="d-flex gap-3">   {/* 같은 이름의 줄(주차 등)이 둘 올 수 있어 순번을 붙임 */}
                 <span className="text-muted flex-shrink-0" style={{ width: 80 }}>{r.label}</span>
                 <span style={{ whiteSpace: 'pre-wrap' }}>{r.value}</span>
               </ListGroup.Item>

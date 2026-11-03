@@ -23,16 +23,18 @@ npm run build                  # 배포용 빌드
 `npm run dev` 는 `vite.config.js` 의 `devApi` 플러그인이 `/api/*` 를 직접 처리하므로 `vercel dev` 없이도 서버 함수가 동작한다. 배포(Vercel)에서는 `api/` 폴더가 그대로 서버 함수가 된다.
 
 ### 환경변수 (`.env.local`)
-| 이름 | 용도 | 노출 |
-|---|---|---|
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase 연결 | 브라우저 |
-| `DATA_GO_KR_KEY` | 공공데이터포털 키 (Decoding 키) | 서버 전용 |
-| `ANTHROPIC_API_KEY` | AI 에이전트 | 서버 전용 |
-| `VISITJEJU_API_KEY` | 비짓제주 관광정보 OPEN API(제주관광공사, `https://api.visitjeju.net/vsjApi/contents/searchList` — 안내서의 http 는 연결이 끊겨 https 로 호출) 인증키 — 요청의 `apiKey` 파라미터로 전달. Vercel 에도 같은 이름으로 등록 | 서버 전용 |
-| `VITE_KAKAO_JS_KEY` | 카카오 지도(JavaScript 키). 카카오 개발자 콘솔의 **JavaScript SDK 도메인**에 `http://localhost:5173`·`http://localhost:5174`·배포 주소를 등록해야 동작(등록 안 된 주소는 `domain mismatched`). 배포 시 Vercel 환경변수에 넣고 **재배포** | 브라우저(공개되는 키, 도메인 등록이 보호 장치) |
-| `KAKAO_REST_KEY` | 공연장 주소→좌표 변환 스크립트. 카카오 앱에서 **카카오맵(OPEN_MAP_AND_LOCAL) 서비스 사용 설정**이 켜져 있어야 함 | 스크립트 전용 (`VITE_` 금지) |
+| 이름 | 용도 | 노출 | Vercel 등록 |
+|---|---|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase 연결 | 브라우저 | ✅ 필요(빌드 전에 등록) |
+| `DATA_GO_KR_KEY` | 공공데이터포털 키 (Decoding 키) | 서버 전용 | ✅ 필요 |
+| `ANTHROPIC_API_KEY` | AI 에이전트 | 서버 전용 | ✅ 필요 |
+| `VISITJEJU_API_KEY` | 비짓제주 관광정보 OPEN API(제주관광공사, `https://api.visitjeju.net/vsjApi/contents/searchList` — 안내서의 http 는 연결이 끊겨 https 로 호출) 인증키 — 요청의 `apiKey` 파라미터. **오름 사진을 미리 받아 두는 일회성 스크립트(`scripts/build-oreum-photos.mjs`)에서만 쓰며, 사이트가 돌아갈 때는 쓰지 않음** | 스크립트 전용 | ❌ 불필요 |
+| `VITE_KAKAO_JS_KEY` | 카카오 지도(JavaScript 키). 카카오 개발자 콘솔의 **JavaScript SDK 도메인**에 `http://localhost:5173`·`http://localhost:5174`·배포 주소를 등록해야 동작(등록 안 된 주소는 `domain mismatched`). 배포 시 Vercel 환경변수에 넣고 **재배포** | 브라우저(공개되는 키, 도메인 등록이 보호 장치) | ✅ 필요(빌드 전에 등록) |
+| `KAKAO_REST_KEY` | 카카오 로컬 REST 키. **서버**가 주변 편의시설(`/api/poi`)을 조회할 때 쓰고, 공연장 주소→좌표 스크립트에서도 씀. 카카오 앱에서 **카카오맵(OPEN_MAP_AND_LOCAL) 서비스 사용 설정**이 켜져 있어야 함 | 서버 전용 (`VITE_` 금지) | ✅ 필요 |
 
 Supabase 에는 `favorites` 테이블(`id`, `nickname`, `source`, `item_id`, `title`, `created_at`)이 필요하다.
+
+> 배포 환경변수는 위 표에서 **✅ 6개**만 등록하면 됩니다(`VITE_` 로 시작하는 3개는 빌드할 때 들어가므로 등록 후 **다시 배포**). 서버 전용 키(`DATA_GO_KR_KEY`·`ANTHROPIC_API_KEY`·`KAKAO_REST_KEY`)는 브라우저 번들에 없음을 `scripts/verify-deploy.mjs` 로 확인합니다(아래 '배포 검증').
 
 ### 가본 곳(`visits`) 테이블 + 삭제 정책 — Supabase SQL Editor 에서 한 번 실행
 ```sql
@@ -102,12 +104,15 @@ create policy "photo files delete own" on storage.objects for delete to authenti
 api/        Vercel 서버 함수 (/api/이름)
 server/     공공데이터 API 호출 로직 (api/ 와 에이전트가 같이 사용)
 src/
-  lib/        supabase.js, geo.js, kakao.js, placeCategories.js
-  store/      useAppStore.js
-  api/        client.js
-  components/ ItemCard, PageHeader, Status, PlaceWeather
-  pages/      Home, Places, Heritage, Agent, My, NotFound
+  pages/      Home, Places(주소 해석·화면 조립), Agent, NotFound
+  hooks/      usePlaceList(목록 불러오기·더 보기·쪽 이동), usePlaceDetail(정보 카드 열기), useOreums
+  components/ ItemCard, DetailModal, Status 등 공용 + places/(PlaceFilters·OreumSortBar·PlaceDetailModal)
+  store/      useAppStore(전역: 즐겨찾기·가본 곳·닉네임·알림), usePhotoStore
+  lib/        placeItems(목록 상수·순수 함수), placeCategories, friendlyError, supabase, geo, kakao …
+  api/        client.js (서버 함수 호출, 오류 문구 처리)
   layouts/    RootLayout
+docs/verification/  배포 검증 결과(API·키 노출·에이전트), Supabase 정책 검토
+scripts/    일회성 데이터 스크립트 + verify-deploy.mjs(배포 검증)
 tests/      vitest 테스트
 ```
 
@@ -167,7 +172,7 @@ tests/      vitest 테스트
 | 경로 | 기능 |
 |---|---|
 | `/` | 소개(히어로) → **관광·문화 UI**(분류 버튼·검색·내 주변·축제 기간·상세·감귤 즐겨찾기가 모두 홈에서 동작, `Places` 를 그대로 삽입, 분류는 `/?cat=cafe` 처럼 주소에 유지) → 동작 체크(React / Supabase / `/api`, 지금은 숨김 — `Home.jsx` 의 `SHOW_CHECKS` 로 켬) + 닉네임 칸(숨김 — `Home.jsx` 의 `SHOW_NICKNAME`) |
-| `/places` | **분류 버튼**(**오름(기본)**·음식점·카페·담아둔 곳·오른 오름) + 각 분류 밑 **내 주변 반경(1·3·5km)** + **음식점 종류 칩**(전체·한식·횟집·식육·구이·분식·일식·중식·양식 — 관광공사 분류체계 코드와 일반음식점 '업태'를 합쳐서 거름, 횟집·식육은 일반음식점만, 내 주변에서는 관광공사 코드가 있는 칩만 반영) + **인기 메뉴 바로가기**(음식점: 흑돼지·해물·국수·갈치·전복·보말 / 카페: 커피·베이커리·감귤·한라봉·말차·디저트 — 누르면 그 단어로 검색, 가게 **이름**에 든 단어로 찾음) + **테마 칩**(관광지·문화시설·축제·행사·음식점·카페 탭마다, 소개글에서 뽑은 태그, 여러 개 선택 = 모두 가진 곳만, 주소 `?t=sea,family`, 내 주변과는 함께 쓰지 않음) + ·오름 제외 — 이름에 '오름'이 든 곳을 뺌, 여러 개 선택 가능한 구조). 선택은 주소(`?cat=cafe`, `?cat=spot&sub=no-oreum`, `?cat=cafe&r=5`)에 유지. **축제·행사**: 기간(시작일 기본 오늘~종료일) 입력, 카드에 행사 기간 표시. **내 주변**(분류 버튼이 아니라 각 분류 밑 반경 버튼, 다시 누르면 해제, 분류를 옮겨도 반경 유지): 브라우저 위치(제주 안이면)·아니면 제주시청 기준, 그 분류의 유형만 거리순 카드(`286m ·` 표시), 검색창·축제 기간 입력 숨김(위치 API는 검색어·기간을 받지 않음), 관광지는 TourAPI 관광지만(국가유산은 위치 검색이 없음). 숙박은 어디에도 나오지 않음. 검색어(비우면 전체), 카드, 더 보기(12건씩, 분류의 소스를 순서대로 이어 붙임), 즐겨찾기. **카드 클릭 → 상세 모달**(사진·이용정보·소개·홈페이지·2D 지도). 국가유산 카드는 `국가유산·보물` 같은 배지. (국가유산 별도 메뉴/`/heritage` 페이지는 없어짐) **공연장 34건은 문화시설(TourAPI 97건 뒤)과 전체에 합쳐짐**: `공연장·공공/민간` 배지, 상세(소재지·시설구분·공연 형태·개관일·자료 기준일), 좌표가 없으면 지도 대신 안내 문구. 내 주변에는 좌표가 생긴 뒤에 추가 가능 |
+| `/places` | **분류 버튼**(**오름(기본)**·음식점·카페·담아둔 곳·오른 오름) + 각 분류 밑 **내 주변 반경(1·3·5km)** + **음식점 종류 칩**(전체·한식·횟집·식육·구이·분식·일식·중식·양식 — 관광공사 분류체계 코드와 일반음식점 '업태'를 합쳐서 거름, 횟집·식육은 일반음식점만, 내 주변에서는 관광공사 코드가 있는 칩만 반영) + **테마 칩**(관광지·문화시설·축제·행사·음식점·카페 탭마다, 소개글에서 뽑은 태그, 여러 개 선택 = 모두 가진 곳만, 주소 `?t=sea,family`, 내 주변과는 함께 쓰지 않음) + ·오름 제외 — 이름에 '오름'이 든 곳을 뺌, 여러 개 선택 가능한 구조). 선택은 주소(`?cat=cafe`, `?cat=spot&sub=no-oreum`, `?cat=cafe&r=5`)에 유지. **축제·행사**: 기간(시작일 기본 오늘~종료일) 입력, 카드에 행사 기간 표시. **내 주변**(분류 버튼이 아니라 각 분류 밑 반경 버튼, 다시 누르면 해제, 분류를 옮겨도 반경 유지): 브라우저 위치(제주 안이면)·아니면 제주시청 기준, 그 분류의 유형만 거리순 카드(`286m ·` 표시), 검색창·축제 기간 입력 숨김(위치 API는 검색어·기간을 받지 않음), 관광지는 TourAPI 관광지만(국가유산은 위치 검색이 없음). 숙박은 어디에도 나오지 않음. 검색어(비우면 전체), 카드, 더 보기(12건씩, 분류의 소스를 순서대로 이어 붙임), 즐겨찾기. **카드 클릭 → 상세 모달**(사진·이용정보·소개·홈페이지·2D 지도). 국가유산 카드는 `국가유산·보물` 같은 배지. (국가유산 별도 메뉴/`/heritage` 페이지는 없어짐) **공연장 34건은 문화시설(TourAPI 97건 뒤)과 전체에 합쳐짐**: `공연장·공공/민간` 배지, 상세(소재지·시설구분·공연 형태·개관일·자료 기준일), 좌표가 없으면 지도 대신 안내 문구. 내 주변에는 좌표가 생긴 뒤에 추가 가능 |
 | (모든 화면) | **플로팅 AI 가이드 "오롬이"**(`ChatWidget`): 오른쪽 아래 원형 버튼이 페이지를 옮겨도 따라다니고, 누르면 대화창이 열림(Esc·× 로 닫기, 모바일은 가로 전체). 대화가 비어 있으면 예시 질문 칩 3개, 도구 호출 내역(`search_nearby(...) → 2건`) 표시. 대화는 전역 store 에 있어 닫았다 열거나 페이지를 옮겨도 유지(새로고침하면 초기화). `ChatPanel` 을 `/agent` 페이지와 공유 에이전트 답변 위에는 호출한 도구 칩이 `오름 검색 · 표고 높은 순 → 10건 │ 제주 오름현황(공공데이터)`처럼 **어떤 검색 API 로 찾았는지**(`TOOL_API`: 한국관광공사 TourAPI·제주 오름현황·행정안전부 일반음식점·기상청 예보·국가유산청)와 함께 표시됨 |
 | `/agent` | 전체 화면 AI 가이드 "오롬이" 채팅 (메뉴에서는 빠졌고 주소로만 접속, 이 페이지에서는 플로팅 버튼을 숨김) |
 | 분류 버튼 **담아둔 곳** | 예전 "내 즐겨찾기". 홈(관광·문화) 분류 버튼 줄 맨 끝(감귤 아이콘 + 담은 개수 칩)에 들어감 — Supabase `favorites`(닉네임별)를 보여줌: 닉네임 입력, 제목 검색, 종류 배지(관광·문화/국가유산/공연장), 카드를 누르면 상세(관광지·공연장은 id 로, 국가유산은 이름으로 다시 찾아 열림), **감귤을 누르면 담아둔 곳에서 빠짐**. 주소 `/?cat=saved` |
@@ -178,20 +183,25 @@ tests/      vitest 테스트
 | **오름 찾기 추천순·홈 지도 예시·칩 정리** | `오름 찾기` 기본 정렬이 이름순에서 **추천순**으로(정렬 `추천순`·`이름순`·`표고 높은/낮은 순`, 주소 `?so=name` 등): ① 널리 알려진 **대표 오름 12곳**(`server/oreum.js` 의 `FEATURED` — 새별·용눈이·다랑쉬·아부·따라비·금오름·물영아리·백약이·거문·산굼부리·도두봉·송악산, 직접 고른 목록이라 바꾸려면 id 를 고침) → ② 사진이 있고 표고 400m 이하(가볍게 오를 수 있는) 낮은 순 → ③ 그 밖에 사진 있는 오름 → ④ 나머지. 목록 위에 기준을 한 줄로 안내. `오름 찾기`의 **형태 칩(원추형·원형·말굽형·복합형)은 삭제**하고 `오름 찾기`에서는 **`내 주변` 1·3·5km 를 빼고(음식점·카페에는 그대로)** 그 자리에 **소개글 특징(관광공사 등록 오름) 칩 줄**(분화구·굼부리 칩은 화면에서만 뺌)을 둠, `정렬`은 검색창 아래로, `안 오른 오름만` 버튼은 그 줄 오른쪽 끝으로 옮김(형태는 카드 배지와 소개 박스의 형태 카드로 확인, 음식점·카페의 테마 칩은 그대로). 음식점·카페의 **'인기 메뉴' 칩 줄은 삭제**(테마 칩과 겹쳐서). 오름 상세의 `근처 음식점·카페` 줄에 **`더 보기`** 버튼 → 음식점/카페 탭으로 이동해 **그 오름 기준 가까운 순**으로 보여 줌(주소 `?cat=cafe&r=5&ol=위도&og=경도&on=오름이름`, `내 위치 기준으로 보기`로 되돌림), 음식점·카페 탭을 전체로 볼 땐 "오름 근처만 보려면 오름 카드를 열어…" 안내 한 줄. 홈 '오름이란?' 박스의 **펼치면 나오는 '3D 지도는 이렇게 채워져요'**: 공식 368곳의 좌표를 점으로 찍어(`oreumPreview.js`, `JejuFillPreview.jsx`) 처음(흐린 새벽·빈 점)과 다 오른 뒤(노을빛·귤 점)를 나란히 보여 주는 가벼운 SVG(3D 를 부르지 않음) |
 | **'맨 위로' 버튼** | 480px 이상 내려가면 오른쪽 아래(AI 가이드 버튼 바로 위)에 `∧ 맨 위로` 버튼이 부드럽게 나타나고(`ScrollTopButton.jsx`, `RootLayout`), 누르면 맨 위로 이동(`동작 줄이기` 설정이면 바로 이동). 맨 위에서는 숨김 |
 | **도감 칸 → 카드** | `오른 오름` 탭의 오름 도감 칸(`StampBook.jsx`)을 누르면(또는 포커스 후 Enter) **카드**(`StampCard.jsx`)가 떠서 **내가 올린 인증사진을 크게** 보여 줌(사진이 없으면 오름 그림). 방문일·형태·표고·행정시·소재지, `사진 바꾸기`/`지우기`(`VisitPhoto` 의 `showImage=false`), `자세한 정보 보기`(→ 그 오름의 정보 카드), `닫기`. 안 오른 오름 칸도 눌러 정보를 볼 수 있음 |
+| **오류 문구** | 배포에서는 서버·공공데이터의 원문 오류(예: `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`)를 화면에 보이지 않고 **"잠시 후 다시 시도해 주세요"**(`src/lib/friendlyError.js`, `client.js`). 사용량 한도(429)는 서버가 준 안내 그대로, 개발 중(`npm run dev`)에는 원인을 알 수 있게 원문. 원문은 브라우저 콘솔(`[api] 오류 …`)에 남김 |
 | `/my` | 예전 주소 → `/?cat=saved` 로 이동 (`pages/My.jsx` 는 없어짐) |
 | (담아둔 곳 감귤) | 카드 오른쪽 아래 감귤 버튼(홈의 관광·문화), 상세 모달 아래: 윤곽선 = 아직 안 담음, 주황 = 담음. 누르면 담기 ↔ 빼기(`toggleFavorite`). 앱 시작·닉네임 변경 시 즐겨찾기를 불러와(0.4초 지연) 어느 화면에서나 담김 표시. 같은 종류(`source`)·id 만 같은 항목으로 취급해 중복 저장 방지 |
 | 그 외 | 404 |
 
 ## 테스트 결과
 
-### 자동 (`npm test`, vitest — 20개 통과)
+### 자동 (`npm test`, vitest — **282개 통과**, 파일 28개)
 | 파일 | 검증 내용 |
 |---|---|
 | `tests/geo.test.js` | 좌표 변환 방향, 유효 좌표 판별, 한라산 최고점 |
 | `tests/server.test.js` | tour(엔드포인트 선택·정규화·빈 결과·비JSON 에러), weather(슬롯 묶기·6개·격자), heritage(XML 파싱·빈 결과) — `fetch` 모킹 |
 | `tests/api.test.js` | hello 키 비노출, tour/weather/heritage 인자 전달, 예외 시 500 |
 | `tests/favorites.test.js` | 즐겨찾기 스토어(가짜 Supabase): 담기·빼기·토글, 종류·id 구분, 미로딩 시 중복 방지, delete 정책 없음(0건) 안내, 닉네임 전환·익명 |
-| `tests/agent.test.js` | 405, 도구 호출→결과→답 루프와 steps, 429 메시지 — Anthropic SDK 모킹 |
+| `tests/agent.test.js` | 405, 도구 호출→결과→답 루프와 steps, 429 메시지, 도구 오류 시 루프 계속, **루프 상한 5회**, 도구별 인자 전달 — Anthropic SDK 모킹 |
+| `tests/oreumRecommend.test.js` · `oreumRegions.test.js` | 오름 추천순(대표 12곳 → 가벼운 오름 순), 6지역 분류·달성률, 3D 지도 분위기·예시 점 좌표 |
+| `tests/categories.test.js` · `visits.test.js` | 분류별 데이터 소스 규칙, 가본 곳 스토어·닉네임 만들기(새로 만들면 안내 창) |
+| `tests/friendlyError.test.js` | 배포에서는 원문 오류 대신 "잠시 후 다시 시도해 주세요", 429 는 안내 그대로, 개발 중에는 원문 |
+| `tests/paging.test.js` 외 | 쪽 번호, 사진 미리보기, 인증사진, 맛집·공연장 데이터 등 (파일 전체 목록은 `tests/`) |
 
 ### 브라우저 수동 확인 (dev 서버, 공공데이터 응답은 fetch 목으로 대체)
 - ✅ 홈: 동작 체크 표시(Supabase 키 없음 → 실패 표시, `/api` OK), 닉네임 입력 → 메뉴 표시 + localStorage 저장
@@ -218,8 +228,14 @@ tests/      vitest 테스트
 - ⚠ **한국국토정보공사_랜다아이_공사맛집리스트는 반영하지 않음**: 전국 2,013건 중 제주는 3건(전부 카페)이고 메뉴·영업시간·주차·제안수·댓글수 칸이 모두 비어 있어 쓸 정보가 상호·주소뿐 (TourAPI 음식점·카페가 훨씬 풍부)
 - ✅ 공연장 지도: `node --env-file=.env scripts/geocode-venues.mjs` 로 좌표를 채워 상세 모달에 지도가 나옴 (이미 채워져 있어 다시 돌릴 필요 없음 — 이미 좌표가 있는 곳은 건너뜀)
 
-### 아직 확인하지 못한 것 (키 필요)
-- 실제 공공데이터 응답(`DATA_GO_KR_KEY`), Supabase 즐겨찾기 저장·조회, 실제 Claude 에이전트 응답, Vercel 배포
+### 배포 검증 (실제 배포 주소 `https://jeju-project-11-02.vercel.app`)
+`npm run verify:deploy` 또는 `node scripts/verify-deploy.mjs` (에이전트 점검은 Claude 를 1회 호출하므로 `--agent` 를 붙일 때만) → 결과는 `docs/verification/deploy-check.md` 에 저장됩니다.
+- ✅ **공공데이터 API 실제 응답**: 오름 현황·한국관광공사 TourAPI(검색·근처)·기상청 단기예보·국가유산청·행정안전부 일반음식점·공연장·카카오 편의시설 모두 200 + 실제 데이터 ([deploy-check.md](docs/verification/deploy-check.md))
+- ✅ **비밀 키 비노출**: 배포된 HTML·JS 전체에 서버 전용 키 4개(`DATA_GO_KR_KEY`·`ANTHROPIC_API_KEY`·`KAKAO_REST_KEY`·`VISITJEJU_API_KEY`) 값과 `sk-ant-` 패턴이 없음. `.env` 는 git 에 한 번도 올라간 적 없음(`.gitignore` 의 `.env`·`*.local`)
+- ✅ **AI 에이전트**: 배포 화면에서 "내일 제주시 날씨 보고 비 오면 갈 만한 실내 문화시설" → `get_weather` → `search_tour_places` **서로 다른 도구 2개 연속 호출**, 답변 위에 호출 내역(어느 공공 API 인지) 칩 표시, 도구가 못 준 "내일 날씨"는 지어내지 않고 "확인되지 않았다"고 답함 ([agent-ui-test.md](docs/verification/agent-ui-test.md)). 없는 오름("마법의별오름")을 물으면 도구로 검색해 "찾지 못했어요"라고 답함 ([deploy-check.md](docs/verification/deploy-check.md) 3번)
+- ✅ **Supabase 정책 검토**: 인증사진은 본인만 접근(보호 확인), 즐겨찾기·가본 곳은 실습용 열린 정책임을 확인 → [supabase-policy-review.md](docs/verification/supabase-policy-review.md) (개선안 A·B·C 정리, 아직 미적용)
+- ⚠ **아직 확인하지 못한 것**: Supabase 에 실제로 저장·조회되는 동작을 이 문서용으로 새로 캡처하지는 못함(자동 테스트는 가짜 Supabase 로 통과), 배포 화면 캡처 이미지(`docs/verification/agent-ui.png`)는 직접 캡처해 넣을 것
+- 알려진 한계: 행정안전부 일반음식점 API 가 원본(공공데이터포털)에서 **2~10초** 걸림(조건과 상관없이 느림, 우리 코드가 아니라 상류 응답 시간) — 개선안은 아래 '남은 과제'
 
 ## 버전
 - `v1` 태그 / `main`: 단색 지형 3D 지도 (이후 3D 지도 코드는 현재 작업본에서 제거됨, 이전 버전은 git 에 남아 있음)
@@ -246,7 +262,12 @@ tests/      vitest 테스트
 - **상단 메뉴(Navbar)는 모두 제거**됨 (로고·홈·닉네임 표시). 페이지 주소는 그대로 동작: `/`(홈), `/places`, `/agent`, `/my` → `/?cat=saved`. 다른 페이지에서 홈으로 돌아가는 메뉴는 없음(브라우저 뒤로가기 또는 주소). 메뉴 목록은 `router.jsx` 의 `NAV_ITEMS`, 메뉴 스타일은 `theme.css` 의 `.navbar` 규칙에 남겨 둠. ("관광·문화"는 홈 화면에 들어가 있고, "내 즐겨찾기"는 홈의 분류 버튼 "담아둔 곳"으로 들어감. 좌측 아이콘 레일은 적용하지 않음). "AI 가이드" 메뉴는 오른쪽 아래 **원형 버튼**(크림 원 + 세이지 테두리 안에 오롬이 캐릭터, 마우스를 올리면 인사하듯 살짝 기울고, 열면 어두운 갈색 ×)으로 바뀜. **오롬이 버튼은 마우스를 올리면 빵긋 웃고(눈 ^ ^·입 활짝), 누른 채 움직이면 화면 안에서 끌어 옮길 수 있음**(`ChatWidget.jsx`·`dragPos.js`: 5px 넘게 움직여야 끌기로 보아 열기·닫기와 구분, 위치는 localStorage 에 기억, 화면 밖으로 안 나가고 대화창이 버튼 가까이를 따라감, 모바일 대화창은 기존 자리). 대화창 머리글에도 오롬이 아바타, 첫 인사 밑에 "‘오롬’은 오름의 제주 옛 방언 이름이에요~" 한 줄 소개.
 
 ## 배포 (Vercel)
-`vercel.json` 이 `/api` 를 제외한 모든 경로를 `index.html` 로 보내(SPA) 라우팅이 동작한다. Vercel 프로젝트 환경변수에 위 4개 값을 등록한다.
+`vercel.json` 이 `/api` 를 제외한 모든 경로를 `index.html` 로 보내(SPA) 라우팅이 동작한다. Vercel 프로젝트 환경변수에는 환경변수 표의 **✅ 6개**를 등록한다(`VISITJEJU_API_KEY` 는 불필요). 배포 주소: **https://jeju-project-11-02.vercel.app** (카카오 JavaScript SDK 도메인에도 등록). 배포 후 `node scripts/verify-deploy.mjs` 로 API 응답과 키 비노출을 확인한다.
+
+### 남은 과제 (알려진 개선점)
+- 음식점(행안부) API 지연: 응답에 `Cache-Control: s-maxage` 로 CDN 캐시, 로딩 안내 문구, 필요하면 제주 음식점 목록을 파일로 미리 받아 두는 방식(공연장처럼)
+- Supabase 정책: `favorites`·`visits` 를 실습용 열린 정책에서 개선(안은 `docs/verification/supabase-policy-review.md`)
+- 에이전트: 단기예보가 오늘 시간대만 조회되어 "내일 날씨"에는 한계를 밝히며 답함
 
 ## 데이터 출처 (3D 지형)
 - 높이: AWS Terrain Tiles (오픈 DEM 모음, https://registry.opendata.aws/terrain-tiles/)

@@ -1,25 +1,41 @@
+import { friendlyMessage } from '../lib/friendlyError'
+
 // React 화면이 우리 서버 함수(/api/...)를 부를 때 쓰는 함수 모음
 // 공공데이터 API를 브라우저에서 직접 부르지 않습니다 (키 노출 + CORS 문제) → 반드시 /api 를 거칩니다.
 
-// 응답을 JSON으로 읽고, 실패하면 에러를 던집니다
+// 응답을 JSON으로 읽고, 실패하면 에러를 던집니다 (배포에서는 원문 대신 '잠시 후 다시 시도해 주세요' — friendlyError.js)
 async function readJson(r) {
   let data
   try { data = await r.json() }
-  catch { throw new Error(`서버 응답이 JSON이 아님 (${r.status}) — vercel dev 로 실행했는지 확인`) }
-  if (!r.ok) throw new Error(data.error || r.statusText)
+  catch {
+    console.error('[api] JSON이 아닌 응답', r.status, r.url)
+    throw new Error(friendlyMessage(r.status, `서버 응답이 JSON이 아님 (${r.status}) — vercel dev 로 실행했는지 확인`))
+  }
+  if (!r.ok) {
+    console.error('[api] 오류', r.status, r.url, data.error)
+    throw new Error(friendlyMessage(r.status, data.error || r.statusText))
+  }
   return data
 }
 
+// 네트워크가 끊겨 요청 자체가 실패한 경우도 같은 문구로
+async function request(path, init) {
+  let r
+  try { r = await fetch(path, init) }
+  catch (e) { console.error('[api] 요청 실패', path, e); throw new Error(friendlyMessage(0, e?.message)) }
+  return readJson(r)
+}
+
 export async function get(path) {
-  return readJson(await fetch(path))
+  return request(path)
 }
 
 export async function post(path, body) {
-  return readJson(await fetch(path, {
+  return request(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }))
+  })
 }
 
 // 동작 확인용
