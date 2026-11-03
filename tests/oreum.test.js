@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import data from '../server/data/oreum.js'
 import { oreumInfo, searchOreum } from '../server/oreum.js'
-import { ALL_FORMS, FORM_GROUPS, formGroupOf, matchesForm } from '../src/lib/oreumForms.js'
+import { ALL_FORMS, FORM_DESC, FORM_GROUPS, formGroupOf, matchesForm, pickRep } from '../src/lib/oreumForms.js'
 import { isJejuCoord } from '../src/lib/geo.js'
 import { oreumIdOf, oreumProgress } from '../src/lib/oreumProgress.js'
 
@@ -125,3 +125,22 @@ describe('등반률: 관광공사 id 로 남긴 예전 기록과 공식 연번 �
     expect([...p.visitedIds].sort()).toEqual(['1', '2'])
   })
 })
+
+describe('형태 말풍선의 대표 오름 (pickRep)', () => {
+  it('네 형태 모두 설명이 있고, 대표 오름은 그 형태에 속함 (정해 둔 오름이 있으면 그 오름)', () => {
+    expect(Object.keys(FORM_DESC).sort()).toEqual(FORM_GROUPS.map((g) => g.key).sort())
+    const list = data.items
+    expect(pickRep(list, 'cone').name).toBe('도두봉')
+    expect(pickRep(list, 'round').name).toBe('아부오름')
+    expect(pickRep(list, 'horseshoe').name).toBe('원당봉')
+    expect(pickRep(list, 'mixed').name).toBe('용눈이오름')
+    for (const g of FORM_GROUPS) expect(formGroupOf(pickRep(list, g.key).form).key).toBe(g.key)
+  })
+  it('정해 둔 오름이 없으면 그 형태에서 가장 높은 오름, 형태에 속한 오름이 없으면 null', () => {
+    const mini = [{ name: 'A', form: '원추형', elev: 100 }, { name: 'B', form: '원추형', elev: 300 }]
+    expect(pickRep(mini, 'cone').name).toBe('B')
+    expect(pickRep(mini, 'round')).toBeNull()
+    expect(pickRep([], 'cone')).toBeNull()
+  })
+})
+

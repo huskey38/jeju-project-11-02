@@ -464,3 +464,13 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .chat-fab:hover .oreumi-happy, .chat-fab.is-dragging .oreumi-happy, .chat-avatar:hover .oreumi-happy { display: inline; }
 .chat-fab { touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .chat-fab.is-dragging { cursor: grabbing; transition: none; transform: scale(1.08); box-shadow: 0 18px 32px -10px rgba(42, 32, 10, .5); }
+
+/* 형태 말풍선: 오름 실루엣이 솟아오르듯 나타남 */
+.form-card { cursor: help; transition: transform .15s, box-shadow .15s; }
+.form-card:hover, .form-card:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 14px -8px rgba(42, 32, 10, .4); outline: none; }
+.form-preview { --bs-popover-max-width: 252px; border-radius: 14px; }
+.form-preview-sky { border-radius: 10px; overflow: hidden; line-height: 0; }
+.form-preview-art { width: 228px; height: 124px; display: block; }
+.form-preview-art path { transform-box: fill-box; transform-origin: 50% 100%; animation: hill-rise .55s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes hill-rise { from { transform: scaleY(.15); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .form-preview-art path { animation: none; } .form-card { transition: none; } }

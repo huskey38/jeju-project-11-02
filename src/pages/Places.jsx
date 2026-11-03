@@ -15,6 +15,7 @@ import OreumArt from '../components/OreumArt'
 import { FEATURES } from '../lib/features'
 import VisitPhoto from '../components/VisitPhoto'
 import OreumMark from '../components/OreumMark'
+import FormPreview from '../components/FormPreview'
 import { formGroupOf } from '../lib/oreumForms'
 import { useAppStore } from '../store/useAppStore'
 
@@ -328,8 +329,10 @@ export default function Places() {
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" role="group" aria-label="오름 형태" data-testid="form-bar">
           <span className="text-muted"><i className="bi bi-hexagon me-1" />형태</span>
           {FORM_GROUPS.map((g) => (
-            <Button key={g.key} size="sm" className="rounded-pill px-2" variant={form === g.key ? 'info' : 'outline-info'}
-              aria-pressed={form === g.key} onClick={() => pickForm(g.key)}>{g.label}</Button>
+            <FormPreview key={g.key} group={g.key}>
+              <Button size="sm" className="rounded-pill px-2" variant={form === g.key ? 'info' : 'outline-info'}
+                aria-pressed={form === g.key} onClick={() => pickForm(g.key)}>{g.label}</Button>
+            </FormPreview>
           ))}
           {FEATURES.visitedFilter && (
             <Button size="sm" className="rounded-pill px-2" variant={unvisited ? 'success' : 'outline-success'} aria-pressed={unvisited} onClick={pickUnvisited} data-testid="unvisited-toggle">

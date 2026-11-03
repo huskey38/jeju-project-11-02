@@ -188,13 +188,17 @@ function DirectionLabels() {
 
 // 제주를 알아볼 수 있는 랜드마크: 이름표 + 성산일출봉(분화구 있는 응회구와 떠오르는 해)
 const LANDMARKS = [
-  { name: '한라산 1,947m', lat: 33.3617, lng: 126.5292, snap: true, lift: 0.75 },
-  { name: '우도', lat: 33.5, lng: 126.952, lift: 0.5, small: true },
-  { name: '마라도', lat: 33.114, lng: 126.267, lift: 0.5, small: true },
+  // 처음 온 사람이 '어디가 어디인지' 알 수 있게 큰 도시 둘과 대표 동네 넷만 표기 (한라산처럼 누구나 아는 곳은 뺌)
+  { name: '제주시', lat: 33.4996, lng: 126.5312, lift: 0.3, kind: 'city' },
+  { name: '서귀포시', lat: 33.2541, lng: 126.5601, lift: 0.3, kind: 'city' },
+  { name: '애월', lat: 33.4627, lng: 126.3306, lift: 0.28, kind: 'town' },
+  { name: '함덕', lat: 33.5434, lng: 126.669, lift: 0.28, kind: 'town' },
+  { name: '대정', lat: 33.2216, lng: 126.2512, lift: 0.28, kind: 'town' },
+  { name: '남원', lat: 33.279, lng: 126.721, lift: 0.28, kind: 'town' },
 ]
 const ILCHUL = { lat: 33.458, lng: 126.9425 }   // 성산일출봉
 
-function NameSprite({ text, position, small }) {
+function NameSprite({ text, position, kind = 'spot' }) {   // kind: city 큰 도시 · town 동네 · spot 명소
   const { tex, ratio } = useMemo(() => {
     const c = document.createElement('canvas'), g = c.getContext('2d'), fs = 44
     g.font = `700 ${fs}px sans-serif`
@@ -202,12 +206,12 @@ function NameSprite({ text, position, small }) {
     c.width = w; c.height = 76
     g.font = `700 ${fs}px sans-serif`
     g.beginPath(); g.roundRect(2, 2, w - 4, 72, 36); g.fillStyle = 'rgba(255,255,255,0.92)'; g.fill()
-    g.lineWidth = 4; g.strokeStyle = '#e8892b'; g.stroke()
+    g.lineWidth = 4; g.strokeStyle = kind === 'town' ? '#2f6b52' : '#e8892b'; g.stroke()
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#3f4147'; g.fillText(text, w / 2, 40)
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
     return { tex: t, ratio: w / 76 }
-  }, [text])
-  const h = small ? 0.34 : 0.42
+  }, [text, kind])
+  const h = kind === 'town' ? 0.42 : kind === 'city' ? 0.56 : 0.46
   return <sprite position={position} scale={[h * ratio, h, 1]} renderOrder={6}><spriteMaterial map={tex} transparent depthTest={false} /></sprite>
 }
 
@@ -223,19 +227,55 @@ const SunSprite = forwardRef(function SunSprite({ position }, ref) {
   return <sprite ref={ref} position={position} scale={[0.5, 0.5, 1]} renderOrder={4}><spriteMaterial map={tex} transparent depthTest={false} /></sprite>
 })
 
-// 성산일출봉: 초록 기슭 + 회색 절벽 + 움푹한 분화구, 바다 쪽(동쪽)에 떠오르는 해
+// 성산일출봉: 제주 지형 위에 얹힌 '지형 덩어리' — 지형 높이에 그대로 솟아올라 바다·땅과 이어지고(떠 보이지 않게), 지형과 같은 색 체계(초록 기슭·회색 절벽·움푹한 분화구)를 씀
+//   바다 쪽(동쪽)은 가파른 절벽, 육지 쪽(서쪽)은 완만한 기슭으로 섬에 붙고, 바다 위로 해가 떠오름
+const ILCHUL_R = 0.46, ILCHUL_H = 0.4
+const GRASS = new THREE.Color('#8fcf73'), GRASS_HI = new THREE.Color('#a8dc86'), CLIFF = new THREE.Color('#a39d92'), CLIFF_DK = new THREE.Color('#9b958a'), CRATER = new THREE.Color('#bfe39a')
+function ilchulBump(dx, dz) {
+  const east = dx > 0
+  const u = Math.hypot(dx / (east ? 0.8 : 1.3), dz) / ILCHUL_R            // 동쪽은 좁게(가파르게), 서쪽은 넓게(완만하게)
+  if (u >= 1) return { bump: 0, u }
+  const cone = Math.pow(1 - Math.pow(u, 1.7), 1.25)
+  const crater = 0.2 * Math.exp(-Math.pow(u / 0.3, 2))                      // 가운데 분화구
+  return { bump: Math.max(0, ILCHUL_H * (cone - crater)), u }
+}
+function IlchulbongMound({ x, z }) {
+  const geo = useMemo(() => {
+    const size = ILCHUL_R * 3.2, N = 64
+    const g = new THREE.PlaneGeometry(size, size, N, N)
+    g.rotateX(-Math.PI / 2)
+    const pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color()
+    for (let k = 0; k < pos.count; k++) {
+      const dx = pos.getX(k), dz = pos.getZ(k), px = x + dx, pz = z + dz
+      const { bump, u } = ilchulBump(dx, dz)
+      const base = heightAt(px, pz)
+      pos.setX(k, px); pos.setZ(k, pz)
+      // 덩어리 밖(bump 0)은 지형과 똑같은 높이(바다 밑이면 바다 밑 지형 아래로 숨김), 안은 지형 위에 솟아오름
+      pos.setY(k, bump <= 0.0005 ? (base <= 0 ? SEA_FLOOR - 0.01 : base - 0.004) : Math.max(base, 0) + bump + 0.002)
+      // 색: 낮은 기슭 초록 → 동쪽 중턱 회색 절벽 → 정상 둘레 초록 → 분화구 바닥 연초록
+      const f = bump / ILCHUL_H, east = dx > 0
+      if (f < 0.16) c.copy(GRASS)
+      else if (u < 0.2) c.copy(CRATER)
+      else if (east && f < 0.78) c.lerpColors(GRASS, f > 0.45 ? CLIFF_DK : CLIFF, Math.min(1, (f - 0.16) / 0.3))
+      else c.lerpColors(GRASS, GRASS_HI, f)
+      col.set([c.r, c.g, c.b], k * 3)
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3))
+    g.computeVertexNormals()
+    return g
+  }, [x, z])
+  return <mesh geometry={geo}><meshLambertMaterial vertexColors /></mesh>
+}
 function Ilchulbong({ pos }) {
   const sun = useRef()
   useFrame(({ clock }) => { if (sun.current) sun.current.scale.setScalar(0.5 * (1 + Math.sin(clock.elapsedTime * 1.5) * 0.07)) })
   const [x, y, z] = pos
+  const top = y + ILCHUL_H
   return (
-    <group position={[x, y, z]} scale={1.9}>   {/* 실제보다 크게: 한눈에 알아보도록 */}
-      <mesh position={[0, 0.11, 0]}><cylinderGeometry args={[0.14, 0.24, 0.22, 20]} /><meshLambertMaterial color="#6fae5c" flatShading /></mesh>
-      <mesh position={[0, 0.3, 0]}><cylinderGeometry args={[0.2, 0.14, 0.16, 20]} /><meshLambertMaterial color="#8a8d86" flatShading /></mesh>
-      <mesh position={[0, 0.385, 0]}><cylinderGeometry args={[0.14, 0.2, 0.012, 20]} /><meshLambertMaterial color="#9fcf86" /></mesh>
-      <mesh position={[0, 0.39, 0]}><cylinderGeometry args={[0.09, 0.09, 0.012, 20]} /><meshLambertMaterial color="#4f8f4a" /></mesh>
-      <SunSprite ref={sun} position={[0.6, 0.5, 0]} />
-      <NameSprite text="성산일출봉" position={[0, 0.82, 0]} />
+    <group>
+      <IlchulbongMound x={x} z={z} />
+      <SunSprite ref={sun} position={[x + 0.62, top + 0.12, z - 0.04]} />
+      <NameSprite text="성산일출봉" position={[x, top + 0.38, z]} />
     </group>
   )
 }
@@ -249,7 +289,7 @@ function Landmarks() {
   const [ix, iz] = toXZ(ILCHUL.lat, ILCHUL.lng)
   return (
     <>
-      {items.map((l) => <NameSprite key={l.name} text={l.name} position={l.pos} small={l.small} />)}
+      {items.map((l) => <NameSprite key={l.name} text={l.name} position={l.pos} kind={l.kind} />)}
       <Ilchulbong pos={[ix, Math.max(0, heightAt(ix, iz)), iz]} />
     </>
   )

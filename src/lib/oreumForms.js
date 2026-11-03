@@ -12,3 +12,19 @@ export const ALL_FORMS = [...FORM_GROUPS, FORM_OTHER]
 
 export const formGroupOf = (form) => ALL_FORMS.find((g) => g.test(String(form ?? ''))) ?? FORM_OTHER
 export const matchesForm = (form, key) => !key || (ALL_FORMS.find((g) => g.key === key)?.test(String(form ?? '')) ?? false)
+
+// 형태별 한 줄 설명 (메인 소개 카드·형태 칩의 말풍선)
+export const FORM_DESC = {
+  cone: '원뿔처럼 봉우리가 뾰족하게 솟은 오름',
+  round: '정상이 둥글고 부드러운 오름',
+  horseshoe: '분화구 한쪽이 터져 말굽 모양인 오름',
+  mixed: '봉우리·분화구가 여럿 겹친 오름',
+}
+
+// 말풍선에 소개할 대표 오름 이름(알려진 오름, 사진이 있는 곳) — 데이터에 없거나 그 형태가 아니면 그 형태에서 가장 높은 오름으로 대신함
+export const REP_NAMES = { cone: '도두봉', round: '아부오름', horseshoe: '원당봉', mixed: '용눈이오름' }
+export function pickRep(list = [], key) {
+  const inGroup = list.filter((o) => formGroupOf(o.form).key === key)
+  const wanted = inGroup.find((o) => o.name === REP_NAMES[key])
+  return wanted ?? [...inGroup].sort((a, b) => (b.elev ?? 0) - (a.elev ?? 0))[0] ?? null
+}
