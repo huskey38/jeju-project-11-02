@@ -3,6 +3,7 @@ import { Button, Col, Row } from 'react-bootstrap'
 import { fetchOreumAll } from '../api/client'
 import { FORM_DESC, FORM_GROUPS, formGroupOf } from '../lib/oreumForms'
 import FormPreview from './FormPreview'
+import OreumMore from './OreumMore'
 import { FEATURES } from '../lib/features'
 import MyStepLine from './MyStepLine'
 
@@ -44,9 +45,12 @@ export default function OreumIntro() {
         ))}
       </Row>
       {FEATURES.homeProgress && <div className="mb-3"><MyStepLine oreums={list} /></div>}
-      <Button size="sm" variant="success" onClick={() => document.querySelector('[data-testid=home-places]')?.scrollIntoView({ behavior: 'smooth' })}>
-        오름 둘러보기 <i className="bi bi-arrow-down ms-1" />
-      </Button>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <Button size="sm" variant="success" onClick={() => document.querySelector('[data-testid=home-places]')?.scrollIntoView({ behavior: 'smooth' })}>
+          오름 둘러보기 <i className="bi bi-arrow-down ms-1" />
+        </Button>
+        <OreumMore list={list} />
+      </div>
     </section>
   )
 }

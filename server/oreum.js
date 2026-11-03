@@ -3,6 +3,7 @@ import data from './data/oreum.js';
 import index from './data/placeIndex.js';
 import extra from './data/oreumImages.js';
 import intro from './data/oreumIntro.js';
+import summary from './data/oreumSummary.js';
 import { matchesForm } from '../src/lib/oreumForms.js';
 import { isJejuCoord } from '../src/lib/geo.js';
 
@@ -13,7 +14,7 @@ const meters = (la1, ln1, la2, ln2) => {
 };
 
 // 사진: 관광공사(공공데이터) 연결 사진 → 보완 사진(oreumImages.js: 관광공사 키워드 검색·비짓제주). 블로그·웹 사진은 저작권 때문에 쓰지 않음
-const CREDIT = { tour: '한국관광공사', visitjeju: '비짓제주(제주관광공사)' };   // 사진 출처 표기 (화면에서 사진 밑에 보여 줌)
+const CREDIT = { tour: '한국관광공사', visitjeju: '비짓제주(제주관광공사)', 'jeju-aerial': '제주특별자치도(오름 항공뷰)' };   // 사진 출처 표기 (화면에서 사진 밑에 보여 줌)
 const photo = (o) => {
   const e = extra[o.id];
   const image = o.image || e?.image || '';
@@ -27,10 +28,13 @@ const introOf = (id) => {
   return e ? { intro: e.intro, ...(e.facilities.length && { facilities: e.facilities }), ...(e.parking && { parking: e.parking }), ...(e.org && { org: e.org }), ...(e.tel && { tel: e.tel }) } : {};
 };
 
+// 이름 유래·특징 한 줄(oreumSummary.js: 제주오름요약설명과 이름·좌표가 안전하게 일치한 오름만, 2021-11-30 기준)
+const summaryOf = (id) => (summary.items[id] ? { summary: summary.items[id].text } : {});
+
 // 화면·에이전트용 항목 (title 은 name 과 같음 — 카드 등 공용 코드가 title 을 씀)
 const view = (o, dist) => ({
   id: o.id, title: o.name, name: o.name, city: o.city, addr: o.addr, elev: o.elev, area: o.area, rel: o.rel, form: o.form,
-  lat: o.lat, lng: o.lng, ...(o.tourId && { tourId: o.tourId }), ...photo(o), ...introOf(o.id), ...(dist !== undefined && { dist }),
+  lat: o.lat, lng: o.lng, ...(o.tourId && { tourId: o.tourId }), ...photo(o), ...introOf(o.id), ...summaryOf(o.id), ...(dist !== undefined && { dist }),
 });
 
 export const oreumInfo = () => ({ count: data.items.length, baseDate: data.baseDate, withCoords: data.items.filter((o) => isJejuCoord(o.lat, o.lng)).length, withTour: data.items.filter((o) => o.tourId).length });

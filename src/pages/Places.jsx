@@ -61,7 +61,9 @@ async function fetchPage(src, ctx, page) {
 
 // 오름 정보 카드의 공식 보강 정보(관내 관광지데이터): 편의시설·주차·관리기관, 그리고 소개글을 쓰는 경우의 출처 (소개글은 관광공사 소개가 없을 때만 보여 줌)
 const INTRO_SOURCE = '제주특별자치도 관내 관광지데이터(2025-12-31)'
+const SUMMARY_SOURCE = '제주특별자치도 제주오름요약설명(2021-11-30)'
 const oreumExtraRows = (b, usesIntro) => [
+  ...(b.summary ? [{ label: '이름·특징', value: b.summary }, { label: '특징 출처', value: SUMMARY_SOURCE }] : []),
   { label: '편의시설', value: b.facilities?.join(', ') },
   { label: '주차', value: b.parking ? `${b.parking}대` : '' },
   { label: '관리', value: b.org ? `${b.org}${b.tel ? ` (${b.tel})` : ''}` : '' },

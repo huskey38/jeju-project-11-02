@@ -54,7 +54,7 @@ describe('비짓제주 보완 사진 (scripts/build-oreum-photos.mjs)', () => {
     const { default: images } = await import('../server/data/oreumImages.js')
     const entries = Object.entries(images)
     expect(entries.length).toBeGreaterThan(35)
-    expect(entries.every(([, e]) => /^https:\/\//.test(e.image) && ['tour', 'visitjeju'].includes(e.by))).toBe(true)
+    expect(entries.every(([, e]) => (/^https:\/\//.test(e.image) || /^\/oreum-photos\/\d+\.jpg$/.test(e.image)) && ['tour', 'visitjeju', 'jeju-aerial'].includes(e.by))).toBe(true)
     const [id] = entries.find(([, e]) => e.by === 'visitjeju')
     const o = searchOreum({ id })[0]
     expect(o.image).toMatch(/visitjeju/)
@@ -67,6 +67,23 @@ describe('비짓제주 보완 사진 (scripts/build-oreum-photos.mjs)', () => {
   it('관광공사 사진이 이미 있는 오름은 보완 사진으로 덮어쓰지 않음', () => {
     const withTour = data.items.find((o) => o.image)
     expect(searchOreum({ id: withTour.id })[0].image).toBe(withTour.image)
+  })
+})
+
+describe('제주특별자치도 항공뷰에서 만든 일반 사진 (scripts/build-oreum-aerial.py)', () => {
+  it('4곳(밝은오름·천아오름·갯거리오름·명월오름)의 사진 파일이 public 에 있고 용량이 작으며, 출처 표기가 붙음', async () => {
+    const { existsSync, statSync } = await import('node:fs')
+    const { default: images } = await import('../server/data/oreumImages.js')
+    const aerial = Object.entries(images).filter(([, e]) => e.by === 'jeju-aerial')
+    expect(aerial.map(([id]) => id).sort()).toEqual(['135', '16', '162', '345'])
+    for (const [id, e] of aerial) {
+      const file = new URL('../public' + e.image, import.meta.url)
+      expect(existsSync(file)).toBe(true)
+      expect(statSync(file).size).toBeLessThan(300 * 1024)
+      const o = searchOreum({ id })[0]
+      expect(o.image).toBe(e.image)
+      expect(o.imageCredit).toBe('제주특별자치도(오름 항공뷰)')
+    }
   })
 })
 

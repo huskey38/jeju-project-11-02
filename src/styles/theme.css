@@ -474,3 +474,14 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .form-preview-art path { transform-box: fill-box; transform-origin: 50% 100%; animation: hill-rise .55s cubic-bezier(.2, .9, .3, 1.2) both; }
 @keyframes hill-rise { from { transform: scaleY(.15); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .form-preview-art path { animation: none; } .form-card { transition: none; } }
+
+/* 메인 '오름에 대해 더 자세히 알고 싶어요!' 버튼과 말풍선 */
+.oreum-more-btn { border: 1.5px solid #2f6b52; background: #fff; color: #2f6b52; font-weight: 700; font-size: .85rem; padding: .35rem .9rem; border-radius: 999px; cursor: help; transition: background .15s, color .15s, transform .15s; }
+.oreum-more-btn:hover, .oreum-more-btn:focus-visible { background: #2f6b52; color: #fff; transform: translateY(-1px); outline: none; }
+.oreum-more-pop { --bs-popover-max-width: 340px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 14px 32px -12px rgba(42, 32, 10, .45); }
+.oreum-more-head { background: #f3f7ec; font-weight: 700; font-size: .9rem; padding: .6rem .9rem; border-radius: 16px 16px 0 0; }
+.oreum-more-body { padding: .65rem .9rem .75rem; font-size: .84rem; line-height: 1.5; color: var(--ink); }
+.oreum-more-body section + section { margin-top: .5rem; }
+.oreum-more-body h3 { font-size: .78rem; font-weight: 800; color: #2f6b52; margin: 0 0 .1rem; }
+.oreum-more-body p { margin: 0; }
+.oreum-more-foot { margin-top: .6rem; padding-top: .45rem; border-top: 1px dashed var(--line); font-size: .72rem; color: #8a8a8a; }
