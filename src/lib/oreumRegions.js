@@ -7,7 +7,7 @@ export const REGIONS = [
   { key: 'ne', area: '북동', label: '조천', towns: '조천읍·구좌읍·우도면', lat: 33.54, lng: 126.72 },
   { key: 'sw', area: '남서', label: '대정', towns: '대정읍·안덕면', lat: 33.2216, lng: 126.2512 },
   { key: 's', area: '남', label: '서귀포시', towns: '서귀포시 동 지역', lat: 33.2541, lng: 126.5601 },
-  { key: 'se', area: '남동', label: '성산', towns: '남원읍·표선면·성산읍', lat: 33.43, lng: 126.86 },
+  { key: 'se', area: '남동', label: '성산', towns: '남원읍·표선면·성산읍', lat: 33.40, lng: 126.86 },
 ]
 
 // 읍·면 → 지역 (읍·면이 없는 동 지역은 행정시 기준으로 가운데 지역)
