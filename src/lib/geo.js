@@ -31,7 +31,6 @@ export const TERRAIN = {
 let field = null // { data: Float32Array(미터), w, h }
 
 export function setHeightField(f) { field = f }
-export const getHeightField = () => field
 
 // 장면 좌표(x,z) → 높이맵 안의 소수 픽셀 위치 (이미지 위쪽 = 북쪽 = -z). 범위 밖이면 null
 function pixelAt(x, z, w, h) {

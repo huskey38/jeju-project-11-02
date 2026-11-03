@@ -193,13 +193,14 @@ tests/      vitest 테스트
 
 ## 테스트 결과
 
-### 자동 (`npm test`, vitest — **299개 통과**, 파일 29개)
+### 자동 (`npm test`, vitest — **302개 통과**, 파일 30개)
 | 파일 | 검증 내용 |
 |---|---|
 | `tests/geo.test.js` | 좌표 변환 방향, 유효 좌표 판별, 한라산 최고점 |
 | `tests/server.test.js` | tour(엔드포인트 선택·정규화·빈 결과·비JSON 에러), weather(슬롯 묶기·6개·격자), heritage(XML 파싱·빈 결과) — `fetch` 모킹 |
 | `tests/api.test.js` | hello 키 비노출, tour/weather/heritage 인자 전달, 예외 시 500 |
 | `tests/favorites.test.js` | 즐겨찾기 스토어(가짜 Supabase): 담기·빼기·토글, 종류·id 구분, 미로딩 시 중복 방지, delete 정책 없음(0건) 안내, 닉네임 전환·익명 |
+| `tests/fetchRetry.test.js` | 일시적 네트워크 오류 1회 재시도(서버 오류 응답은 재시도 안 함) |
 | `tests/agentInput.test.js` | 에이전트 입력 검사(형식·길이·대화기록 정리), IP 추출, 호출 제한(시간 주입) |
 | `tests/agent.test.js` | 405, 잘못된 입력 400(Claude 미호출), 원문 오류 숨김, 호출 제한 429, 도구 호출→결과→답 루프와 steps, 429 메시지, 도구 오류 시 루프 계속, **루프 상한 5회**, 도구별 인자 전달 — Anthropic SDK 모킹 |
 | `tests/oreumRecommend.test.js` · `oreumRegions.test.js` | 오름 추천순(대표 12곳 → 가벼운 오름 순), 6지역 분류·달성률, 3D 지도 분위기·예시 점 좌표 |

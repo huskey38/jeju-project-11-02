@@ -76,4 +76,3 @@ export function tagsOf(tab, text) {
   return (TAG_RULES[tab] ?? []).filter((r) => r.words.some((w) => t.includes(w))).map((r) => r.key)
 }
 
-export const tagLabelsOf = (tab) => TAG_RULES[tab] ?? []

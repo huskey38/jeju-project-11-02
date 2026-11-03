@@ -1,3 +1,4 @@
+import { fetchRetry } from './text.js';
 // 카카오 로컬 API 카테고리 검색: 좌표 주변의 편의점·주차장·주유소를 가까운 순으로 (KAKAO_REST_KEY 필요, 서버에서만 사용)
 const API = 'https://dapi.kakao.com/v2/local/search';
 
@@ -14,7 +15,7 @@ const view = (d) => ({
 });
 
 async function docs(path, params, key) {
-  const r = await fetch(`${API}/${path}?${new URLSearchParams(params)}`, { headers: { Authorization: `KakaoAK ${key}` } });
+  const r = await fetchRetry(`${API}/${path}?${new URLSearchParams(params)}`, { headers: { Authorization: `KakaoAK ${key}` } });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`카카오 장소 검색 오류(${r.status}): ${data.msg ?? '응답을 읽을 수 없어요'}`);
   return data.documents ?? [];

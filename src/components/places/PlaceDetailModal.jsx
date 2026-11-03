@@ -26,10 +26,11 @@ export default function PlaceDetailModal({ detail, trail, onClose, onBack, onPic
       ? (kind, km) => onMore(kind, km, { lat: Number(d?.lat ?? b.lat), lng: Number(d?.lng ?? b.lng), name: d?.name ?? b.name ?? b.title ?? '' })
       : undefined,
   }
+  const isFoodPlace = b.kind === 'rest' || (b.kind === 'tour' && String(d?.type ?? b.type) === '39')
   const common = {
     show: true, onHide: onClose, loading: !d && !detail.error, error: detail.error, badge: badgeOf({ ...b, type: d?.type ?? b.type }),
     recommend, onBack: prev ? onBack : undefined, backLabel: prev && (prev.title ?? prev.name),
-    visited: isVisited(b), onVisit: () => toggleVisit(favOf(b)),
+    visited: isVisited(b), onVisit: isFoodPlace ? undefined : () => toggleVisit(favOf(b)),   // 음식점·카페는 '올랐어요'가 어울리지 않아 뺌
   }
   return b.kind === 'heritage' ? (
     <DetailModal {...common}

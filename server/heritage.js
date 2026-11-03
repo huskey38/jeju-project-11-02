@@ -1,6 +1,6 @@
 // 국가유산청 국가유산 오픈API (키 불필요, XML 응답)
 import { XMLParser } from 'fast-xml-parser';
-import { htmlToText, https } from './text.js';
+import { fetchRetry, htmlToText, https } from './text.js';
 
 // 지정번호('0003220000000')의 앞자리 0 이 숫자 변환으로 사라지지 않도록 값을 문자열 그대로 읽음
 const parser = new XMLParser({ parseTagValue: false });
@@ -10,7 +10,7 @@ const toList = (item) => (!item ? [] : Array.isArray(item) ? item : [item]);
 export async function searchHeritage({ keyword = '', rows = 10, page = 1 } = {}) {
   const params = new URLSearchParams({ ccbaCtcd: '50', pageUnit: String(rows), pageIndex: String(page) }); // 50 = 제주
   if (keyword) params.set('ccbaMnm1', keyword);
-  const r = await fetch(`https://www.khs.go.kr/cha/SearchKindOpenapiList.do?${params}`);
+  const r = await fetchRetry(`https://www.khs.go.kr/cha/SearchKindOpenapiList.do?${params}`);
   const data = parser.parse(await r.text());
   return toList(data?.result?.item).map((h) => ({
     name: h.ccbaMnm1, kind: h.ccmaName, city: h.ccsiName,
@@ -23,7 +23,7 @@ export async function searchHeritage({ keyword = '', rows = 10, page = 1 } = {})
 export async function getHeritageDetail({ kdcd, asno, ctcd } = {}) {
   if (!kdcd || !asno || !ctcd) throw new Error('kdcd, asno, ctcd 가 필요해요');
   const params = new URLSearchParams({ ccbaKdcd: kdcd, ccbaAsno: asno, ccbaCtcd: ctcd });
-  const r = await fetch(`https://www.khs.go.kr/cha/SearchKindOpenapiDt.do?${params}`);
+  const r = await fetchRetry(`https://www.khs.go.kr/cha/SearchKindOpenapiDt.do?${params}`);
   const data = parser.parse(await r.text());
   const h = data?.result?.item;
   if (!h) throw new Error('국가유산을 찾을 수 없어요');

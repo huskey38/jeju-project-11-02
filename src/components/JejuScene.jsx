@@ -1,25 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 // 제주 느낌을 내는 작은 SVG 그림들 (외부 이미지 없이 직접 그린 도형)
 
-// 감귤 로고: 주황 열매 + 초록 잎
-export function CitrusIcon({ size = 26, className = '' }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <circle cx="16" cy="18" r="11" fill="#e8892b" />
-      <circle cx="16" cy="18" r="11" fill="url(#citrus-shade)" />
-      <ellipse cx="12.5" cy="14" rx="3.2" ry="2" fill="#fff" opacity=".28" transform="rotate(-30 12.5 14)" />
-      <path d="M16 7.4c0-2.8 2.2-4.6 5.4-4.6-.2 3-2.4 4.8-5.4 4.6z" fill="#2f6b52" />
-      <rect x="15.2" y="5.6" width="1.6" height="3" rx=".8" fill="#2f6b52" />
-      <defs>
-        <radialGradient id="citrus-shade" cx=".35" cy=".3" r=".9">
-          <stop offset=".55" stopColor="#e8892b" stopOpacity="0" />
-          <stop offset="1" stopColor="#b4600f" stopOpacity=".35" />
-        </radialGradient>
-      </defs>
-    </svg>
-  )
-}
-
 // 즐겨찾기 표시용 감귤 아이콘: 담겼으면(filled) 주황 열매, 아니면 윤곽선만
 export function CitrusMark({ filled = false, size = 22, className = '' }) {
   const orange = '#e8892b'

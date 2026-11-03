@@ -1,5 +1,5 @@
 // 한국관광공사 TourAPI (국문 관광정보 서비스 KorService2)
-import { extractUrl, fmtDate, htmlToText, https, todayKst, ymd } from './text.js';
+import { extractUrl, fetchRetry, fmtDate, htmlToText, https, todayKst, ymd } from './text.js';
 
 const BASE = 'https://apis.data.go.kr/B551011/KorService2';
 
@@ -25,7 +25,7 @@ async function callList(op, extra, { region = true } = {}) {
     ...(region && { lDongRegnCd: '50' }), // 법정동 지역코드 50 = 제주. 옛 areaCode=39 는 데이터 일부만 잡힘 (관광지 132 vs 557건, 축제는 0 vs 27건)
     ...extra,
   });
-  const r = await fetch(`${BASE}/${op}?${params}`);
+  const r = await fetchRetry(`${BASE}/${op}?${params}`);
   const text = await r.text();
   let data;
   try { data = JSON.parse(text); }
@@ -103,7 +103,7 @@ async function callDetail(op, extra) {
   const params = new URLSearchParams({
     serviceKey: process.env.DATA_GO_KR_KEY, MobileOS: 'ETC', MobileApp: 'JejuIP', _type: 'json', ...extra,
   });
-  const r = await fetch(`${BASE}/${op}?${params}`);
+  const r = await fetchRetry(`${BASE}/${op}?${params}`);
   const text = await r.text();
   let data;
   try { data = JSON.parse(text); }

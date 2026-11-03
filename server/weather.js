@@ -1,3 +1,4 @@
+import { fetchRetry } from './text.js';
 // 기상청 단기예보 조회서비스 (VilageFcstInfoService_2.0)
 const BASE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst';
 const GRID = { '제주시': [53, 38], '서귀포시': [52, 33] }; // 기상청 격자 좌표(nx, ny)
@@ -23,7 +24,7 @@ export async function getWeather({ place = '제주시' } = {}) {
     dataType: 'JSON', numOfRows: '300', pageNo: '1',
     nx: String(nx), ny: String(ny), ...baseDateTime(),
   });
-  const r = await fetch(`${BASE}?${params}`);
+  const r = await fetchRetry(`${BASE}?${params}`);
   const text = await r.text();
   let data;
   try { data = JSON.parse(text); }
@@ -125,7 +126,7 @@ export function midDay(land, ta, d) {
 
 async function midCall(op, regId, tmFc) {
   const params = new URLSearchParams({ serviceKey: process.env.DATA_GO_KR_KEY, dataType: 'JSON', numOfRows: '10', pageNo: '1', regId, tmFc });
-  const text = await (await fetch(`${MID_BASE}/${op}?${params}`)).text();
+  const text = await (await fetchRetry(`${MID_BASE}/${op}?${params}`)).text();
   let data;
   try { data = JSON.parse(text); } catch { throw new Error('중기예보 응답이 JSON이 아님: ' + text.slice(0, 120)); }
   return data?.response?.body?.items?.item?.[0] ?? {};
@@ -137,7 +138,7 @@ async function shortCall(lat, lng) {
     serviceKey: process.env.DATA_GO_KR_KEY, dataType: 'JSON', numOfRows: '1000', pageNo: '1',
     nx: String(nx), ny: String(ny), ...baseDateTime(),
   });
-  const text = await (await fetch(`${BASE}?${params}`)).text();
+  const text = await (await fetchRetry(`${BASE}?${params}`)).text();
   let data;
   try { data = JSON.parse(text); } catch { throw new Error('기상청 응답이 JSON이 아님: ' + text.slice(0, 120)); }
   return summarizeShort(data?.response?.body?.items?.item ?? []);

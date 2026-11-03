@@ -1,3 +1,4 @@
+import { fetchRetry } from './text.js';
 // 행정안전부 일반음식점 조회서비스 (지방행정 인허가 데이터): https://apis.data.go.kr/1741000/general_restaurants/info
 // 제주 영업 중인 일반음식점(약 1만 5천 곳)의 이름·업태·주소·전화·좌표. 사진·소개글은 없음. 관광공사 음식점 목록 뒤에 이어 붙임.
 import proj4 from 'proj4';
@@ -39,7 +40,7 @@ function toItem(r) {
 
 async function call(cond, { rows = 12, page = 1 } = {}) {
   const params = new URLSearchParams({ serviceKey: process.env.DATA_GO_KR_KEY, pageNo: String(page), numOfRows: String(rows), returnType: 'json', ...cond });
-  const text = await (await fetch(`${BASE}?${params}`)).text();
+  const text = await (await fetchRetry(`${BASE}?${params}`)).text();
   let data;
   try { data = JSON.parse(text); }
   catch { throw new Error('일반음식점 응답이 JSON이 아님: ' + text.slice(0, 120)); }

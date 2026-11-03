@@ -32,3 +32,9 @@ export const ymd = (s) => {
 export const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10).replaceAll('-', '');
 
 export const https =(url) => (url ? String(url).replace(/^http:\/\//, 'https://') : '');
+
+// fetch 가 네트워크 오류(fetch failed 등 일시적 끊김)로 던지면 한 번 더 시도. 서버가 준 오류 응답(4xx·5xx)은 그대로 돌려줌
+export async function fetchRetry(url, options) {
+  try { return await fetch(url, options) }
+  catch { await new Promise((r) => setTimeout(r, 300)); return fetch(url, options) }
+}
