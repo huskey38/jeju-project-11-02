@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Container, Toast, ToastContainer } from 'react-bootstrap'
 import ChatWidget from '../components/ChatWidget'
 import NicknameDialog from '../components/NicknameDialog'
+import ScrollTopButton from '../components/ScrollTopButton'
 import NicknameWelcome from '../components/NicknameWelcome'
 import VisitEffect from '../components/VisitEffect'
 import { FEATURES } from '../lib/features'
@@ -40,6 +41,7 @@ export default function RootLayout() {
 
       {/* 어느 페이지에서나 따라다니는 AI 가이드 원형 버튼 + 대화창 */}
       <ChatWidget />
+      <ScrollTopButton />   {/* 아래로 내려가면 나타나는 '맨 위로' */}
       <NicknameDialog />
       <NicknameWelcome />
       {FEATURES.visitEffect && <VisitEffect />}

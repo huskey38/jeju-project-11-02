@@ -546,3 +546,16 @@ footer.bg-light { background: transparent !important; border-top-color: var(--li
 .fill-panel figcaption { margin-top: .3rem; font-size: .78rem; text-align: center; }
 .fill-arrow { flex: 0 0 auto; color: #2f6b52; font-size: 1.1rem; }
 @media (min-width: 768px) { .fill-row { max-width: 40rem; } }
+
+/* '맨 위로' 버튼: AI 가이드 원형 버튼 바로 위, 스크롤을 내리면 나타남 */
+.scroll-top {
+  position: fixed; right: 24px; bottom: 92px; z-index: 1030; display: inline-flex; align-items: center; gap: .3rem;
+  padding: .5rem .9rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: #2f6b52;
+  font-size: .85rem; font-weight: 700; line-height: 1; box-shadow: var(--sh-pop);
+  opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s, transform .2s, background .15s;
+}
+.scroll-top.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.scroll-top:hover { background: #f3f7ec; }
+.scroll-top:focus-visible { outline: 3px solid rgba(47, 107, 82, .35); outline-offset: 2px; }
+@media (max-width: 575.98px) { .scroll-top { right: 16px; bottom: 84px; } }
+@media (prefers-reduced-motion: reduce) { .scroll-top { transition: none; } }
