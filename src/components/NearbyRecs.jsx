@@ -43,9 +43,9 @@ export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }
     <section className="nearby-recs mt-4" data-testid="nearby-recs" aria-label="근처 추천">
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h6 className="fw-bold mb-0"><i className="bi bi-compass me-2 text-primary" />이 근처 추천 <span className="text-muted fw-normal small">· 반경 {radius}km</span></h6>
-        {wider && !state.loading && (
-          <Button variant="link" size="sm" className="p-0" onClick={() => setRadius(wider)}>{wider}km로 넓히기</Button>
-        )}
+        {wider && !state.loading && (total > 0
+          ? <Button variant="link" size="sm" className="p-0" onClick={() => setRadius(wider)}>{wider}km로 넓히기</Button>
+          : null)}
       </div>
 
       {state.loading && <div className="small text-muted"><Spinner size="sm" className="me-2" />근처를 찾는 중...</div>}
@@ -54,7 +54,9 @@ export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }
         <div key={g.key} className="mb-3" data-testid={`recs-${g.key}`}>
           <div className="small fw-bold mb-2 text-body-secondary"><i className={`bi bi-${g.icon} me-1`} />{g.title}</div>
           {state.errors[g.key] ? <div className="small text-danger">{state.errors[g.key]}</div>
-            : !state.lists[g.key]?.length ? <div className="small text-muted">반경 {radius}km 안에는 없어요</div>
+            : !state.lists[g.key]?.length ? <div className="small text-muted">반경 {radius}km 안에는 없어요
+                {wider && total > 0 && <Button variant="outline-primary" size="sm" className="rounded-pill ms-2 py-0 px-2" onClick={() => setRadius(wider)}>{wider}km로 넓혀서 찾기</Button>}
+              </div>
             : (
               <div className="rec-strip">
                 {state.lists[g.key].map((p) => (
@@ -70,7 +72,10 @@ export default function NearbyRecs({ lat, lng, mode, excludeId, onPick, onData }
       ))}
 
       {!state.loading && total === 0 && !Object.keys(state.errors).length && wider && (
-        <div className="small text-muted">더 넓은 범위에서 찾아볼까요? 오른쪽 위 "{wider}km로 넓히기"를 눌러 보세요.</div>
+        <div className="text-center py-2" data-testid="recs-widen">
+          <div className="small text-muted mb-2">가까운 곳에는 없어요. 더 넓은 범위에서 찾아볼까요?</div>
+          <Button variant="primary" size="sm" className="rounded-pill px-3" onClick={() => setRadius(wider)}><i className="bi bi-arrows-expand me-1" />{wider}km로 넓혀서 찾기</Button>
+        </div>
       )}
     </section>
   )

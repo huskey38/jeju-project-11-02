@@ -45,7 +45,7 @@ beforeEach(() => {
   tables = { favorites: [], visits: [] }; nextId = 1; allowDelete = true
   useAppStore.setState({
     nickname: '오름러버#4821', favorites: [], favLoaded: false, visits: [], visitLoaded: false, visitLoading: false,
-    toasts: [], nicknameDialog: { open: false, pending: null },
+    toasts: [], nicknameDialog: { open: false, pending: null }, nicknameWelcome: null,
   })
 })
 
@@ -76,6 +76,12 @@ describe('닉네임 만들기 (store)', () => {
     expect(S().nickname).toBe(r.nickname)
     expect(S().favorites).toEqual([])
     expect(S().favLoaded).toBe(false)
+    expect(S().nicknameWelcome).toEqual({ nickname: r.nickname })   // 새로 만들면 '기록은 이렇게 저장돼요' 안내 창이 뜸
+  })
+  it('이미 있는 닉네임(#번호 포함)으로 들어갈 때는 안내 창 대신 알림만', async () => {
+    useAppStore.setState({ nickname: '', nicknameWelcome: null })
+    const r = await S().createNickname('오름러버#4821')
+    expect(S().nicknameWelcome).toBeNull()
     expect(lastToast().message).toContain(r.nickname)
   })
   it('잘못된 이름은 안내 문구를 돌려주고 닉네임을 바꾸지 않음', async () => {

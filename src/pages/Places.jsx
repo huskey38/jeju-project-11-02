@@ -307,7 +307,7 @@ export default function Places() {
         imageCredit={d?.images?.length ? '한국관광공사' : b.imageCredit}   // 상세 사진은 관광공사 TourAPI
         rows={[
           { label: '행정시', value: b.city }, { label: '표고', value: b.elev != null ? `${b.elev}m` : '' },
-          { label: '비고(比高)', value: b.rel != null ? `${b.rel}m` : '' }, { label: '면적', value: b.area != null ? `${b.area.toLocaleString('ko-KR')}㎡` : '' },
+          { label: '면적', value: b.area != null ? `${b.area.toLocaleString('ko-KR')}㎡` : '' },
           { label: '형태', value: b.form }, ...(d?.info ?? []),
           ...oreumExtraRows(b, !d?.overview),
         ].filter((r) => r.value)}
@@ -416,8 +416,6 @@ export default function Places() {
         </div>
       )}
 
-      {cat === 'visited' && <OreumProgress />}
-
       {listMode && (
         <div className="d-flex flex-wrap align-items-center gap-2 mb-2 ps-1 small" data-testid="saved-bar">
           <span className="text-muted">
@@ -431,6 +429,9 @@ export default function Places() {
           </span>
         </div>
       )}
+
+      {/* 오른 오름: 닉네임 줄이 탭 바로 밑에 있어 담아둔 곳과 같은 자리에서 보이고 바꿀 수 있음 (등반률 카드는 그 아래) */}
+      {cat === 'visited' && <OreumProgress />}
 
       {(!nearOn || cat === 'oreum') && (
         <Form onSubmit={search} className="mt-3 mb-4">
@@ -455,7 +456,7 @@ export default function Places() {
 
       {listMode ? (
         (cat === 'visited' ? visitLoading : favLoading) ? <Loading /> : savedItems.length === 0
-          ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 오른 오름이 없어요 — 오름 카드의 오름 버튼(올랐어요)을 눌러 기록해 보세요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
+          ? <Empty text={(cat === 'visited' ? visits : favorites).length ? '검색 결과가 없어요' : !nickname ? '닉네임을 만들면 나만의 목록이 생겨요' : cat === 'visited' ? '아직 오른 오름이 없어요 — 오름 카드의 오름 버튼(올랐어요)을 눌러 기록해 보세요 — 둘레만 걸어도 괜찮아요' : '아직 담은 곳이 없어요 — 카드의 감귤 아이콘을 눌러 담아 보세요'} />
           : (
             <Row xs={1} sm={2} lg={3} className="g-3" data-testid={cat === 'visited' ? 'visited-list' : 'saved-list'}>
               {savedItems.map((f) => (

@@ -19,6 +19,8 @@ export const useAppStore = create(
       nicknameDialog: { open: false, pending: null },
       askNickname: (pending = null) => set({ nicknameDialog: { open: true, pending } }),
       closeNicknameDialog: () => set({ nicknameDialog: { open: false, pending: null } }),
+      nicknameWelcome: null,   // 닉네임을 새로 만든 직후 띄우는 '기록은 이렇게 저장돼요' 안내 { nickname } (닫기 버튼으로 닫음)
+      closeNicknameWelcome: () => set({ nicknameWelcome: null }),
       // raw: "이름" (뒤에 #번호 4자리를 붙여 새로 만듦) 또는 "이름#1234" (이미 있는 닉네임으로 들어감). 반환: { nickname } 또는 { error }
       createNickname: async (raw) => {
         const text = String(raw ?? '').trim()
@@ -37,9 +39,10 @@ export const useAppStore = create(
           if (!nickname) return { error: '번호를 정하지 못했어요. 잠시 뒤 다시 시도해 주세요' }
         }
         const pending = get().nicknameDialog.pending
+        const isNew = !isFullNickname(text)
         get().setNickname(nickname)
-        set({ nicknameDialog: { open: false, pending: null } })
-        get().toast(`닉네임은 ${nickname} 이에요 — 다른 기기에서는 번호까지 입력하면 같은 목록이 보여요`, 'citrus')
+        set({ nicknameDialog: { open: false, pending: null }, ...(isNew ? { nicknameWelcome: { nickname } } : {}) })
+        if (!isNew) get().toast(`닉네임은 ${nickname} 이에요 — 다른 기기에서는 번호까지 입력하면 같은 목록이 보여요`, 'citrus')
         if (pending) await (pending.kind === 'visit' ? get().toggleVisit(pending.item) : get().toggleFavorite(pending.item))
         return { nickname }
       },
@@ -75,7 +78,7 @@ export const useAppStore = create(
         const { data, error } = await supabase.from('favorites').insert(row).select().single()
         if (error) return get().toast(error.message, 'danger')
         set({ favorites: [data, ...get().favorites] })
-        get().toast('담아둔 곳에 담았어요', 'citrus')
+        get().toast('담아 뒀어요', 'citrus')
       },
       // 가볼만한 곳에서 빼기: favorites 행(id 필요) 하나를 지움
       removeFavorite: async (row) => {

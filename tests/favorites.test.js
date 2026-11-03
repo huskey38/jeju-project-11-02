@@ -52,7 +52,7 @@ describe('즐겨찾기 담기·빼기', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ nickname: '테스터', source: 'tour', item_id: '130857', title: '제주해녀박물관' })
     expect(S().favorites.map((f) => f.item_id)).toEqual(['130857'])
-    expect(lastToast()).toMatchObject({ message: '담아둔 곳에 담았어요', variant: 'citrus' })
+    expect(lastToast()).toMatchObject({ message: '담아 뒀어요', variant: 'citrus' })
   })
 
   it('removeFavorite: 지우고 목록에서 빼고 알림', async () => {

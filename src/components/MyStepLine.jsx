@@ -23,7 +23,7 @@ export default function MyStepLine({ oreums }) {
           <ProgressBar now={p.percent} className="oreum-bar" aria-label="내 걸음" />
         </>
       ) : (
-        <div className="small"><i className="bi bi-signpost-2 me-1" />아직 첫 걸음 전이에요 — 가고 싶은 오름 카드의 <strong>오름 버튼(올랐어요)</strong>을 눌러 첫 귤을 올려 보세요 <span className="text-muted">(처음엔 닉네임을 만들어요)</span></div>
+        <div className="small"><i className="bi bi-signpost-2 me-1" />아직 첫 걸음 전이에요 — 가고 싶은 오름 카드의 <strong>오름 버튼(올랐어요)</strong>을 눌러 첫 귤을 올려 보세요 <span className="text-muted">(둘레만 걸어도 괜찮아요 · 처음엔 닉네임을 만들어요)</span></div>
       )}
     </div>
   )

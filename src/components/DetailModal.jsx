@@ -38,9 +38,6 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
         </Modal.Title>
       </Modal.Header>
       <Modal.Body data-testid="detail-modal" ref={bodyRef}>
-        {/* 날씨: 제목 바로 밑 */}
-        {isJejuCoord(lat, lng) && <PlaceWeather key={`${lat},${lng}`} lat={lat} lng={lng} visitFrom={visitFrom} />}
-
         <ErrorAlert error={error} />
         {loading && <Loading text="상세 정보를 불러오는 중..." />}
 
@@ -76,6 +73,9 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
 
         {text && <p className="mb-3" style={{ whiteSpace: 'pre-wrap' }}>{text}</p>}
 
+        {/* 날씨: 어떤 곳인지(사진·정보·소개)를 먼저 보고, 가기로 마음먹은 뒤에 보는 '계획' 정보라서 지도 바로 앞에 둠 */}
+        {isJejuCoord(lat, lng) && <PlaceWeather key={`${lat},${lng}`} lat={lat} lng={lng} visitFrom={visitFrom} />}
+
         {isJejuCoord(lat, lng)
           ? (
             <>
@@ -109,7 +109,7 @@ export default function DetailModal({ show, onHide, title, subtitle, badge, load
             </Button>
           )}
                     {onSave && <Button variant={saved ? 'outline-secondary' : 'outline-primary'} onClick={onSave} aria-pressed={saved} data-testid="modal-fav">
-            <CitrusMark filled={saved} size={20} className="citrus-inline" />{saved ? '담아둔 곳에서 빼기' : '담아둔 곳에 담기'}
+            <CitrusMark filled={saved} size={20} className="citrus-inline" />{saved ? '담아둔 곳에서 빼기' : '담아 두기'}
           </Button>}
         </Modal.Footer>
       )}
